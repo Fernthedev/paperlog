@@ -1,0 +1,33 @@
+{
+  "sharedDir": "shared",
+  "dependenciesDir": "extern",
+  "info": {
+    "name": "Paper",
+    "id": "paper",
+    "version": "0.1.0",
+    "url": "https://github.com/Fernthedev/paperlog",
+    "additionalData": {
+      "overrideSoName": "libpaperlog.so"
+    }
+  },
+  "dependencies": [
+    {
+      "id": "modloader",
+      "versionRange": "^1.2.3",
+      "additionalData": {
+        "private": true
+      }
+    },
+    {
+      "id": "fmtlog",
+      "versionRange": "^2.1.1",
+      "additionalData": {}
+    },
+    {
+      "id": "fmt",
+      "versionRange": "^8.0.5",
+      "additionalData": {}
+    }
+  ],
+  "additionalData": {}
+}
