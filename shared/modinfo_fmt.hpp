@@ -4,7 +4,7 @@
 
 #include "modloader/shared/modloader.hpp"
 
-template <> struct fmt::formatter<ModInfo>: formatter<std::string_view> {
+template <> struct fmt::formatter<ModInfo> {
 
     // Formats the point p using the parsed format specification (presentation)
     // stored in this formatter.
@@ -12,6 +12,6 @@ template <> struct fmt::formatter<ModInfo>: formatter<std::string_view> {
     auto format(ModInfo const& p, FormatContext& ctx) -> decltype(ctx.out()) {
         // ctx.out() is an output iterator to write to.
 
-        return formatter<string_view>::format("{}:{}", p.id, p.version, ctx);
+        return format_to(ctx.out(), "{}, {}",  p.id, p.version);
     }
 };
