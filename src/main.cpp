@@ -28,12 +28,14 @@ extern "C" void load() {
         Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
 
         getLogger().debug("Logging test!");
+        //        // creates a file logger
+        auto context = Paper::Logger::getModloaderContext(modInfo);
+        context.fmtLog<fmtlog::LogLevel::INF>("yo!");
+
         Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("hi! {}", 5);
         Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("Paper loaded! {}", modInfo);
 
-//        // creates a file logger
-        auto context = Paper::Logger::getModloaderContext(modInfo);
-        context.fmtLog<fmtlog::LogLevel::INF>("yo!");
+
 
 
     } catch (std::exception const& e) {

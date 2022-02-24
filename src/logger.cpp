@@ -37,10 +37,11 @@ void OnLog(int64_t ns, fmtlog::LogLevel level, fmt::string_view location, size_t
            fmt::string_view threadName, fmt::string_view msg, size_t bodyPos, size_t logFilePos) {
     __android_log_print(level, fmt::format("{}", location).c_str(), "%s", msg.data());
 
+    // TODO: This is slow and bad, figure out something better
     auto it = registeredContexts.find(location.data());
     if (it != registeredContexts.end()) {
         auto& f = it->second;
-        fmt::print(f, FMT_STRING("{}"), msg);
+        f << msg.data();
     }
 }
 
@@ -54,7 +55,7 @@ void OnLog(int64_t ns, fmtlog::LogLevel level, fmt::string_view location, size_t
 void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
     globalLogPath = logPath;
 
-    fmtlog::setHeaderPattern("{Ymd} [{HMSf}] {l}[{t:<6}] {s:<2}");
+    fmtlog::setHeaderPattern("{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]");
     fmtlog::setLogFile(fmt::format("{}/{}", logPath, globalLogFileName).c_str(), true);
     fmtlog::setLogCB(OnLog, fmtlog::LogLevel::DBG);
     // I don't think we need a custom polling thread
@@ -67,7 +68,7 @@ std::string_view Paper::Logger::getLogDirectoryPathGlobal() {
 
 // TODO: Lock?
 void Paper::Logger::RegisterContextId(std::string_view contextId, std::string_view logPath) {
-    registeredContexts.try_emplace(contextId.data(), fmt::format("{}/{}", getLogDirectoryPathGlobal(), logPath));
+    registeredContexts.try_emplace(contextId.data(), fmt::format("{}/{}", getLogDirectoryPathGlobal(), logPath), std::ofstream::out | std::ofstream::trunc);
 }
 
 void Paper::Logger::UnregisterContextId(std::string_view contextId) {

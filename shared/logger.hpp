@@ -24,6 +24,8 @@
 
 namespace Paper {
 
+    static const std::string_view GLOBAL_TAG = "GLOBAL";
+
 #ifndef NOSTD_SOURCE_LOCATION_HPP
     using sl = std::experimental::source_location;
 #else
@@ -60,9 +62,10 @@ namespace Paper {
             do {
                 static uint32_t logId = 0;
                 if (!fmtlog::checkLogLevel(level))break;
+                // TODO: fmt retains the tag, fix
                 fmtlogWrapper<>::impl.log(logId, fmtlogT<0>::TSCNS::rdtsc(), tag.data(), level,
-                                          "[{}.{}:{}:{}]: {}", location.file_name(), location.function_name(), location.line(),
-                                          location.column(), fmt::vformat(str, args));
+                                          "[{}:{}:{} @ {}]: {}", location.file_name(), location.line(),
+                                          location.column(), location.function_name(), fmt::vformat(str, args));
             }
             while (0);
 
@@ -78,7 +81,7 @@ namespace Paper {
 
         template<fmtlog::LogLevel lvl, typename... TArgs>
         constexpr static void fmtLog(FmtStringHack const& str, TArgs&&... args) {
-            return fmtLogTag<lvl, TArgs...>(str, "", std::forward<TArgs>(args)...);
+            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
         }
 
         template<typename Exception = std::runtime_error, typename... TArgs>
@@ -113,8 +116,10 @@ namespace Paper {
         using ContextT = ContextType;
 
         ContextT context;
+        // TODO: Compile time string?
+        std::string* contextStr;
 
-        constexpr BasicLoggerContext(ContextT const& c) : context(c) {}
+        constexpr BasicLoggerContext(ContextT const& c) : context(c), contextStr(new std::string(fmt::to_string(c))) {}
 
 
         // TODO: Fix context not actually applying
@@ -127,7 +132,7 @@ namespace Paper {
             // TODO: Compile time check fmt args
             auto msg = fmt::vformat(str, fmt::make_format_args(args...));
 
-            return Logger::fmtLogTag<lvl>(FmtStringHack("{}", loc), fmt::to_string(context), msg);
+            return Logger::fmtLogTag<lvl>(FmtStringHack("{}", loc), *contextStr, msg);
 //            Logger::fmtLog<lvl>(fmt::format(FMT_STRING("[{}] {}"), context, fmt::format<TArgs...>(str, std::forward<TArgs>(args)...)));
         }
 
@@ -139,7 +144,7 @@ namespace Paper {
             // TODO: Compile time check fmt args
             auto msg = fmt::vformat(str, fmt::make_format_args(args...));
 
-            return Logger::fmtThrowErrorTag<lvl, Exception>(FmtStringHack("{}", loc), fmt::to_string(context), msg);
+            return Logger::fmtThrowErrorTag<lvl, Exception>(FmtStringHack("{}", loc), *contextStr, msg);
         }
     };
 
