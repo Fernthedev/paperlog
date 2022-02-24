@@ -1,4 +1,5 @@
 #include "logger.hpp"
+#include "main.hpp"
 
 #include <fmt/ostream.h>
 
@@ -53,10 +54,9 @@ void OnLog(int64_t ns, fmtlog::LogLevel level, fmt::string_view location, size_t
 void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
     globalLogPath = logPath;
 
-    fmtlog::setHeaderPattern("{md} [{HMSf}] {l}[{t:<6}] {s:<16}:");
-    fmtlog::setLogFile(fmt::format("{}/{}", logPath, globalLogFileName).c_str(), false);
+    fmtlog::setHeaderPattern("{Ymd} [{HMSf}] {l}[{t:<6}] {s:<2}");
+    fmtlog::setLogFile(fmt::format("{}/{}", logPath, globalLogFileName).c_str(), true);
     fmtlog::setLogCB(OnLog, fmtlog::LogLevel::DBG);
-
     // I don't think we need a custom polling thread
     fmtlog::startPollingThread();
 }

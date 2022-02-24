@@ -4,7 +4,7 @@
 
 #include "modloader/shared/modloader.hpp"
 
-template <> struct fmt::formatter<ModInfo> {
+template <> struct fmt::formatter<ModInfo> : formatter<string_view>{
 
     // Formats the point p using the parsed format specification (presentation)
     // stored in this formatter.

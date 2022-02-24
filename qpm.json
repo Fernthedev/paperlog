@@ -27,6 +27,11 @@
       "id": "fmt",
       "versionRange": "^8.0.5",
       "additionalData": {}
+    },
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^3.6.7",
+      "additionalData": {}
     }
   ],
   "additionalData": {}
