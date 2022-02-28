@@ -33,22 +33,25 @@ namespace nostd {
         source_location(const source_location&) = default;
         source_location(source_location&&) = default;
 
-        constexpr const char* file_name() const noexcept
+        source_location& operator=(const source_location&) = default;
+        source_location& operator=(source_location&&) = default;
+
+        [[nodiscard]] constexpr std::string_view file_name() const noexcept
         {
             return fileName;
         }
 
-        constexpr const char* function_name() const noexcept
+        [[nodiscard]] constexpr std::string_view function_name() const noexcept
         {
             return functionName;
         }
 
-        constexpr uint_least32_t line() const noexcept
+        [[nodiscard]] constexpr uint_least32_t line() const noexcept
         {
             return lineNumber;
         }
 
-        constexpr std::uint_least32_t column() const noexcept
+        [[nodiscard]] constexpr std::uint_least32_t column() const noexcept
         {
             return columnOffset;
         }
@@ -63,10 +66,10 @@ namespace nostd {
         {
         }
 
-        const char* fileName;
-        const char* functionName;
-        const std::uint_least32_t lineNumber;
-        const std::uint_least32_t columnOffset;
+        std::string_view fileName;
+        std::string_view functionName;
+        std::uint_least32_t lineNumber;
+        std::uint_least32_t columnOffset;
     };
 } // namespace nostd
 

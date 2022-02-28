@@ -29,11 +29,10 @@ extern "C" void load() {
 
         getLogger().debug("Logging test!");
         //        // creates a file logger
-        auto context = Paper::Logger::getModloaderContext(modInfo);
-        context.fmtLog<fmtlog::LogLevel::INF>("yo!");
+
 
         Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("hi! {}", 5);
-        Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("Paper loaded! {}", modInfo);
+//        Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("Paper loaded! {}", modInfo);
 
 
 
