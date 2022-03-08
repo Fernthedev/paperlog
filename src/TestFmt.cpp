@@ -1,0 +1,82 @@
+#include <fmt/core.h>
+
+
+#if __has_include(<source_location>)
+#include <source_location>
+#elif __has_include(<experimental/source_location>)
+#include <experimental/source_location>
+#else
+#include "source_location.hpp"
+#endif
+
+#ifndef NOSTD_SOURCE_LOCATION_HPP
+using sl = std::experimental::source_location;
+#else
+using sl = nostd::source_location;
+#endif
+
+template<typename Char, typename... TArgs>
+struct BasicFmtStrSrcLoc : public fmt::basic_format_string<Char, TArgs...> {
+    using ParentType = fmt::basic_format_string<Char, TArgs...>;
+    sl sourceLocation;
+
+    template <typename S>
+    requires (std::is_convertible_v<const S&, fmt::basic_string_view<Char>>)
+    consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : ParentType(s), sourceLocation(sourceL) {}
+
+    BasicFmtStrSrcLoc(fmt::basic_runtime<Char> r, sl const& sourceL = sl::current()) : ParentType(r), sourceLocation(sourceL) {}
+};
+
+template <typename... Args>
+using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
+
+
+
+namespace fmtlog {
+    enum class LogLevel : uint8_t
+    {
+        DBG = 0,
+        INF,
+        WRN,
+        ERR,
+        OFF
+    };
+}
+
+template<typename... TArgs>
+constexpr static void fmtLogTest(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
+//            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
+}
+
+template<fmtlog::LogLevel logLevel, typename... TArgs>
+constexpr static void fmtLogTest2(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
+//            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
+}
+
+namespace Paper {
+    struct Logger {
+        template<fmtlog::LogLevel logLevel, typename... TArgs>
+        constexpr static void fmtLogTest3(fmt::format_string<TArgs...> str, TArgs&&... args) {
+//            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
+        }
+
+        template<fmtlog::LogLevel logLevel, typename... TArgs>
+        constexpr static void fmtLogTest4(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
+//            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
+        }
+    };
+}
+
+extern "C" void t() {
+    // this compiles
+    fmt::format_string<int> foo("foo! {}");
+
+    FmtStrSrcLoc<int> bar("bar! {}");
+
+    fmtLogTest("nonsense! {}", 5);
+    fmtLogTest2<fmtlog::LogLevel::INF, int>("hi! {}", 5);
+    Paper::Logger::fmtLogTest3<fmtlog::LogLevel::INF, int>("hi! {}", 5);
+
+    // this does not
+    Paper::Logger::fmtLogTest4<fmtlog::LogLevel::INF, int>("hi! {}", 5);
+}
