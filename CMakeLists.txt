@@ -38,8 +38,7 @@ RECURSE_FILES(c_file_list ${SOURCE_DIR}/*.c)
 add_library(
         ${COMPILE_ID}
         SHARED
-        ${cpp_file_list}
-        ${c_file_list}
+        src/TestFmt.cpp
 )
 
 target_include_directories(${COMPILE_ID} PRIVATE .)
@@ -50,7 +49,7 @@ target_include_directories(${COMPILE_ID} PRIVATE ${SOURCE_DIR})
 target_include_directories(${COMPILE_ID} PRIVATE ${INCLUDE_DIR})
 # add shared dir as include dir
 target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
-# codegen includes 
+# codegen includes
 target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
 
 target_link_libraries(${COMPILE_ID} PRIVATE -llog)
