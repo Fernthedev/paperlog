@@ -19,7 +19,7 @@ struct StringHash {
     }
 };
 
-moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Logger::logQueue;
+moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 
 static std::string globalLogPath;
 using ContextID = std::string;
@@ -45,13 +45,14 @@ static LogPath globalFile;
 //
 //}
 
-void Paper::Logger::LogThread() {
-    moodycamel::ConsumerToken token(Paper::Logger::logQueue);
+[[noreturn]]
+void Paper::Internal::LogThread() {
+    moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
-    Paper::ThreadData threadData{"",fmt::make_format_args(), std::this_thread::get_id(),"", Paper::sl::current(), fmtlog::LogLevel::DBG, {}};
+    Paper::ThreadData threadData{"",fmt::make_format_args(), std::this_thread::get_id(),"", Paper::sl::current(), LogLevel::DBG, {}};
 
     while(true) {
-        if (!Paper::Logger::logQueue.try_dequeue(token, threadData)) {
+        if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
             std::this_thread::yield();
             continue;
         }
@@ -86,7 +87,7 @@ void Paper::Logger::LogThread() {
 void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
     globalLogPath = logPath;
     globalFile.open(fmt::format("{}/{}", logPath, globalLogFileName));
-    std::thread(Logger::LogThread).detach();
+    std::thread(Internal::LogThread).detach();
 }
 
 std::string_view Paper::Logger::getLogDirectoryPathGlobal() {

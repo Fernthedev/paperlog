@@ -31,8 +31,8 @@ extern "C" void load() {
         //        // creates a file logger
 
 
-        Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("hi! {}", 5);
-//        Paper::Logger::fmtLog<fmtlog::LogLevel::INF>("Paper loaded! {}", modInfo);
+//        Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
+//        Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
 
 
 

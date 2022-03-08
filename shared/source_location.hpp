@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace nostd {
     struct source_location {
