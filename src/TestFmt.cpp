@@ -78,5 +78,5 @@ extern "C" void t() {
     Paper::Logger::fmtLogTest3<fmtlog::LogLevel::INF, int>("hi! {}", 5);
 
     // this does not
-    Paper::Logger::fmtLogTest4<fmtlog::LogLevel::INF, int>("hi! {}", 5);
+//    Paper::Logger::fmtLogTest4<fmtlog::LogLevel::INF, int>("hi! {}", 5);
 }

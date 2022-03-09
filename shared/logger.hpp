@@ -22,7 +22,7 @@ namespace Paper {
         OFF
     };
 
-    static const std::string_view GLOBAL_TAG = "GLOBAL";
+    static constexpr const std::string_view GLOBAL_TAG = "GLOBAL";
 //
 //    template <typename... TArgs>
 //    struct FmtStringHackTArgs {
@@ -54,16 +54,37 @@ namespace Paper {
 //        consteval inline BasicFmtStrSrcLoc(const S& s, sl sourceL = sl::current()) : fmt::format_string<TArgs...>(s), sourceLocation(sourceL) {}
 //    };
 
+
+    // TODO: Inherit when NDK fixes bug
+    // https://github.com/android/ndk/issues/1677
     template<typename Char, typename... TArgs>
-    struct BasicFmtStrSrcLoc : public fmt::basic_format_string<Char, TArgs...> {
+    struct BasicFmtStrSrcLoc {
         using ParentType = fmt::basic_format_string<Char, TArgs...>;
+        ParentType parentType;
+
+        explicit(false) inline operator ParentType&() {
+            return parentType;
+        }
+
+        explicit(false) inline operator ParentType const&() const {
+            return parentType;
+        }
+
+        explicit(false) inline operator fmt::string_view () {
+            return parentType;
+        }
+
+        explicit(false) inline operator fmt::string_view const () const {
+            return parentType;
+        }
+
         sl sourceLocation;
 
         template <typename S>
         requires (std::is_convertible_v<const S&, fmt::basic_string_view<char>>)
-        consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : ParentType(s), sourceLocation(sourceL) {}
+        consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : parentType(s), sourceLocation(sourceL) {}
 
-        BasicFmtStrSrcLoc(fmt::basic_runtime<char> r, sl const& sourceL = sl::current()) : ParentType(r), sourceLocation(sourceL) {}
+        BasicFmtStrSrcLoc(fmt::basic_runtime<char> r, sl const& sourceL = sl::current()) : parentType(r), sourceLocation(sourceL) {}
     };
 
 //    template <typename... Args>
@@ -80,12 +101,12 @@ namespace Paper {
 
         template<LogLevel lvl, typename... TArgs>
         constexpr auto fmtLogTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag, TArgs&&... args) {
-            return Logger::vfmtLog<lvl>(str, str.sourceLocation, tag, fmt::make_format_args(str, std::forward<TArgs>(args)...));
+            return Logger::vfmtLog<lvl>(str, str.sourceLocation, tag, fmt::make_format_args(str.parentType, std::forward<TArgs>(args)...));
         }
 
         template<LogLevel lvl, typename... TArgs>
         constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
-//            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
+            return fmtLogTag<lvl, TArgs...>(str, GLOBAL_TAG, std::forward<TArgs>(args)...);
         }
 
         template<typename Exception = std::runtime_error, typename... TArgs>

@@ -31,11 +31,8 @@ extern "C" void load() {
         //        // creates a file logger
 
 
-//        Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
-//        Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
-
-
-
+        Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
+        Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
 
     } catch (std::exception const& e) {
         getLogger().error("Crash %s", e.what());

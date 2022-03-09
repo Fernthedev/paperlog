@@ -13,7 +13,7 @@ if (-not ($PSVersionTable.PSEdition -eq "Core")) {
 }
 
 if ($args.Count -eq 0) {
-    Get-Content ./log.txt | & $stackScript -sym ./build/debug/ > log_unstripped.log
+    Get-Content ./log.log | & $stackScript -sym ./build/debug/ > log_unstripped.log
 } else {
     Get-Content $args[0] | & $stackScript -sym ./build/debug/ > "$($args[0])_unstripped.txt"
 }
