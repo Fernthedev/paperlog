@@ -2,9 +2,13 @@
 
 Logging lightweight as paper
 
-## TODO:
+## Done:
 - Ideally source location
 - Template log calls
+
+## TODO:
+- Backtrace logging
+- Print `\n` nicely
 - Better consumer thread usage for logging to file 
 - Flush needs to happen before crash (perhaps signal handler?, Less important)
 - Support for logging things that are c# instances by logging pointer value then calling to string
