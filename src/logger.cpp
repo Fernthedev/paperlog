@@ -45,42 +45,67 @@ static LogPath globalFile;
 //
 //}
 
-[[noreturn]]
+void logError(std::string_view error) {
+    getLogger().error("%s", error.data());
+    getLogger().flush();
+
+    __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
+    if (globalFile.is_open())
+        globalFile << error;
+}
+
+
 void Paper::Internal::LogThread() {
-    moodycamel::ConsumerToken token(Paper::Internal::logQueue);
+    try {
+        moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
-    Paper::ThreadData threadData{"",fmt::make_format_args(), std::this_thread::get_id(),"", Paper::sl::current(), LogLevel::DBG, {}};
+        Paper::ThreadData threadData{(std::string_view) "", std::this_thread::get_id(), "", Paper::sl::current(),
+                                     LogLevel::DBG, {}};
 
-    while(true) {
-        if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
-            std::this_thread::yield();
-            continue;
+        while (true) {
+            if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
+                std::this_thread::yield();
+                continue;
+            }
+
+            auto const &str = threadData.str;
+            auto const &tag = threadData.tag;
+            auto const &location = threadData.loc;
+            auto const &level = threadData.level;
+            auto const &time = fmt::localtime(threadData.logTime);
+            auto const &threadId = threadData.threadId;
+
+            // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
+            std::string msg(fmt::format(FMT_STRING("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
+                                        time, time, (int) level, threadId, tag,
+                                        location.file_name(), location.line(),
+                                        location.column(), location.function_name(),
+                                        str // TODO: Is there a better way to do this?
+            ));
+
+            __android_log_print((int) level, location.file_name().data(), "%s", msg.data());
+            globalFile << msg;
+            globalFile << std::endl;
+
+            auto it = registeredContexts.find(tag.data());
+            if (it != registeredContexts.end()) {
+                auto &f = it->second;
+                f << msg;
+                f << std::endl;
+            }
         }
-
-        auto const& args = threadData.args;
-        auto const& str = threadData.str;
-        auto const& tag = threadData.tag;
-        auto const& location = threadData.loc;
-        auto const& level = threadData.level;
-        auto const& time = fmt::localtime(threadData.logTime);
-        auto const& threadId = threadData.threadId;
-
-        // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
-        std::string msg(fmt::format(FMT_STRING("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
-                                    time, time, (int) level, threadId, tag,
-                                    location.file_name(), location.line(),
-                                    location.column(), location.function_name(),
-                                    fmt::vformat(str, args) // TODO: Is there a better way to do this?
-        ));
-
-        __android_log_print((int) level, location.file_name().data(), "%s", msg.data());
-        globalFile << msg;
-
-        auto it = registeredContexts.find(tag.data());
-        if (it != registeredContexts.end()) {
-            auto& f = it->second;
-            f << msg;
-        }
+    } catch (std::runtime_error const& e) {
+        std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
+        logError(error);
+        throw e;
+    }catch(std::exception const& e) {
+        std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
+        logError(error);
+        throw e;
+    } catch(...) {
+        std::string error = fmt::format("Error occurred in logging thread!");
+        logError(error);
+        throw;
     }
 }
 

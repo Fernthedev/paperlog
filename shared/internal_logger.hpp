@@ -5,6 +5,8 @@
 #elif __has_include(<experimental/source_location>)
 #include <experimental/source_location>
 #else
+#include <utility>
+
 #include "source_location.hpp"
 #endif
 
@@ -22,13 +24,23 @@ namespace Paper {
     using TimePoint = std::chrono::system_clock::time_point;
 
     struct ThreadData {
-        constexpr ThreadData(ThreadData const&) = delete;
-        constexpr ThreadData(ThreadData&&) = default;
+        ThreadData(ThreadData const&) = delete;
+        ThreadData(ThreadData&&) = default;
 
-        constexpr ThreadData(fmt::string_view const &str, fmt::format_args const &args, std::thread::id const &threadId,
+        ThreadData(std::string str, std::thread::id const &threadId,
                              std::string_view const &tag, sl const &loc, LogLevel level,
                              TimePoint const &logTime)
-                : str(str), args(args), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
+                : str(std::move(str)), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
+
+        ThreadData(std::string_view const str, std::thread::id const &threadId,
+                   std::string_view const &tag, sl const &loc, LogLevel level,
+                   TimePoint const &logTime)
+                : str(str), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
+
+//        constexpr ThreadData(fmt::string_view const &str, fmt::format_args const &args, std::thread::id const &threadId,
+//                             std::string_view const &tag, sl const &loc, LogLevel level,
+//                             TimePoint const &logTime)
+//                : str(str), args(args), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
 
 //        ThreadData& operator =(ThreadData&& o) noexcept {
 //            str = o.str;
@@ -43,8 +55,9 @@ namespace Paper {
 
         ThreadData& operator =(ThreadData&& o) noexcept = default;
 
-        fmt::string_view str;
-        fmt::format_args args;
+        std::string str;
+//        fmt::string_view str;
+//        fmt::format_args args;
         std::thread::id threadId;
         std::string_view tag;
         sl loc;
@@ -53,7 +66,7 @@ namespace Paper {
     };
 
     namespace Internal {
-        [[noreturn]] void LogThread();
+        void LogThread();
 
         extern moodycamel::ConcurrentQueue<ThreadData> logQueue;
     }

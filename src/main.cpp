@@ -36,8 +36,10 @@ extern "C" void load() {
 
     } catch (std::exception const& e) {
         getLogger().error("Crash %s", e.what());
+        getLogger().flush();
         throw e;
     } catch (fmt::format_error const& e) {
         getLogger().error("Crash %s", e.what());
+        getLogger().flush();
     }
 }
