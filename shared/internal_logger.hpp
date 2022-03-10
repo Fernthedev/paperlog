@@ -59,7 +59,7 @@ namespace Paper {
 //        fmt::string_view str;
 //        fmt::format_args args;
         std::thread::id threadId;
-        std::string_view tag;
+        std::string tag; // TODO: Use std::string_view?
         sl loc;
         LogLevel level;
         TimePoint logTime;

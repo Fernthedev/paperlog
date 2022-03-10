@@ -34,6 +34,9 @@ extern "C" void load() {
         Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
         Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
 
+        auto fastContext = Paper::Logger::WithContext<"PaperFast">();
+        fastContext.fmtLog<Paper::LogLevel::INF>("Paper fast!");
+
     } catch (std::exception const& e) {
         getLogger().error("Crash %s", e.what());
         getLogger().flush();

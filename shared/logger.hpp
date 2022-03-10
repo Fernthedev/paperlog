@@ -129,49 +129,42 @@ namespace Paper {
 
         void Init(std::string_view logPath, std::string_view globalLogFileName = "PaperLog.log");
 
-        void RegisterContextId(std::string_view contextId, std::string_view logPath);
+        void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
-        inline auto RegisterContextId(std::string_view contextId) {
-            return Logger::RegisterContextId(contextId, contextId);
+        inline auto RegisterFileContextId(std::string_view contextId) {
+            return Logger::RegisterFileContextId(contextId, contextId);
         }
 
-        void UnregisterContextId(std::string_view contextId);
+        void UnregisterFileContextId(std::string_view contextId);
     };
 
 
     template<std::size_t sz>
-    struct LoggerContext {
-        char str[sz];
+    struct ConstLoggerContext {
+        char tag[sz];
 
-        constexpr LoggerContext(char const (&s)[sz]) {
-            std::copy(s, s + sz, str);
+        constexpr ConstLoggerContext(char const (&s)[sz]) {
+            std::copy(s, s + sz, tag);
         }
 
         template<LogLevel lvl, typename... TArgs>
         constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) {
-            return Logger::fmtLogTag<lvl, TArgs...>(str, str, std::forward<TArgs>(args)...);
-//            Logger::fmtLog<lvl>(fmt::format(FMT_STRING("[{}] {}"), context, fmt::format<TArgs...>(str, std::forward<TArgs>(args)...)));
+            return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
         template<LogLevel lvl, typename Exception = std::runtime_error, typename... TArgs>
         inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) {
-            return Logger::fmtThrowErrorTag<lvl, Exception, TArgs...>(str, str, std::forward<TArgs>(args)...);
+            return Logger::fmtThrowErrorTag<lvl, Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
     };
 
-#ifdef QUEST_MODLOADER
-//    using ModloaderLoggerContext = BasicLoggerContext<ModInfo const&>;
-//
-//
-//    namespace Logger {
-//        inline ModloaderLoggerContext getModloaderContext(ModInfo const& info) {
-//            ModloaderLoggerContext context(info);
-//
-//            Logger::RegisterContextId(fmt::format("{}_{}.log", info.id, info.version));
-//
-//            return context;
-//        }
-//    }
-
-#endif
+    namespace Logger {
+        template<ConstLoggerContext ctx, bool registerFile = true>
+        inline auto WithContext(std::string_view const logFile = ctx.tag) {
+            if constexpr(registerFile) {
+                RegisterFileContextId(ctx.tag, logFile);
+            }
+            return ctx;
+        }
+    }
 }

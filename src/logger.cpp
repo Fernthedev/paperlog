@@ -25,33 +25,17 @@ static std::string globalLogPath;
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredContexts;
+static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
-//
-//// callback signature user can register
-//// ns: nanosecond timestamp
-//// level: logLevel
-//// location: full file path with line num, e.g: /home/raomeng/fmtlog/fmtlog.h:45
-//// basePos: file base index in the location
-//// threadName: thread id or the name user set with setThreadName
-//// msg: full log msg with header
-//// bodyPos: log body index in the msg
-//// logFilePos: log file position of this msg
-//void OnLog(int64_t ns, fmtlog::LogLevel level, fmt::string_view location, size_t basePos,
-//           fmt::string_view threadName, fmt::string_view msg, size_t bodyPos, size_t logFilePos) {
-//    __android_log_print(level, fmt::format("{}", location).c_str(), "%s", msg.data());
-//
-//    // TODO: This is slow and bad, figure out something better
-//
-//}
 
 void logError(std::string_view error) {
     getLogger().error("%s", error.data());
     getLogger().flush();
 
     __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
-    if (globalFile.is_open())
-        globalFile << error;
+    if (globalFile.is_open()) {
+        globalFile << error << std::endl;
+    }
 }
 
 
@@ -87,8 +71,8 @@ void Paper::Internal::LogThread() {
             globalFile << msg;
             globalFile << std::endl;
 
-            auto it = registeredContexts.find(tag.data());
-            if (it != registeredContexts.end()) {
+            auto it = registeredFileContexts.find(tag.data());
+            if (it != registeredFileContexts.end()) {
                 auto &f = it->second;
                 f << msg;
                 f << std::endl;
@@ -120,10 +104,10 @@ std::string_view Paper::Logger::getLogDirectoryPathGlobal() {
 }
 
 // TODO: Lock?
-void Paper::Logger::RegisterContextId(std::string_view contextId, std::string_view logPath) {
-    registeredContexts.try_emplace(contextId.data(), fmt::format("{}/{}", getLogDirectoryPathGlobal(), logPath), std::ofstream::out | std::ofstream::trunc);
+void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::string_view logPath) {
+    registeredFileContexts.try_emplace(contextId.data(), fmt::format("{}/{}.log", getLogDirectoryPathGlobal(), logPath), std::ofstream::out | std::ofstream::trunc);
 }
 
-void Paper::Logger::UnregisterContextId(std::string_view contextId) {
-    registeredContexts.erase(contextId.data());
+void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
+    registeredFileContexts.erase(contextId.data());
 }
