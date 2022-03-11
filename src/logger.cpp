@@ -10,6 +10,13 @@
 #include <android/log.h>
 #include <thread>
 
+#if __has_include(<unwind.h>)
+#include <unwind.h>
+#include <cxxabi.h>
+
+#define HAS_UNWIND
+#endif
+
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -111,3 +118,64 @@ void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::strin
 void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
     registeredFileContexts.erase(contextId.data());
 }
+
+#ifdef HAS_UNWIND
+// Backtrace stuff largely written by StackDoubleFlow
+// https://github.com/sc2ad/beatsaber-hook/blob/138101a5a2b494911583b62140af6acf6e955e72/src/utils/logging.cpp#L211-L289
+namespace {
+    struct BacktraceState {
+        void **current;
+        void **end;
+    };
+    static _Unwind_Reason_Code unwindCallback(struct _Unwind_Context *context, void *arg) {
+        BacktraceState *state = static_cast<BacktraceState *>(arg);
+        uintptr_t pc = _Unwind_GetIP(context);
+        if (pc) {
+            if (state->current == state->end) {
+                return _URC_END_OF_STACK;
+            } else {
+                *state->current++ = reinterpret_cast<void *>(pc);
+            }
+        }
+        return _URC_NO_REASON;
+    }
+    size_t captureBacktrace(void **buffer, uint16_t max) {
+        BacktraceState state{buffer, buffer + max};
+        _Unwind_Backtrace(unwindCallback, &state);
+
+        return state.current - buffer;
+    }
+}
+
+void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
+    void* buffer[frameCount + 1];
+    captureBacktrace(buffer, frameCount + 1);
+    fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag, frameCount);
+    fmtLogTag<LogLevel::DBG>("*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***", tag);
+    fmtLogTag<LogLevel::DBG>("pid: {}, tid: {}", tag, getpid(), gettid());
+    for (uint16_t i = 0; i < frameCount; ++i) {
+        Dl_info info;
+        if (dladdr(buffer[i + 1], &info)) {
+            // Buffer points to 1 instruction ahead
+            long addr = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_fbase) - 4;
+            if (info.dli_sname) {
+                int status;
+                const char *demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
+                if (status) {
+                    demangled = info.dli_sname;
+                }
+                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:x}  {} ({})", tag, i, addr, info.dli_fname, demangled);
+                free(const_cast<char*>(demangled));
+            } else {
+                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:x}  {}", tag, i, addr, info.dli_fname);
+            }
+        }
+    }
+}
+
+#else
+
+#warning No unwind found, compiling stub backtrace function
+void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
+
+#endif

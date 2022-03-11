@@ -125,6 +125,12 @@ namespace Paper {
             throw Exception(fmt::format("{} {}", tag, exceptionMsg));
         }
 
+        void Backtrace(std::string_view tag, uint16_t frameCount);
+
+        inline auto Backtrace(uint16_t frameCount) {
+            return Backtrace(GLOBAL_TAG, frameCount);
+        }
+
         std::string_view getLogDirectoryPathGlobal();
 
         void Init(std::string_view logPath, std::string_view globalLogFileName = "PaperLog.log");

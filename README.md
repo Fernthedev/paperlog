@@ -5,9 +5,9 @@ Logging lightweight as paper
 ## Done:
 - Ideally source location
 - Template log calls
+- Backtrace logging
 
 ## TODO:
-- Backtrace logging
 - Print `\n` nicely
 - Better consumer thread usage for logging to file 
 - Flush needs to happen before crash (perhaps signal handler?, Less important)
