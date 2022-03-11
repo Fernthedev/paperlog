@@ -164,12 +164,12 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
                 if (status) {
                     demangled = info.dli_sname;
                 }
-                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:x}  {} ({})", tag, i, addr, info.dli_fname, demangled);
+                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {} ({})", tag, i, addr, info.dli_fname, demangled);
                 if (demangled != info.dli_sname) {
                     free(const_cast<char *>(demangled));
                 }
             } else {
-                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:x}  {}", tag, i, addr, info.dli_fname);
+                fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {}", tag, i, addr, info.dli_fname);
             }
         }
     }
