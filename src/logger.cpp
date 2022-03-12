@@ -3,6 +3,7 @@
 
 #include <fmt/ostream.h>
 #include <fmt/chrono.h>
+#include <fmt/compile.h>
 
 #include <optional>
 #include <fstream>
@@ -27,6 +28,7 @@ std::binary_semaphore flushSemaphore;
 
 #define LINE_END '\n'
 #define STRING_LIMIT 1024
+#define FORCE_FLUSH_COUNT 500
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -56,17 +58,15 @@ void logError(std::string_view error) {
     }
 }
 
-inline void flushLog(Paper::ThreadData const& threadData, std::string_view s, /* nullable */ std::ofstream* contextFilePtr) {
+inline void writeLog(Paper::ThreadData const& threadData, std::tm time, std::string_view threadId, std::string_view s, /* nullable */ std::ofstream* contextFilePtr) {
 
     auto const &rawFmtStr = threadData.str;
     auto const &tag = threadData.tag;
     auto const &location = threadData.loc;
     auto const &level = threadData.level;
-    auto const &time = fmt::localtime(threadData.logTime);
-    auto const &threadId = threadData.threadId;
 
     // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
-    std::string msg(fmt::format(FMT_STRING("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
+    std::string msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
                                 time, time, (int) level, threadId, tag,
                                 location.file_name(), location.line(),
                                 location.column(), location.function_name(),
@@ -74,13 +74,12 @@ inline void flushLog(Paper::ThreadData const& threadData, std::string_view s, /*
     ));
 
     __android_log_write((int) level, tag.data(),msg.data());
-    globalFile << msg;
-    globalFile << std::endl;
+    globalFile << msg << '\n';
 
 
     if (contextFilePtr) {
         auto &f = *contextFilePtr;
-        f << msg << std::endl;
+        f << msg << '\n';
     }
 }
 
@@ -108,6 +107,9 @@ void Paper::Internal::LogThread() {
         Paper::ThreadData threadData{(std::string_view) "", std::this_thread::get_id(), "", Paper::sl::current(),
                                      LogLevel::DBG, {}};
 
+        std::ofstream* contextFile;
+        size_t logsSinceLastFlush = 0;
+
         while (true) {
             if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
                 std::this_thread::yield();
@@ -119,11 +121,15 @@ void Paper::Internal::LogThread() {
             auto const &location = threadData.loc;
             auto const &level = threadData.level;
             auto const &time = fmt::localtime(threadData.logTime);
-            auto const &threadId = threadData.threadId;
+            auto const &threadId = fmt::to_string(threadData.threadId);
 
-            std::ofstream* contextFile;
+
             auto it = registeredFileContexts.find(tag);
             if (it != registeredFileContexts.end()) {
+                // if new context file, flush immediately
+                if (contextFile && &it->second != contextFile) {
+                    contextFile->flush();
+                }
                 contextFile = &it->second;
             }
 
@@ -142,13 +148,13 @@ void Paper::Internal::LogThread() {
                 }
 
                 if (c == '\n') {
-                    flushLog(threadData, std::string_view(begin, count), contextFile);
+                    writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
                     begin += count + 1;
                     count = 0;
                 } else if((skipCount = charExtraLength(c)) > 0) {
                     count++;
                 } else if (count >= maxStrLength) {
-                    flushLog(threadData, std::string_view(begin, count), contextFile);
+                    writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
                     begin += count;
                     count = 1;
                 } else {
@@ -156,8 +162,9 @@ void Paper::Internal::LogThread() {
                 }
             }
             if (count > 0) {
-                flushLog(threadData, std::string_view(begin, count), contextFile);
+                writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
             }
+            logsSinceLastFlush++;
 
 //            uint32_t startIndex = 0;
 //            uint32_t endIndex = 0;
@@ -184,8 +191,19 @@ void Paper::Internal::LogThread() {
 //                endIndex++;
 //            }
 
-            if (Paper::Internal::logQueue.size_approx() == 0) {
-                flushSemaphore.release();
+            auto remainingLogs = Paper::Internal::logQueue.size_approx();
+            if (remainingLogs == 0 || (false && logsSinceLastFlush > FORCE_FLUSH_COUNT)) {
+                // nothing more in queue, flush
+                if (contextFile) {
+                    contextFile->flush();
+                }
+                globalFile.flush();
+                logsSinceLastFlush = 0;
+
+                // dont release until we flush ALL logs
+                if (remainingLogs == 0) {
+                    flushSemaphore.release();
+                }
             }
         }
     } catch (std::runtime_error const &e) {
