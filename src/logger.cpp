@@ -10,16 +10,23 @@
 #include <android/log.h>
 #include <thread>
 #include <semaphore>
+#include <span>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
 #include <cxxabi.h>
+#include <unistd.h>
+#include <dlfcn.h>
 
 #define HAS_UNWIND
 #endif
 
 moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 std::binary_semaphore flushSemaphore;
+
+
+#define LINE_END '\n'
+#define STRING_LIMIT 1024
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -43,15 +50,56 @@ void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFil
 }
 
 void logError(std::string_view error) {
-    getLogger().error("%s", error.data());
-    getLogger().flush();
-
     __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
     if (globalFile.is_open()) {
         globalFile << error << std::endl;
     }
 }
 
+inline void flushLog(Paper::ThreadData const& threadData, std::string_view s, /* nullable */ std::ofstream* contextFilePtr) {
+
+    auto const &rawFmtStr = threadData.str;
+    auto const &tag = threadData.tag;
+    auto const &location = threadData.loc;
+    auto const &level = threadData.level;
+    auto const &time = fmt::localtime(threadData.logTime);
+    auto const &threadId = threadData.threadId;
+
+    // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
+    std::string msg(fmt::format(FMT_STRING("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
+                                time, time, (int) level, threadId, tag,
+                                location.file_name(), location.line(),
+                                location.column(), location.function_name(),
+                                s // TODO: Is there a better way to do this?
+    ));
+
+    __android_log_print((int) level, tag.data(), "%s", msg.data());
+    globalFile << msg;
+    globalFile << std::endl;
+
+
+    if (contextFilePtr) {
+        auto &f = *contextFilePtr;
+        f << msg << std::endl;
+    }
+}
+
+[[nodiscard]] constexpr uint8_t charExtraLength(const char c) {
+    uint8_t shiftedC = c >> 3;
+
+    if (shiftedC >= 0b11110) {
+        return 3;
+    }
+    if (shiftedC >= 0b11100) {
+        return 2;
+    }
+
+    if (shiftedC >= 0b11000) {
+        return 1;
+    }
+
+    return 0;
+}
 
 void Paper::Internal::LogThread() {
     try {
@@ -66,43 +114,89 @@ void Paper::Internal::LogThread() {
                 continue;
             }
 
-            auto const &str = threadData.str;
+            auto const &rawFmtStr = threadData.str;
             auto const &tag = threadData.tag;
             auto const &location = threadData.loc;
             auto const &level = threadData.level;
             auto const &time = fmt::localtime(threadData.logTime);
             auto const &threadId = threadData.threadId;
 
-            // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
-            std::string msg(fmt::format(FMT_STRING("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
-                                        time, time, (int) level, threadId, tag,
-                                        location.file_name(), location.line(),
-                                        location.column(), location.function_name(),
-                                        str // TODO: Is there a better way to do this?
-            ));
-
-            __android_log_print((int) level, tag.data(), "%s", msg.data());
-            globalFile << msg;
-            globalFile << std::endl;
-
-            auto it = registeredFileContexts.find(tag.data());
+            std::ofstream* contextFile;
+            auto it = registeredFileContexts.find(tag);
             if (it != registeredFileContexts.end()) {
-                auto &f = it->second;
-                f << msg;
-                f << std::endl;
+                contextFile = &it->second;
             }
 
-            flushSemaphore.release();
+            // Split/chunk string algorithm provided by sc2ad thanks
+            // intended for logcat and making \n play nicely
+            auto maxStrLength = std::min<size_t>(rawFmtStr.size(), STRING_LIMIT);
+            auto begin = rawFmtStr.data();
+            std::size_t count = 0;
+            uint8_t skipCount = 0;
+
+            for (auto c : rawFmtStr) {
+                if (skipCount > 0) {
+                    skipCount--;
+                    count++;
+                    continue;
+                }
+
+                if (c == '\n') {
+                    flushLog(threadData, std::string_view(begin, count), contextFile);
+                    begin += count + 1;
+                    count = 0;
+                } else if((skipCount = charExtraLength(c)) > 0) {
+                    count++;
+                } else if (count >= maxStrLength) {
+                    flushLog(threadData, std::string_view(begin, count), contextFile);
+                    begin += count;
+                    count = 1;
+                } else {
+                    count++;
+                }
+            }
+            if (count > 0) {
+                flushLog(threadData, std::string_view(begin, count), contextFile);
+            }
+
+//            uint32_t startIndex = 0;
+//            uint32_t endIndex = 0;
+
+            // TODO: There's probably a cleaner way of doing this
+//            while (endIndex < rawFmtStr.size()) {
+//                bool split = endIndex >= 200 || endIndex == rawFmtStr.size() - 1;
+//                bool foundLinebreak = false;
+//
+//                if (!split) {
+//                    const char c = rawFmtStr.at(endIndex);
+//
+//                    foundLinebreak = split = c == LINE_END;
+//                }
+//
+//                if (split) {
+//                    flushLog(static_cast<std::string_view>(rawFmtStr).substr(startIndex, endIndex - startIndex));
+//                    startIndex = endIndex;
+//                    if (foundLinebreak) {
+//                        startIndex++;
+//                    }
+//                }
+//
+//                endIndex++;
+//            }
+
+            if (Paper::Internal::logQueue.size_approx() == 0) {
+                flushSemaphore.release();
+            }
         }
-    } catch (std::runtime_error const& e) {
+    } catch (std::runtime_error const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
         throw e;
-    }catch(std::exception const& e) {
+    } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
         throw e;
-    } catch(...) {
+    } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
         logError(error);
         throw;

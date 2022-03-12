@@ -3,8 +3,6 @@
 #include "modinfo_fmt.hpp"
 #include "logger.hpp"
 
-#include "beatsaber-hook/shared/utils/logging.hpp"
-
 static ModInfo modInfo; // Stores the ID and version of our mod, and is sent to the modloader upon startup
 
 
@@ -16,37 +14,25 @@ extern "C" void setup(ModInfo& info) {
 
 }
 
-Logger& getLogger() {
-    static auto* logger = new Logger(modInfo, LoggerOptions(false, true));
-    return *logger;
-}
-
 // Called later on in the game loading - a good time to install function hooks
 extern "C" void load() {
-    try {
-        getLogger().debug("Init");
-        Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
 
-        getLogger().debug("Logging test!");
-        //        // creates a file logger
+    Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
+    //        // creates a file logger
 
 
-        Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
-        Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
-        Paper::Logger::fmtLog<Paper::LogLevel::INF>("5 \n\n\n\n\nlines", modInfo);
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>("5 \n\n\n\n\nlines", modInfo);
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>("Testing weird UTF-8 chars £\n"
+                                                "ह\n"
+                                                "€\n"
+                                                "한\n");
 
-        Paper::Logger::WaitForFlush();
-        Paper::Logger::Backtrace(5);
+    Paper::Logger::WaitForFlush();
+    Paper::Logger::Backtrace(5);
 
-        auto fastContext = Paper::Logger::WithContext<"PaperFast">();
-        fastContext.fmtLog<Paper::LogLevel::INF>("Paper fast!");
+    auto fastContext = Paper::Logger::WithContext<"PaperFast">();
+    fastContext.fmtLog<Paper::LogLevel::INF>("Paper fast!");
 
-    } catch (std::exception const& e) {
-        getLogger().error("Crash %s", e.what());
-        getLogger().flush();
-        throw e;
-    } catch (fmt::format_error const& e) {
-        getLogger().error("Crash %s", e.what());
-        getLogger().flush();
-    }
 }

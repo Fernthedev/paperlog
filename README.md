@@ -6,12 +6,12 @@ Logging lightweight as paper
 - Ideally source location
 - Template log calls
 - Backtrace logging
+- Better consumer thread usage for logging to file (?)
+- Print `\n` nicely
 
 ## TODO:
-- Print `\n` nicely
-- Better consumer thread usage for logging to file 
 - Flush needs to happen before crash (perhaps signal handler?, Less important)
-- Support for logging things that are c# instances by logging pointer value then calling to string
+- Support for logging things that are c# instances by logging pointer value then calling to string (in bs-hooks)
 - Ensure support for logging ustrings
 
 
