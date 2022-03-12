@@ -33,6 +33,10 @@ extern "C" void load() {
 
         Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
         Paper::Logger::fmtLog<Paper::LogLevel::INF>("Paper loaded! {}", modInfo);
+        Paper::Logger::fmtLog<Paper::LogLevel::INF>("5 \n\n\n\n\nlines", modInfo);
+
+        Paper::Logger::WaitForFlush();
+        Paper::Logger::Backtrace(5);
 
         auto fastContext = Paper::Logger::WithContext<"PaperFast">();
         fastContext.fmtLog<Paper::LogLevel::INF>("Paper fast!");
