@@ -18,7 +18,8 @@ extern "C" void setup(ModInfo& info) {
 // Called later on in the game loading - a good time to install function hooks
 extern "C" void load() {
 
-    Paper::Profiler profiler;
+    Paper::Profiler<std::chrono::nanoseconds> profiler;
+    profiler.suffix = "ns";
     profiler.startTimer();
     Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
     //        // creates a file logger
@@ -46,7 +47,8 @@ extern "C" void load() {
 
 
 
-    profiler = Paper::Profiler();
+    profiler = {};
+    profiler.suffix = "ns";
     profiler.startTimer();
     fastContext.fmtLog<Paper::LogLevel::DBG>("Spam logging now!");
     for (int i = 0; i < 100000; i++) {

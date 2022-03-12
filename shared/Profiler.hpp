@@ -22,7 +22,10 @@ namespace Paper {
 
     };
 
+    template<class ToDuration = std::chrono::milliseconds>
     struct Profiler {
+        std::string_view suffix = "ms";
+
         inline Profiler() {
             startTimer();
         }
@@ -52,8 +55,8 @@ namespace Paper {
 
                 if (point.showTime) {
                     auto difference = time - before;
-                    auto millisElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(difference).count();
-                    Logger::fmtLog<LogLevel::DBG>("{} {}ms", name, millisElapsed);
+                    auto millisElapsed = std::chrono::duration_cast<ToDuration>(difference).count();
+                    Logger::fmtLog<LogLevel::DBG>("{} {}{}", name, millisElapsed, suffix);
                     before = time;
                 } else {
                     Logger::fmtLog<LogLevel::DBG>("{}", name);
@@ -62,9 +65,9 @@ namespace Paper {
 
             auto endMark = end ? end.value() : std::chrono::high_resolution_clock::now();
 
-            auto finishTime = std::chrono::duration_cast<std::chrono::milliseconds>(endMark - start).count();
+            auto finishTime = std::chrono::duration_cast<ToDuration>(endMark - start).count();
 
-            Logger::fmtLog<LogLevel::DBG>("Finished! Took {}ms", finishTime);
+            Logger::fmtLog<LogLevel::DBG>("Finished! Took {}{}", finishTime, suffix);
         }
 
         [[nodiscard]] auto elapsedTimeSinceNow() const {
