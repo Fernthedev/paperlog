@@ -9,6 +9,7 @@
 #include <iostream>
 #include <android/log.h>
 #include <thread>
+#include <semaphore>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
@@ -17,6 +18,8 @@
 #define HAS_UNWIND
 #endif
 
+moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
+std::binary_semaphore flushSemaphore;
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -26,14 +29,18 @@ struct StringHash {
     }
 };
 
-moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
-
 static std::string globalLogPath;
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
+
+void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
+    globalLogPath = logPath;
+    globalFile.open(fmt::format("{}/{}", logPath, globalLogFileName));
+    std::thread(Internal::LogThread).detach();
+}
 
 void logError(std::string_view error) {
     getLogger().error("%s", error.data());
@@ -74,7 +81,7 @@ void Paper::Internal::LogThread() {
                                         str // TODO: Is there a better way to do this?
             ));
 
-            __android_log_print((int) level, location.file_name().data(), "%s", msg.data());
+            __android_log_print((int) level, tag.data(), "%s", msg.data());
             globalFile << msg;
             globalFile << std::endl;
 
@@ -84,6 +91,8 @@ void Paper::Internal::LogThread() {
                 f << msg;
                 f << std::endl;
             }
+
+            flushSemaphore.release();
         }
     } catch (std::runtime_error const& e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
@@ -100,10 +109,8 @@ void Paper::Internal::LogThread() {
     }
 }
 
-void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
-    globalLogPath = logPath;
-    globalFile.open(fmt::format("{}/{}", logPath, globalLogFileName));
-    std::thread(Internal::LogThread).detach();
+void Paper::Logger::WaitForFlush() {
+    flushSemaphore.acquire();
 }
 
 std::string_view Paper::Logger::getLogDirectoryPathGlobal() {

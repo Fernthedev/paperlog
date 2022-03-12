@@ -142,6 +142,8 @@ namespace Paper {
         }
 
         void UnregisterFileContextId(std::string_view contextId);
+
+        void WaitForFlush();
     };
 
 
