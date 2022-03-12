@@ -1,16 +1,15 @@
 #pragma once
 
+#include <utility>
+#include "queue/concurrentqueue.h"
+
 #if __has_include(<source_location>)
 #include <source_location>
 #elif __has_include(<experimental/source_location>)
 #include <experimental/source_location>
 #else
-#include <utility>
-
 #include "source_location.hpp"
 #endif
-
-#include "queue/concurrentqueue.h"
 
 namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
