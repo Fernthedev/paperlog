@@ -58,7 +58,7 @@ void logError(std::string_view error) {
     }
 }
 
-inline void writeLog(Paper::ThreadData const& threadData, std::tm time, std::string_view threadId, std::string_view s, /* nullable */ std::ofstream* contextFilePtr) {
+inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId, std::string_view s, /* nullable */ std::ofstream* contextFilePtr) {
 
     auto const &rawFmtStr = threadData.str;
     auto const &tag = threadData.tag;
@@ -131,6 +131,11 @@ void Paper::Internal::LogThread() {
                     contextFile->flush();
                 }
                 contextFile = &it->second;
+            } else {
+                if (contextFile) {
+                    contextFile->flush();
+                }
+                contextFile = nullptr;
             }
 
             // Split/chunk string algorithm provided by sc2ad thanks
@@ -165,31 +170,6 @@ void Paper::Internal::LogThread() {
                 writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
             }
             logsSinceLastFlush++;
-
-//            uint32_t startIndex = 0;
-//            uint32_t endIndex = 0;
-
-            // TODO: There's probably a cleaner way of doing this
-//            while (endIndex < rawFmtStr.size()) {
-//                bool split = endIndex >= 200 || endIndex == rawFmtStr.size() - 1;
-//                bool foundLinebreak = false;
-//
-//                if (!split) {
-//                    const char c = rawFmtStr.at(endIndex);
-//
-//                    foundLinebreak = split = c == LINE_END;
-//                }
-//
-//                if (split) {
-//                    flushLog(static_cast<std::string_view>(rawFmtStr).substr(startIndex, endIndex - startIndex));
-//                    startIndex = endIndex;
-//                    if (foundLinebreak) {
-//                        startIndex++;
-//                    }
-//                }
-//
-//                endIndex++;
-//            }
 
             auto remainingLogs = Paper::Internal::logQueue.size_approx();
             if (remainingLogs == 0 || (false && logsSinceLastFlush > FORCE_FLUSH_COUNT)) {
