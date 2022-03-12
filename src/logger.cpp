@@ -73,7 +73,7 @@ inline void flushLog(Paper::ThreadData const& threadData, std::string_view s, /*
                                 s // TODO: Is there a better way to do this?
     ));
 
-    __android_log_print((int) level, tag.data(), "%s", msg.data());
+    __android_log_write((int) level, tag.data(),msg.data());
     globalFile << msg;
     globalFile << std::endl;
 
