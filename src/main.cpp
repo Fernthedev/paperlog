@@ -1,5 +1,7 @@
 #include "main.hpp"
 
+#include "string_convert.hpp"
+
 #include "modinfo_fmt.hpp"
 #include "logger.hpp"
 #include "Profiler.hpp"
@@ -60,6 +62,9 @@ extern "C" void load() {
                                                 "ह\n"
                                                 "€\n"
                                                 "한\n");
+
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>("Testing UTF-16 conversion chars {}",
+                                                Paper::StringConvert::from_utf16(u"한"));
 
     Paper::Logger::WaitForFlush();
     profiler.mark("Flushed");
