@@ -8,11 +8,11 @@ Logging lightweight as paper
 - Backtrace logging
 - Better consumer thread usage for logging to file (?)
 - Print `\n` nicely
+- Ensure support for logging ustrings
 
 ## TODO:
 - Flush needs to happen before crash (perhaps signal handler?, Less important)
 - Support for logging things that are c# instances by logging pointer value then calling to string (in bs-hooks)
-- Ensure support for logging ustrings
 
 
 ## Credits
