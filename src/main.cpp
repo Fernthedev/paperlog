@@ -15,6 +15,32 @@ extern "C" void setup(ModInfo& info) {
 
 }
 
+void testLogSpamLoop(int spamCount) {
+    for (int i = 0; i < spamCount; i++) {
+        Paper::Logger::fmtLog<Paper::LogLevel::DBG>("Multithread spam! {}", i);
+    }
+}
+
+void testMultithreadedSpam(int threadCount, int spamCount) {
+    Paper::Profiler<std::chrono::nanoseconds> profiler;
+    profiler.suffix = "ns";
+
+    std::vector<std::thread> threads;
+    threads.reserve(threadCount);
+    for (int i = 0; i < threadCount; i++) {
+        threads.emplace_back(&testLogSpamLoop, spamCount);
+    }
+
+    for (auto& t : threads) {
+        t.join();
+    }
+    profiler.mark("Threads finished logging");
+    Paper::Logger::WaitForFlush();
+    profiler.mark("All logs flushed");
+    profiler.printMarks();
+}
+
+
 // Called later on in the game loading - a good time to install function hooks
 extern "C" void load() {
 
@@ -58,4 +84,7 @@ extern "C" void load() {
     Paper::Logger::WaitForFlush();
     profiler.mark("Flushed 100000 logs");
     profiler.printMarks();
+
+    Paper::Logger::fmtLog<Paper::LogLevel::INF>(fmt::runtime(std::string(10, '\n')));
+    testMultithreadedSpam(4, 400);
 }
