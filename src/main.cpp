@@ -64,7 +64,7 @@ extern "C" void load() {
                                                 "한\n");
 
     Paper::Logger::fmtLog<Paper::LogLevel::INF>("Testing UTF-16 conversion chars {}",
-                                                Paper::StringConvert::from_utf16(u"한"));
+                                                Paper::StringConvert::from_utf16(u"한🌮🦀"));
 
     Paper::Logger::WaitForFlush();
     profiler.mark("Flushed");
