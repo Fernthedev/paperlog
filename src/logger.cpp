@@ -49,6 +49,7 @@ void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFil
     globalLogPath = logPath;
     globalFile.open(fmt::format("{}/{}", logPath, globalLogFileName));
     std::thread(Internal::LogThread).detach();
+    flushSemaphore.release();
 }
 
 void logError(std::string_view error) {
@@ -107,11 +108,30 @@ void Paper::Internal::LogThread() {
         Paper::ThreadData threadData{(std::string_view) "", std::this_thread::get_id(), "", Paper::sl::current(),
                                      LogLevel::DBG, {}};
 
-        std::ofstream* contextFile;
+        std::ofstream* contextFile = nullptr;
         size_t logsSinceLastFlush = 0;
+
+        bool doFlush = false;
+        auto flushLambda = [&]() constexpr {
+            // nothing more in queue, flush
+            if (contextFile) {
+                contextFile->flush();
+            }
+            globalFile.flush();
+            logsSinceLastFlush = 0;
+            doFlush = false;
+
+            flushSemaphore.release();
+        };
+
+        // Write to log to empty
+        flushLambda();
 
         while (true) {
             if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
+                if (doFlush) {
+                    flushLambda();
+                }
                 std::this_thread::yield();
                 continue;
             }
@@ -123,6 +143,10 @@ void Paper::Internal::LogThread() {
             auto const &time = fmt::localtime(threadData.logTime);
             auto const &threadId = fmt::to_string(threadData.threadId);
 
+            auto writeLogLambda = [&](std::string_view view) constexpr {
+                writeLog(threadData, time, threadId, view, contextFile);
+                doFlush = true;
+            };
 
             auto it = registeredFileContexts.find(tag);
             if (it != registeredFileContexts.end()) {
@@ -153,13 +177,13 @@ void Paper::Internal::LogThread() {
                 }
 
                 if (c == '\n') {
-                    writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
+                    writeLogLambda(std::string_view(begin, count));
                     begin += count + 1;
                     count = 0;
                 } else if((skipCount = charExtraLength(c)) > 0) {
                     count++;
                 } else if (count >= maxStrLength) {
-                    writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
+                    writeLogLambda(std::string_view(begin, count));
                     begin += count;
                     count = 1;
                 } else {
@@ -167,23 +191,13 @@ void Paper::Internal::LogThread() {
                 }
             }
             if (count > 0) {
-                writeLog(threadData, time, threadId, std::string_view(begin, count), contextFile);
+                writeLogLambda(std::string_view(begin, count));
             }
             logsSinceLastFlush++;
 
-            auto remainingLogs = Paper::Internal::logQueue.size_approx();
-            if (remainingLogs == 0 || (false && logsSinceLastFlush > FORCE_FLUSH_COUNT)) {
-                // nothing more in queue, flush
-                if (contextFile) {
-                    contextFile->flush();
-                }
-                globalFile.flush();
-                logsSinceLastFlush = 0;
 
-                // dont release until we flush ALL logs
-                if (remainingLogs == 0) {
-                    flushSemaphore.release();
-                }
+            if (false && logsSinceLastFlush > FORCE_FLUSH_COUNT) {
+                flushLambda();
             }
         }
     } catch (std::runtime_error const &e) {
