@@ -92,8 +92,29 @@ namespace Paper {
     template <typename... Args>
     using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
 
+    struct LoggerConfig {
+        LoggerConfig() = default;
 
-    namespace Logger {
+        char lineEnd = '\n';
+        /**
+         * @brief When the buffer exceeds this number with logs
+         * pending to be written, it will force a flush
+         * 
+         */
+        uint16_t LogMaxBufferCount = 512;
+
+        /**
+         * @brief Maximum length for a string
+         * When a string reaches/exceeds this length, it will be split
+         * 
+         */
+        uint32_t MaxStringLen = 1024;
+
+        std::string globalLogFileName = "PaperLog.log";
+    };
+
+    namespace Logger
+    {
         template<LogLevel level>
         inline void vfmtLog(fmt::string_view const str, sl const& sourceLoc, std::string_view const tag, fmt::format_args const& args) noexcept {
             std::string strFmt(fmt::vformat(str, args));
@@ -133,7 +154,7 @@ namespace Paper {
 
         std::string_view getLogDirectoryPathGlobal();
 
-        void Init(std::string_view logPath, std::string_view globalLogFileName = "PaperLog.log");
+        void Init(std::string_view logPath, LoggerConfig const& config = {});
 
         void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
@@ -145,7 +166,6 @@ namespace Paper {
 
         void WaitForFlush();
     };
-
 
     template<std::size_t sz>
     struct ConstLoggerContext {

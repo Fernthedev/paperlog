@@ -26,11 +26,6 @@
 moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 std::binary_semaphore flushSemaphore;
 
-
-#define LINE_END '\n'
-#define STRING_LIMIT 1024
-#define FORCE_FLUSH_COUNT 500
-
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
     std::size_t operator()(std::string_view sv) const {
@@ -39,16 +34,20 @@ struct StringHash {
     }
 };
 
+static Paper::LoggerConfig globalLoggerConfig;
 static std::string globalLogPath;
+
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
-void Paper::Logger::Init(std::string_view logPath, std::string_view globalLogFileName) {
+void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
+{
+    globalLoggerConfig = {config};
     globalLogPath = logPath;
-    globalFile.open(fmt::format("{}/{}", logPath, globalLogFileName));
+    globalFile.open(fmt::format("{}/{}", logPath, config.globalLogFileName));
     std::thread(Internal::LogThread).detach();
     flushSemaphore.release();
 }
@@ -68,7 +67,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     auto const &level = threadData.level;
 
     // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
-    std::string msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
+    std::string const msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
                                 time, time, (int) level, threadId, tag,
                                 location.file_name(), location.line(),
                                 location.column(), location.function_name(),
@@ -165,7 +164,7 @@ void Paper::Internal::LogThread() {
 
             // Split/chunk string algorithm provided by sc2ad thanks
             // intended for logcat and making \n play nicely
-            auto maxStrLength = std::min<size_t>(rawFmtStr.size(), STRING_LIMIT);
+            auto maxStrLength = std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
             auto begin = rawFmtStr.data();
             std::size_t count = 0;
             uint8_t skipCount = 0;
@@ -177,7 +176,7 @@ void Paper::Internal::LogThread() {
                     continue;
                 }
 
-                if (c == '\n') {
+                if (c == globalLoggerConfig.lineEnd) {
                     writeLogLambda(std::string_view(begin, count));
                     begin += count + 1;
                     count = 0;
@@ -197,7 +196,7 @@ void Paper::Internal::LogThread() {
             logsSinceLastFlush++;
 
 
-            if (false && logsSinceLastFlush > FORCE_FLUSH_COUNT) {
+            if (false && logsSinceLastFlush > globalLoggerConfig.MaxStringLen) {
                 flushLambda();
             }
         }
