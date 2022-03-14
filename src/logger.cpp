@@ -12,6 +12,7 @@
 #include <thread>
 #include <semaphore>
 #include <span>
+#include <unordered_map>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
