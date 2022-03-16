@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fmt/core.h>
+#include "log_level.hpp"
 #include "internal_logger.hpp"
 
 #if __has_include("modloader/shared/modloader.hpp")
@@ -12,15 +13,6 @@
 //#include <fmtlog/fmtlog.h>
 
 namespace Paper {
-
-    enum class LogLevel : uint8_t
-    {
-        DBG = 0,
-        INF,
-        WRN,
-        ERR,
-        OFF
-    };
 
     static constexpr const std::string_view GLOBAL_TAG = "GLOBAL";
 //
