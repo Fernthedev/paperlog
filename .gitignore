@@ -62,3 +62,4 @@ qpm_defines.cmake
 [Bb]uild/
 cmake-build-*/
 extern.cmake
+mod.json

@@ -1,13 +1,14 @@
 {
-	"_QPVersion": "0.1.1",
-	"name": "Paper",
-	"id": "paper",
-	"author": "Fern",
-	"version": "0.1.0",
-	"description": "Logging lightweight as paper",
-	"isLibrary": true,
-	"dependencies": [],
-	"modFiles": [],
-	"libraryFiles": [],
-	"fileCopies": []
+  "_QPVersion": "0.1.1",
+  "name": "${mod_name}",
+  "id": "${mod_id}",
+  "author": "Fernthedev",
+  "version": "${version}",
+  "isLibrary": true,
+  "description": "Logging library for mods light as paper",
+  "dependencies": [],
+  "modFiles": [],
+  "libraryFiles": [],
+  "fileCopies": [],
+  "copyExtensions": []
 }
