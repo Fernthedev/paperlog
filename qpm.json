@@ -12,18 +12,6 @@
   },
   "dependencies": [
     {
-      "id": "modloader",
-      "versionRange": "^1.2.3",
-      "additionalData": {
-        "private": true
-      }
-    },
-    {
-      "id": "fmtlog",
-      "versionRange": "^2.1.1",
-      "additionalData": {}
-    },
-    {
       "id": "fmt",
       "versionRange": "^8.0.5",
       "additionalData": {}
