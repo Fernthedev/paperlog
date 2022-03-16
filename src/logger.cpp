@@ -5,6 +5,7 @@
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
 
+#include <exception>
 #include <optional>
 #include <fstream>
 #include <iostream>
@@ -36,6 +37,7 @@ struct StringHash {
 
 static Paper::LoggerConfig globalLoggerConfig;
 static std::string globalLogPath;
+static bool inited = false;
 
 using ContextID = std::string;
 using LogPath = std::ofstream;
@@ -45,11 +47,21 @@ static LogPath globalFile;
 
 void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
 {
+    if (inited) {
+        throw std::runtime_error("Already started the logger thread!");
+    }
+
     globalLoggerConfig = {config};
     globalLogPath = logPath;
     globalFile.open(fmt::format("{}/{}", logPath, config.globalLogFileName));
     std::thread(Internal::LogThread).detach();
     flushSemaphore.release();
+    inited = true;
+}
+
+bool const &Paper::Logger::IsInited()
+{
+    return inited;
 }
 
 void logError(std::string_view error) {
@@ -203,14 +215,17 @@ void Paper::Internal::LogThread() {
     } catch (std::runtime_error const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
+        inited = false;
         throw e;
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
+        inited = false;
         throw e;
     } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
         logError(error);
+        inited = false;
         throw;
     }
 }

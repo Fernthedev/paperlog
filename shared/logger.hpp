@@ -147,6 +147,7 @@ namespace Paper {
         std::string_view getLogDirectoryPathGlobal();
 
         void Init(std::string_view logPath, LoggerConfig const& config = {});
+        bool const& IsInited();
 
         void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
