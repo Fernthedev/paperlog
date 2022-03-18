@@ -12,10 +12,12 @@
 #endif
 
 namespace Paper {
-#ifndef NOSTD_SOURCE_LOCATION_HPP
-    using sl = std::experimental::source_location;
-#else
+#ifdef NOSTD_SOURCE_LOCATION_HPP
     using sl = nostd::source_location;
+#elif __has_include(<source_location>)
+    using sl = std::source_location;
+#elif __has_include(<experimental/source_location>)
+    using sl = std::experimental::source_location;
 #endif
 
     enum class LogLevel : uint8_t;

@@ -9,7 +9,6 @@
 #include <optional>
 #include <fstream>
 #include <iostream>
-#include <android/log.h>
 #include <thread>
 #include <semaphore>
 #include <span>
@@ -25,8 +24,14 @@
 #define HAS_UNWIND
 #endif
 
+// TODO: make this less jank
+#if __has_include(<android/log.h>)
+#include <android/log.h>
+#define HAS_ANDROID_LOG
+#endif
+
 moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
-std::binary_semaphore flushSemaphore;
+std::binary_semaphore flushSemaphore{1};
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -67,7 +72,12 @@ bool const &Paper::Logger::IsInited()
 }
 
 inline void logError(std::string_view error) {
-    __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
+#ifdef HAS_ANDROID_LOG
+    __android_log_write((int) Paper::LogLevel::ERR, "PAPERLOG", error.data());
+#else
+    std::cout << "PAPERLOG ERROR: " << error.data() << std::endl;
+#endif
+
     if (globalFile.is_open()) {
         globalFile << error << std::endl;
     }
@@ -88,7 +98,14 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
                                 s // TODO: Is there a better way to do this?
     ));
 
-    __android_log_write((int) level, tag.data(),msg.data());
+    #ifdef HAS_ANDROID_LOG
+        __android_log_write((int) level, tag.data(),msg.data());
+    #else
+        std::cout << msg << '\n';
+    #endif
+
+
+
     globalFile << msg << '\n';
 
 
@@ -130,7 +147,12 @@ void Paper::Internal::LogThread() {
         size_t logsSinceLastFlush = 0;
 
         bool doFlush = false;
+        // TODO: Make this better
+#if _MSC_VER
+        auto flushLambda = [&]() {
+#else
         auto flushLambda = [&]() constexpr {
+#endif
             // nothing more in queue, flush
             if (contextFile) {
                 contextFile->flush();
@@ -160,8 +182,12 @@ void Paper::Internal::LogThread() {
             auto const &level = threadData.level;
             auto const &time = fmt::localtime(threadData.logTime);
             auto const &threadId = fmt::to_string(threadData.threadId);
-
+// TODO: Fix
+#if _MSC_VER
+            auto writeLogLambda = [&](std::string_view view) {
+#else
             auto writeLogLambda = [&](std::string_view view) constexpr {
+#endif
                 writeLog(threadData, time, threadId, view, contextFile);
                 doFlush = true;
             };
@@ -316,7 +342,10 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
 
 #else
 
+#ifndef _MSC_VER
 #warning No unwind found, compiling stub backtrace function
+#endif
+
 void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
 
 #endif

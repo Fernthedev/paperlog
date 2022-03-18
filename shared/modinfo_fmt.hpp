@@ -2,7 +2,15 @@
 
 #include <fmt/format.h>
 
-#include "modloader/shared/modloader.hpp"
+#if __has_include("modloader/shared/modloader.hpp") && __has_include(<jni.h>)
+//#include "modloader/shared/modloader.hpp"
+#define HAS_QUEST_MODLOADER
+#else
+struct ModInfo {
+    std::string id;
+    std::string version;
+};
+#endif
 
 template <> struct fmt::formatter<ModInfo> : formatter<string_view>{
 

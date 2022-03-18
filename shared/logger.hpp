@@ -4,10 +4,10 @@
 #include "log_level.hpp"
 #include "internal_logger.hpp"
 
+#include <functional>
+
 #if __has_include("modloader/shared/modloader.hpp")
-#include "modloader/shared/modloader.hpp"
 #include "modinfo_fmt.hpp"
-#define QUEST_MODLOADER
 #endif
 
 //#include <fmtlog/fmtlog.h>

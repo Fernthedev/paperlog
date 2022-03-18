@@ -1,5 +1,14 @@
 # include some defines automatically made by qpm
-include(qpm_defines.cmake)
+if (DEFINED QUEST_BUILD)
+    include(qpm_defines.cmake)
+else()
+    include(notqpm_defines.cmake)
+endif()
+
+if(MSVC)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    set(BUILD_SHARED_LIBS TRUE)
+endif()
 
 # override mod id
 set(MOD_ID "paper")
@@ -55,25 +64,49 @@ target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
 target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
 
 target_link_libraries(${COMPILE_ID} PRIVATE -llog)
-# add extern stuff like libs and other includes
-include(extern.cmake)
 
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_STRIP} -d --strip-all
-        "lib${COMPILE_ID}.so" -o "stripped_lib${COMPILE_ID}.so"
-        COMMENT "Strip debug symbols done on final binary.")
+# include some defines automatically made by qpm
+if (DEFINED QUEST_BUILD)
+    # add extern stuff like libs and other includes
+    include(extern.cmake)
 
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory debug
-        COMMENT "Make directory for debug symbols"
-        )
+    add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
+            COMMAND ${CMAKE_STRIP} -d --strip-all
+            "lib${COMPILE_ID}.so" -o "stripped_lib${COMPILE_ID}.so"
+            COMMENT "Strip debug symbols done on final binary.")
 
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rename lib${COMPILE_ID}.so debug/lib${COMPILE_ID}.so
-        COMMENT "Rename the lib to debug_ since it has debug symbols"
-        )
+    add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory debug
+            COMMENT "Make directory for debug symbols"
+            )
 
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rename stripped_lib${COMPILE_ID}.so lib${COMPILE_ID}.so
-        COMMENT "Rename the stripped lib to regular"
-        )
+    add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rename lib${COMPILE_ID}.so debug/lib${COMPILE_ID}.so
+            COMMENT "Rename the lib to debug_ since it has debug symbols"
+            )
+
+
+    add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rename stripped_lib${COMPILE_ID}.so lib${COMPILE_ID}.so
+            COMMENT "Rename the stripped lib to regular"
+            )
+else()
+    include(notqpm_extern.cmake)
+endif()
+
+
+
+project(paperlog_runnable)
+add_executable(paperlog_runnable
+        src/main.cpp
+)
+
+
+target_include_directories(paperlog_runnable PRIVATE ${SOURCE_DIR})
+target_include_directories(paperlog_runnable PRIVATE ${INCLUDE_DIR})
+# add shared dir as include dir
+target_include_directories(paperlog_runnable PUBLIC ${SHARED_DIR})
+target_include_directories(paperlog_runnable SYSTEM PRIVATE ${EXTERN_DIR}/includes/fmt/fmt/include/)
+target_compile_options(paperlog_runnable PRIVATE -DFMT_HEADER_ONLY)
+
+target_link_libraries(paperlog_runnable PRIVATE paperlog)
