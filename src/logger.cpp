@@ -14,6 +14,7 @@
 #include <semaphore>
 #include <span>
 #include <unordered_map>
+#include <list>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
@@ -42,6 +43,7 @@ static bool inited = false;
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
+static std::list<Paper::LogSink> sinks;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
@@ -64,7 +66,7 @@ bool const &Paper::Logger::IsInited()
     return inited;
 }
 
-void logError(std::string_view error) {
+inline void logError(std::string_view error) {
     __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
     if (globalFile.is_open()) {
         globalFile << error << std::endl;
@@ -93,6 +95,10 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     if (contextFilePtr) {
         auto &f = *contextFilePtr;
         f << msg << '\n';
+    }
+
+    for (auto const& sink : sinks) {
+        sink(threadData, msg);
     }
 }
 
@@ -245,6 +251,11 @@ void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::strin
 
 void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
     registeredFileContexts.erase(contextId.data());
+}
+
+void
+Paper::Logger::AddLogSink(LogSink const& sink) {
+    sinks.emplace_back(sink);
 }
 
 #ifdef HAS_UNWIND

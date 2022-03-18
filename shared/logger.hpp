@@ -84,6 +84,8 @@ namespace Paper {
     template <typename... Args>
     using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
 
+    using LogSink = std::function<void(ThreadData const&, std::string_view fmtMessage)>;
+
     struct LoggerConfig {
         LoggerConfig() = default;
 
@@ -158,6 +160,8 @@ namespace Paper {
         void UnregisterFileContextId(std::string_view contextId);
 
         void WaitForFlush();
+
+        void AddLogSink(LogSink const& sink);
     };
 
     template<std::size_t sz>
