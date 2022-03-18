@@ -82,7 +82,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
 
     // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
     std::string const msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
-                                time, time, (int) level, threadId, tag,
+                                time, time, level, threadId, tag,
                                 location.file_name(), location.line(),
                                 location.column(), location.function_name(),
                                 s // TODO: Is there a better way to do this?
