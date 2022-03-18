@@ -88,7 +88,14 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
                                 s // TODO: Is there a better way to do this?
     ));
 
-    __android_log_write((int) level, tag.data(),msg.data());
+    // TODO: Reduce double formatting
+    std::string const androidMsg(fmt::format(FMT_COMPILE("[{:<6}] [{}:{}:{} @ {}]: {}"),
+                                             threadId, tag,
+                                             location.file_name(), location.line(),
+                                             location.column(), location.function_name(),
+                                             s));
+
+    __android_log_write((int) level, tag.data(), androidMsg.data());
     globalFile << msg << '\n';
 
 
