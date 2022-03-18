@@ -10,6 +10,7 @@ namespace Paper
         INF = 4,
         WRN = 5,
         ERR = 6,
+        CRIT = 7,
         OFF = 0
     };
 }
