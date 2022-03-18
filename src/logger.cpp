@@ -14,7 +14,7 @@
 #include <semaphore>
 #include <span>
 #include <unordered_map>
-#include <list>
+#include <vector>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
@@ -43,7 +43,7 @@ static bool inited = false;
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
-static std::list<Paper::LogSink> sinks;
+static std::vector<Paper::LogSink> sinks;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
