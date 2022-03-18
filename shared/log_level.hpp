@@ -6,10 +6,10 @@ namespace Paper
 {
     enum class LogLevel : uint8_t
     {
-        DBG = 2,
-        INF = 3,
-        WRN = 4,
-        ERR = 5,
+        DBG = 3,
+        INF = 4,
+        WRN = 5,
+        ERR = 6,
         OFF = 0
     };
 }
