@@ -208,7 +208,7 @@ void Paper::Internal::LogThread() {
             logsSinceLastFlush++;
 
 
-            if (false && logsSinceLastFlush > globalLoggerConfig.MaxStringLen) {
+            if (false && logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
                 flushLambda();
             }
         }
