@@ -89,9 +89,12 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     ));
 
     // TODO: Reduce double formatting
-    std::string const androidMsg(fmt::format(FMT_COMPILE("[{:<6}] [{}:{}:{} @ {}]: {}"),
-                                             threadId, tag,
-                                             location.file_name(), location.line(),
+    std::string const androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"),
+                                             level, threadId,
+                                             location.file_name()
+                                             // don't allow file name to be super long
+                                                .substr(std::min<size_t>(location.file_name().size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0), globalLoggerConfig.MaximumFileLengthInLogcat),
+                                             location.line(),
                                              location.column(), location.function_name(),
                                              s));
 

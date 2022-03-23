@@ -105,6 +105,8 @@ namespace Paper {
         uint32_t MaxStringLen = 1024;
 
         std::string globalLogFileName = "PaperLog.log";
+
+        uint32_t MaximumFileLengthInLogcat = 25;
     };
 
     namespace Logger
