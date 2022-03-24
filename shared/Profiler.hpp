@@ -46,7 +46,7 @@ namespace Paper {
             points.emplace_back(profileData);
         }
 
-        void printMarks() const {
+        void printMarks(std::string_view context = Paper::GLOBAL_TAG) const {
             auto before = start;
 
             for (auto const &point: points) {
@@ -56,10 +56,10 @@ namespace Paper {
                 if (point.showTime) {
                     auto difference = time - before;
                     auto millisElapsed = std::chrono::duration_cast<ToDuration>(difference).count();
-                    Logger::fmtLog<LogLevel::DBG>("{} {}{}", name, millisElapsed, suffix);
+                    Logger::fmtLogTag<LogLevel::DBG>("{} {}{}", context, name, millisElapsed, suffix);
                     before = time;
                 } else {
-                    Logger::fmtLog<LogLevel::DBG>("{}", name);
+                    Logger::fmtLogTag<LogLevel::DBG>("{}", context, name);
                 }
             }
 
