@@ -47,11 +47,14 @@ static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> regis
 static LogPath globalFile;
 
 #ifdef PAPER_NO_INIT
-using namespace std::string_view_literals;
-constexpr auto globalFileName = "PaperLog.log"sv;
+constexpr auto globalFileName = "PaperLog.log";
 
 void __attribute__((destructor)) dlopen_initialize() {
+    #ifdef PAPER_QUEST_MODLOADER
     globalLogPath = fmt::format("/sdcard/Android/data/{}/files/logs", Modloader::getApplicationId());
+    #else
+    #error "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
+    #endif
     globalFile.open(fmt::format("{}/{}", globalLogPath, globalFileName));
     std::thread(Paper::Internal::LogThread).detach();
     flushSemaphore.release();
