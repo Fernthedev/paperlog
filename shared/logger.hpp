@@ -110,9 +110,7 @@ namespace Paper {
     {
         template<LogLevel level>
         inline void vfmtLog(fmt::string_view const str, sl const& sourceLoc, std::string_view const tag, fmt::format_args const& args) noexcept {
-            std::string strFmt(fmt::vformat(str, args));
-
-            while(!Internal::logQueue.enqueue(ThreadData(std::move(strFmt), std::this_thread::get_id(), tag, sourceLoc, level, std::chrono::system_clock::now())));
+            while(!Internal::logQueue.enqueue(ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level, std::chrono::system_clock::now())));
         }
 
         template<LogLevel lvl, typename... TArgs>
