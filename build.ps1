@@ -3,15 +3,19 @@ Param(
     [Switch] $clean,
 
     [Parameter(Mandatory=$false)]
-    [Switch] $help
+    [Switch] $help,
+
+    [Parameter(Mandatory=$false)]
+    [Switch] $test
 )
 
 if ($help -eq $true) {
-    echo "`"Build`" - Copiles your mod into a `".so`" or a `".a`" library"
-    echo "`n-- Arguments --`n"
+    Write-Output "`"Build`" - Copiles your mod into a `".so`" or a `".a`" library"
+    Write-Output "`n-- Arguments --`n"
 
-    echo "-Clean `t`t Deletes the `"build`" folder, so that the entire library is rebuilt"
-
+    Write-Output "-clean `t`t Deletes the `"build`" folder, so that the entire library is rebuilt"
+    Write-Output "-test `t`t Creates a test build"
+    Write-Output "-help `t`t Prints this message"
     exit
 }
 
@@ -30,5 +34,9 @@ if (($clean.IsPresent) -or (-not (Test-Path -Path "build")))
     $out = new-item -Path build -ItemType Directory
 } 
 
-& cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build
+if ($test.IsPresent) {
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DTEST_BUILD=1 -B build
+} else {
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build
+}
 & cmake --build ./build

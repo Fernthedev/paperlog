@@ -1,5 +1,4 @@
 #include "logger.hpp"
-#include "main.hpp"
 
 #include <fmt/ostream.h>
 #include <fmt/chrono.h>

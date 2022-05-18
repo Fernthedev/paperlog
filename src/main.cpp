@@ -1,8 +1,6 @@
-#include "main.hpp"
-
+#ifdef PAPER_TEST_LOGS
 #include "string_convert.hpp"
 
-#include "modinfo_fmt.hpp"
 #include "logger.hpp"
 #include "Profiler.hpp"
 
@@ -94,3 +92,4 @@ extern "C" void load() {
     Paper::Logger::fmtLog<Paper::LogLevel::INF>(fmt::runtime(std::string(10, '\n')));
     testMultithreadedSpam(4, 400);
 }
+#endif
