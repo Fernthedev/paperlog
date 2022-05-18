@@ -104,8 +104,6 @@ namespace Paper {
          */
         uint32_t MaxStringLen = 1024;
 
-        std::string globalLogFileName = "PaperLog.log";
-
         uint32_t MaximumFileLengthInLogcat = 25;
     };
 
@@ -150,8 +148,10 @@ namespace Paper {
 
         std::string_view getLogDirectoryPathGlobal();
 
+        #ifndef QUEST_MODLOADER
         void Init(std::string_view logPath, LoggerConfig const& config = {});
-        bool const& IsInited();
+        bool IsInited();
+        #endif
 
         void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
@@ -162,6 +162,13 @@ namespace Paper {
         void UnregisterFileContextId(std::string_view contextId);
 
         void WaitForFlush();
+        /**
+         * @brief Returns a mutable reference to the global configuration.
+         * NOTE THAT MODIFYING THIS MAY NOT BE UPDATED ON THE CURRENT FLUSH DUE TO RACE CONDITIONS!
+         * 
+         * @return LoggerConfig& The mutable reference to the global configuration.
+         **/
+        LoggerConfig& GlobalConfig();
 
         void AddLogSink(LogSink const& sink);
     };

@@ -38,7 +38,6 @@ struct StringHash {
 
 static Paper::LoggerConfig globalLoggerConfig;
 static std::string globalLogPath;
-static bool inited = false;
 
 using ContextID = std::string;
 using LogPath = std::ofstream;
@@ -47,6 +46,18 @@ static std::vector<Paper::LogSink> sinks;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
+#ifdef QUEST_MODLOADER
+using namespace std::string_view_literals;
+constexpr auto globalFileName = "PaperLog.log"sv;
+
+void __attribute__((destructor)) dlopen_initialize() {
+    globalLogPath = fmt::format("/sdcard/Android/data/{}/files/logs", Modloader::getApplicationId());
+    globalFile.open(fmt::format("{}/{}", globalLogPath, globalFileName));
+    std::thread(Paper::Internal::LogThread).detach();
+    flushSemaphore.release();
+}
+#else
+static bool inited = false;
 void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
 {
     if (inited) {
@@ -60,10 +71,13 @@ void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
     flushSemaphore.release();
     inited = true;
 }
-
-bool const &Paper::Logger::IsInited()
-{
+bool Paper::Logger::IsInited() {
     return inited;
+}
+#endif
+
+Paper::LoggerConfig& GlobalConfig() {
+    return globalLoggerConfig;
 }
 
 inline void logError(std::string_view error) {
@@ -228,20 +242,19 @@ void Paper::Internal::LogThread() {
                 flushLambda();
             }
         }
-    } catch (std::runtime_error const &e) {
-        std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
-        logError(error);
-        inited = false;
-        throw e;
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
+        #ifndef QUEST_MODLOADER
         inited = false;
+        #endif
         throw e;
     } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
         logError(error);
+        #ifndef QUEST_MODLOADER
         inited = false;
+        #endif
         throw;
     }
 }
