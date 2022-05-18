@@ -46,7 +46,7 @@ static std::vector<Paper::LogSink> sinks;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
-#ifdef QUEST_MODLOADER
+#ifdef PAPER_NO_INIT
 using namespace std::string_view_literals;
 constexpr auto globalFileName = "PaperLog.log"sv;
 
@@ -245,14 +245,14 @@ void Paper::Internal::LogThread() {
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
         logError(error);
-        #ifndef QUEST_MODLOADER
+        #ifndef PAPER_NO_INIT
         inited = false;
         #endif
         throw e;
     } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
         logError(error);
-        #ifndef QUEST_MODLOADER
+        #ifndef PAPER_NO_INIT
         inited = false;
         #endif
         throw;

@@ -1,13 +1,12 @@
 #pragma once
 
+#include "_config.h"
 #include <fmt/core.h>
 #include "log_level.hpp"
 #include "internal_logger.hpp"
 
-#if __has_include("modloader/shared/modloader.hpp")
-#include "modloader/shared/modloader.hpp"
+#ifdef PAPER_QUEST_MODLOADER
 #include "modinfo_fmt.hpp"
-#define QUEST_MODLOADER
 #endif
 
 //#include <fmtlog/fmtlog.h>
@@ -148,7 +147,7 @@ namespace Paper {
 
         std::string_view getLogDirectoryPathGlobal();
 
-        #ifndef QUEST_MODLOADER
+        #ifndef PAPER_NO_INIT
         void Init(std::string_view logPath, LoggerConfig const& config = {});
         bool IsInited();
         #endif
