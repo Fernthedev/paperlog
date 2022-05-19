@@ -26,10 +26,16 @@ set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # compile options used
 add_compile_options(-frtti -fexceptions)
 add_compile_options(-O3)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # compile definitions used
 add_compile_definitions(VERSION=\"${MOD_VERSION}\")
 add_compile_definitions(MOD_ID=\"${MOD_ID}\")
 add_compile_definitions(FMT_HEADER_ONLY)
+
+if (DEFINED TEST_BUILD)
+    MESSAGE(STATUS "Compiling with test defines")
+    add_compile_definitions(PAPER_TEST_LOGS)
+endif()
 
 # recursively get all src files
 RECURSE_FILES(cpp_file_list ${SOURCE_DIR}/*.cpp)

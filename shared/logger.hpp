@@ -1,13 +1,12 @@
 #pragma once
 
+#include "_config.h"
 #include <fmt/core.h>
 #include "log_level.hpp"
 #include "internal_logger.hpp"
 
-#if __has_include("modloader/shared/modloader.hpp")
-#include "modloader/shared/modloader.hpp"
+#ifdef PAPER_QUEST_MODLOADER
 #include "modinfo_fmt.hpp"
-#define QUEST_MODLOADER
 #endif
 
 //#include <fmtlog/fmtlog.h>
@@ -104,8 +103,6 @@ namespace Paper {
          */
         uint32_t MaxStringLen = 1024;
 
-        std::string globalLogFileName = "PaperLog.log";
-
         uint32_t MaximumFileLengthInLogcat = 25;
     };
 
@@ -113,9 +110,7 @@ namespace Paper {
     {
         template<LogLevel level>
         inline void vfmtLog(fmt::string_view const str, sl const& sourceLoc, std::string_view const tag, fmt::format_args const& args) noexcept {
-            std::string strFmt(fmt::vformat(str, args));
-
-            while(!Internal::logQueue.enqueue(ThreadData(std::move(strFmt), std::this_thread::get_id(), tag, sourceLoc, level, std::chrono::system_clock::now())));
+            while(!Internal::logQueue.enqueue(ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level, std::chrono::system_clock::now())));
         }
 
         template<LogLevel lvl, typename... TArgs>
@@ -150,8 +145,10 @@ namespace Paper {
 
         std::string_view getLogDirectoryPathGlobal();
 
+        #ifndef PAPER_NO_INIT
         void Init(std::string_view logPath, LoggerConfig const& config = {});
-        bool const& IsInited();
+        bool IsInited();
+        #endif
 
         void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
@@ -162,6 +159,13 @@ namespace Paper {
         void UnregisterFileContextId(std::string_view contextId);
 
         void WaitForFlush();
+        /**
+         * @brief Returns a mutable reference to the global configuration.
+         * NOTE THAT MODIFYING THIS MAY NOT BE UPDATED ON THE CURRENT FLUSH DUE TO RACE CONDITIONS!
+         * 
+         * @return LoggerConfig& The mutable reference to the global configuration.
+         **/
+        LoggerConfig& GlobalConfig();
 
         void AddLogSink(LogSink const& sink);
     };

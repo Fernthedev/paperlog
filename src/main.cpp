@@ -1,8 +1,6 @@
-#include "main.hpp"
-
+#ifdef PAPER_TEST_LOGS
 #include "string_convert.hpp"
 
-#include "modinfo_fmt.hpp"
 #include "logger.hpp"
 #include "Profiler.hpp"
 
@@ -49,7 +47,8 @@ extern "C" void load() {
     Paper::Profiler<std::chrono::nanoseconds> profiler;
     profiler.suffix = "ns";
     profiler.startTimer();
-    Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
+    // Test code here assumes we are on quest, as such, the path is already known.
+    // Paper::Logger::Init("/sdcard/Android/data/com.beatgames.beatsaber/files/logs");
     //        // creates a file logger
 
     profiler.mark("Init");
@@ -93,3 +92,4 @@ extern "C" void load() {
     Paper::Logger::fmtLog<Paper::LogLevel::INF>(fmt::runtime(std::string(10, '\n')));
     testMultithreadedSpam(4, 400);
 }
+#endif
