@@ -179,7 +179,7 @@ namespace Paper {
         }
 
         template<LogLevel lvl, typename... TArgs>
-        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) constt {
+        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
             return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
