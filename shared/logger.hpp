@@ -179,12 +179,12 @@ namespace Paper {
         }
 
         template<LogLevel lvl, typename... TArgs>
-        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) {
+        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) constt {
             return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
         template<LogLevel lvl, typename Exception = std::runtime_error, typename... TArgs>
-        inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) {
+        inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
             return Logger::fmtThrowErrorTag<lvl, Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
     };
