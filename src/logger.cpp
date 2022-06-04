@@ -58,6 +58,14 @@ void __attribute__((destructor)) dlopen_initialize() {
     std::thread(Paper::Internal::LogThread).detach();
     flushSemaphore.release();
 }
+// To avoid loading errors
+namespace Paper::Logger {
+    void Init(std::string_view logPath, LoggerConfig const &config) {}
+
+    bool IsInited() {
+        return true;
+    }
+}
 #else
 static bool inited = false;
 void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
