@@ -7,7 +7,11 @@
     "version": "1.2.2",
     "url": "https://github.com/Fernthedev/paperlog",
     "additionalData": {
-      "overrideSoName": "libpaperlog.so"
+      "soLink": "https://github.com/Fernthedev/paperlog/releases/download/v1.2.2/libpaperlog.so",
+      "debugSoLink": "https://github.com/Fernthedev/paperlog/releases/download/v1.2.2/debug_libpaperlog.so",
+      "overrideSoName": "libpaperlog.so",
+      "modLink": "https://github.com/Fernthedev/paperlog/releases/download/v1.2.2/paperlog.qmod",
+      "branchName": "version-v1.2.2"
     }
   },
   "dependencies": [
