@@ -103,7 +103,7 @@ namespace Paper {
          */
         uint32_t MaxStringLen = 1024;
 
-        uint32_t MaximumFileLengthInLogcat = 25;
+        uint32_t MaximumFileLengthInLogcat = 50;
     };
 
     namespace Logger
@@ -162,7 +162,7 @@ namespace Paper {
         /**
          * @brief Returns a mutable reference to the global configuration.
          * NOTE THAT MODIFYING THIS MAY NOT BE UPDATED ON THE CURRENT FLUSH DUE TO RACE CONDITIONS!
-         * 
+         *
          * @return LoggerConfig& The mutable reference to the global configuration.
          **/
         LoggerConfig& GlobalConfig();

@@ -109,7 +109,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
                                              level, threadId,
                                              location.file_name()
                                              // don't allow file name to be super long
-                                                .substr(std::min<size_t>(location.file_name().size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0), globalLoggerConfig.MaximumFileLengthInLogcat),
+                                                .substr(std::min<size_t>(location.file_name().size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0)),
                                              location.line(),
                                              location.column(), location.function_name(),
                                              s));
@@ -176,6 +176,7 @@ void Paper::Internal::LogThread() {
                 if (doFlush) {
                     flushLambda();
                 }
+                flushSemaphore.release();
                 std::this_thread::yield();
                 continue;
             }
