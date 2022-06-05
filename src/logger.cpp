@@ -14,6 +14,7 @@
 #include <span>
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
@@ -45,44 +46,56 @@ static std::vector<Paper::LogSink> sinks;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 static LogPath globalFile;
 
-#ifdef PAPER_NO_INIT
 constexpr auto globalFileName = "PaperLog.log";
 
-void __attribute__((destructor)) dlopen_initialize() {
-    #ifdef PAPER_QUEST_MODLOADER
-    globalLogPath = fmt::format("/sdcard/Android/data/{}/files/logs", Modloader::getApplicationId());
-    #else
-    #error "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
-    #endif
-    globalFile.open(fmt::format("{}/{}", globalLogPath, globalFileName));
-    std::thread(Paper::Internal::LogThread).detach();
-    flushSemaphore.release();
-}
 // To avoid loading errors
+static bool inited = false;
+
 namespace Paper::Logger {
-    void Init(std::string_view logPath, LoggerConfig const &config) {}
+    void Init(std::string_view logPath, LoggerConfig const &config) {
+        if (inited) {
+            throw std::runtime_error("Already started the logger thread!");
+        }
+
+        __android_log_print(ANDROID_LOG_INFO, "PAPERLOG", "Logging paper to folder %s and file %s", logPath.data(), globalFileName);
+
+        globalLoggerConfig = {config};
+        globalLogPath = logPath;
+        std::filesystem::create_directories(globalLogPath);
+        globalFile.open(fmt::format("{}/{}", logPath, globalFileName), std::ofstream::out | std::ofstream::trunc);
+        std::thread(Internal::LogThread).detach();
+        flushSemaphore.release();
+        inited = true;
+    }
 
     bool IsInited() {
-        return true;
+        return inited;
     }
 }
-#else
-static bool inited = false;
-void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config)
-{
-    if (inited) {
-        throw std::runtime_error("Already started the logger thread!");
-    }
 
-    globalLoggerConfig = {config};
-    globalLogPath = logPath;
-    globalFile.open(fmt::format("{}/{}", logPath, config.globalLogFileName));
-    std::thread(Internal::LogThread).detach();
-    flushSemaphore.release();
-    inited = true;
-}
-bool Paper::Logger::IsInited() {
-    return inited;
+// TODO: Fix constructor memory crash
+#ifdef PAPER_NO_INIT
+#warning Using dlopen for initializing thread
+void __attribute__((destructor)) dlopen_initialize() {
+    __android_log_write(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
+
+#ifdef PAPER_QUEST_MODLOADER
+    std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
+#else
+    #error "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
+    std::string path(globalLogPath);
+#endif
+    try {
+        Paper::Logger::Init(path, Paper::LoggerConfig());
+    } catch (std::exception const &e) {
+        std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
+        __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        throw e;
+    } catch (...) {
+        std::string error = fmt::format("Error occurred in logging thread!");
+        __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        throw;
+    }
 }
 #endif
 
@@ -255,7 +268,7 @@ void Paper::Internal::LogThread() {
             }
         }
     } catch (std::exception const &e) {
-        std::string error = fmt::format("Error occurred in logging thread! %s", e.what());
+        std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
         logError(error);
         #ifndef PAPER_NO_INIT
         inited = false;
