@@ -36,15 +36,18 @@ struct StringHash {
     }
 };
 
-static Paper::LoggerConfig globalLoggerConfig;
-static std::string globalLogPath;
+static Paper::LoggerConfig globalLoggerConfig __attribute__((init_priority (105)));
+
+static std::string globalLogPath __attribute__((init_priority (105)));
 
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
-static std::vector<Paper::LogSink> sinks;
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
-static LogPath globalFile;
+static std::vector<Paper::LogSink> sinks __attribute__((init_priority (105)));
+static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts __attribute__((init_priority (105)));
+
+
+static LogPath globalFile __attribute__((init_priority (105)));
 
 constexpr auto globalFileName = "PaperLog.log";
 
@@ -76,7 +79,7 @@ namespace Paper::Logger {
 // TODO: Fix constructor memory crash
 #ifdef PAPER_NO_INIT
 #warning Using dlopen for initializing thread
-void __attribute__((destructor)) dlopen_initialize() {
+void __attribute__((constructor(200))) dlopen_initialize() {
     __android_log_write(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
 #ifdef PAPER_QUEST_MODLOADER
