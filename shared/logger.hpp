@@ -187,6 +187,10 @@ namespace Paper {
         inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
             return Logger::fmtThrowErrorTag<lvl, Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
+
+        inline auto Backtrace(uint16_t frameCount) {
+            return Logger::Backtrace(tag, frameCount);
+        }
     };
 
     namespace Logger {
