@@ -185,7 +185,7 @@ namespace Paper {
 
         template<typename Exception = std::runtime_error, typename... TArgs>
         inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
-            return Logger::fmtThrowErrorTag<lvl, Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
+            return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
         inline auto Backtrace(uint16_t frameCount) {
