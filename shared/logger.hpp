@@ -131,9 +131,9 @@ namespace Paper {
 
         template<typename Exception = std::runtime_error, typename... TArgs>
         inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, fmt::string_view tag, TArgs&&... args) {
-            Logger::fmtLog<LogLevel::ERR, TArgs...>(str, tag, std::forward<TArgs>(args)...);
+            Logger::fmtLogTag<LogLevel::ERR, TArgs...>(str, tag, std::forward<TArgs>(args)...);
 
-            auto exceptionMsg = fmt::format<TArgs...>(str.str, tag, std::forward<TArgs>(args)...);
+            auto exceptionMsg = fmt::format<TArgs...>(str, tag, std::forward<TArgs>(args)...);
             throw Exception(fmt::format("{} {}", tag, exceptionMsg));
         }
 
