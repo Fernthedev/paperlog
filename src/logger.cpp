@@ -211,7 +211,7 @@ void Paper::Internal::LogThread() {
             auto const &location = threadData.loc;
             auto const &level = threadData.level;
             auto const &time = fmt::localtime(threadData.logTime);
-            auto const &threadId = fmt::to_string(threadData.threadId);
+            std::string threadId = std::to_string(std::hash<std::thread::id>{}(threadData.threadId));
 
             auto writeLogLambda = [&](std::string_view view) constexpr {
                 writeLog(threadData, time, threadId, view, contextFile);
