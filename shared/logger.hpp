@@ -188,7 +188,7 @@ namespace Paper {
             return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
-        inline auto Backtrace(uint16_t frameCount) {
+        inline auto Backtrace(uint16_t frameCount) const {
             return Logger::Backtrace(tag, frameCount);
         }
     };
