@@ -3,6 +3,7 @@
 #include <fmt/ostream.h>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
+#include <fmt/std.h>
 
 #include <exception>
 #include <optional>
@@ -211,7 +212,7 @@ void Paper::Internal::LogThread() {
             auto const &location = threadData.loc;
             auto const &level = threadData.level;
             auto const &time = fmt::localtime(threadData.logTime);
-            std::string threadId = std::to_string(std::hash<std::thread::id>{}(threadData.threadId));
+            std::string threadId = fmt::to_string(threadData.threadId);
 
             auto writeLogLambda = [&](std::string_view view) constexpr {
                 writeLog(threadData, time, threadId, view, contextFile);
