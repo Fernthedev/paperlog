@@ -1,9 +1,7 @@
 {
-  "_QPVersion": "0.1.1",
+  "_QPVersion": "1.0.1",
   "name": "${mod_name}",
   "id": "${mod_id}",
-  "packageId":"com.beatgames.beatsaber",
-  "packageVersion": "1.21.0",
   "author": "Fernthedev",
   "version": "${version}",
   "isLibrary": true,
