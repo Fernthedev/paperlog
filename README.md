@@ -57,6 +57,19 @@ Paper::Logger::Backtrace(20);
 myContext.Backtrace(20);
 ```
 
+### Profiler
+Paper includes a rudimentary basic profiler which you can use to measure the latency of certain areas of your program.
+```cpp
+Paper::Profiler<std::chrono::nanoseconds> profiler;
+profiler.suffix = "ns";
+
+someExpensiveComputation();
+profiler.mark("Expensive computation 1");
+someExpensiveComputation2();
+profiler.mark("Expensive computation 1");
+profiler.printMarks();
+```
+
 ### Sinks
 Paper supports sinks. This one's for you Laurie
 ```cpp
