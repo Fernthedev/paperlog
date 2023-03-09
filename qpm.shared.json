@@ -1,0 +1,57 @@
+{
+  "config": {
+    "sharedDir": "shared",
+    "dependenciesDir": "extern",
+    "info": {
+      "name": "Paper",
+      "id": "paper",
+      "version": "0.1.0",
+      "url": "https://github.com/Fernthedev/paperlog",
+      "additionalData": {
+        "overrideSoName": "libpaperlog.so"
+      }
+    },
+    "dependencies": [
+      {
+        "id": "modloader",
+        "versionRange": "^1.2.3",
+        "additionalData": {
+          "private": true
+        }
+      },
+      {
+        "id": "fmt",
+        "versionRange": "^9.0.0",
+        "additionalData": {}
+      }
+    ],
+    "additionalData": {}
+  },
+  "restoredDependencies": [
+    {
+      "dependency": {
+        "id": "modloader",
+        "versionRange": "^1.2.3",
+        "additionalData": {
+          "soLink": "https://github.com/sc2ad/QuestLoader/releases/download/v1.2.3/libmodloader64.so",
+          "overrideSoName": "libmodloader.so",
+          "branchName": "version-v1.2.3"
+        }
+      },
+      "version": "1.2.3"
+    },
+    {
+      "dependency": {
+        "id": "fmt",
+        "versionRange": "^9.0.0",
+        "additionalData": {
+          "compileOptions": {
+            "systemIncludes": ["fmt/include/"],
+            "cppFlags": ["-DFMT_HEADER_ONLY"]
+          }
+        }
+      },
+      "version": "9.0.0"
+    }
+  ]
+}
