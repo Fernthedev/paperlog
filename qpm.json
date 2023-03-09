@@ -10,6 +10,11 @@
       "overrideSoName": "libpaperlog.so"
     }
   },
+  "workspace": {
+    "scripts": {
+      "build": ["pwsh ./build.ps1"]
+    }
+  },
   "dependencies": [
     {
       "id": "fmt",
@@ -20,7 +25,7 @@
       "id": "modloader",
       "versionRange": "^1.2.3",
       "additionalData": {
-        "private":true 
+        "private": true
       }
     }
   ],
