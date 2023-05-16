@@ -2,15 +2,10 @@
   "config": {
     "sharedDir": "shared",
     "dependenciesDir": "extern",
-    "workspace": {
-      "scripts": {
-        "build": ["pwsh ./build.ps1"]
-      }
-    },
     "info": {
       "name": "Paper",
       "id": "paper",
-      "version": "0.1.0",
+      "version": "1.2.9",
       "url": "https://github.com/Fernthedev/paperlog",
       "additionalData": {
         "overrideSoName": "libpaperlog.so"
@@ -18,19 +13,25 @@
     },
     "dependencies": [
       {
+        "id": "fmt",
+        "versionRange": "^10.0.0",
+        "additionalData": {}
+      },
+      {
         "id": "modloader",
         "versionRange": "^1.2.3",
         "additionalData": {
           "private": true
         }
-      },
-      {
-        "id": "fmt",
-        "versionRange": "^9.0.0",
-        "additionalData": {}
       }
     ],
-    "additionalData": {}
+    "workspace": {
+      "scripts": {
+        "build": [
+          "pwsh ./build.ps1"
+        ]
+      }
+    }
   },
   "restoredDependencies": [
     {
@@ -48,15 +49,19 @@
     {
       "dependency": {
         "id": "fmt",
-        "versionRange": "^9.0.0",
+        "versionRange": "^10.0.0",
         "additionalData": {
           "compileOptions": {
-            "systemIncludes": ["fmt/include/"],
-            "cppFlags": ["-DFMT_HEADER_ONLY"]
+            "systemIncludes": [
+              "fmt/include/"
+            ],
+            "cppFlags": [
+              "-DFMT_HEADER_ONLY"
+            ]
           }
         }
       },
-      "version": "9.0.0"
+      "version": "10.0.0"
     }
   ]
 }
