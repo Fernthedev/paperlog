@@ -75,7 +75,7 @@ namespace Paper {
         requires (std::is_convertible_v<const S&, fmt::basic_string_view<char>>)
         consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : parentType(s), sourceLocation(sourceL) {}
 
-        BasicFmtStrSrcLoc(fmt::basic_runtime<char> r, sl const& sourceL = sl::current()) : parentType(r), sourceLocation(sourceL) {}
+        BasicFmtStrSrcLoc(fmt::runtime_format_string<char> r, sl const& sourceL = sl::current()) : parentType(r), sourceLocation(sourceL) {}
     };
 
 //    template <typename... Args>

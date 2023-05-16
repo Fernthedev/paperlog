@@ -24,7 +24,7 @@ struct BasicFmtStrSrcLoc : public fmt::basic_format_string<Char, TArgs...> {
     requires (std::is_convertible_v<const S&, fmt::basic_string_view<Char>>)
     consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : ParentType(s), sourceLocation(sourceL) {}
 
-    BasicFmtStrSrcLoc(fmt::basic_runtime<Char> r, sl const& sourceL = sl::current()) : ParentType(r), sourceLocation(sourceL) {}
+    BasicFmtStrSrcLoc(fmt::runtime_format_string<Char> r, sl const& sourceL = sl::current()) : ParentType(r), sourceLocation(sourceL) {}
 };
 
 template <typename... Args>
