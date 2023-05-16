@@ -37,18 +37,20 @@ struct StringHash {
     }
 };
 
-static Paper::LoggerConfig globalLoggerConfig __attribute__((init_priority (105)));
+// Initialize variables before Init runs
+#define EARLY_INIT_ATTRIBUTE __attribute__((init_priority(105)));
 
-static std::string globalLogPath __attribute__((init_priority (105)));
+static Paper::LoggerConfig globalLoggerConfig EARLY_INIT_ATTRIBUTE;
+
+static std::string globalLogPath EARLY_INIT_ATTRIBUTE;
 
 using ContextID = std::string;
 using LogPath = std::ofstream;
 
-static std::vector<Paper::LogSink> sinks __attribute__((init_priority (105)));
+static std::vector<Paper::LogSink> sinks EARLY_INIT_ATTRIBUTE;
 static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts __attribute__((init_priority (105)));
 
-
-static LogPath globalFile __attribute__((init_priority (105)));
+static LogPath globalFile EARLY_INIT_ATTRIBUTE;
 
 constexpr auto globalFileName = "PaperLog.log";
 
