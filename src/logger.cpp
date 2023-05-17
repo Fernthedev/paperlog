@@ -241,36 +241,38 @@ void Paper::Internal::LogThread() {
             // intended for logcat and making \n play nicely
             auto maxStrLength = std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
             auto begin = rawFmtStr.data();
-            std::size_t count = 0;
+            std::size_t stringEnd = 0;
             uint8_t skipCount = 0;
 
             for (auto c : rawFmtStr) {
                 if (skipCount > 0) {
                     skipCount--;
-                    count++;
+                    stringEnd++;
                     continue;
                 }
 
                 if (c == globalLoggerConfig.lineEnd) {
-                    writeLogLambda(std::string_view(begin, count));
-                    begin += count + 1;
-                    count = 0;
+                    writeLogLambda(std::string_view(begin, stringEnd));
+                    begin += stringEnd + 1;
+                    stringEnd = 0;
                 } else if((skipCount = charExtraLength(c)) > 0) {
-                    count++;
-                } else if (count >= maxStrLength) {
-                    writeLogLambda(std::string_view(begin, count));
-                    begin += count;
-                    count = 1;
+                    stringEnd++;
+                } else if (stringEnd >= maxStrLength) {
+                    writeLogLambda(std::string_view(begin, stringEnd));
+                    begin += stringEnd;
+                    stringEnd = 1;
                 } else {
-                    count++;
+                    stringEnd++;
                 }
             }
-            if (count > 0) {
-                writeLogLambda(std::string_view(begin, count));
+            if (stringEnd > 0) {
+                writeLogLambda(std::string_view(begin, stringEnd));
             }
             logsSinceLastFlush++;
 
-
+            // Since I completely forgot what happened here
+            // This commit suggests it reduces latency
+            // https://github.com/Fernthedev/paperlog/commit/931b15a7f5b494272b486acabc3062038db79fa1#diff-2c46dd80094c3ffd00cd309628cb1d6e5c695f69f8dafb5c40747369a5d6ded0R199
             if (false && logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
                 flushLambda();
             }
