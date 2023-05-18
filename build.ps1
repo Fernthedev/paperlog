@@ -35,8 +35,8 @@ if (($clean.IsPresent) -or (-not (Test-Path -Path "build")))
 } 
 
 if ($test.IsPresent) {
-    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DTEST_BUILD=1 -B build --preset Android
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DTEST_BUILD=1 -B build --preset Android -DQPM_ANDROID=
 } else {
-    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build --preset Android
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build --preset Android -DQPM_ANDROID=
 }
 & cmake --build ./build

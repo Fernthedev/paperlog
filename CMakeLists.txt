@@ -63,6 +63,7 @@ target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
 # codegen includes 
 target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
 
+# logcat
 if (DEFINED ANDROID)
         target_link_libraries(${COMPILE_ID} PRIVATE -llog)
 endif()
@@ -89,7 +90,7 @@ add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
         COMMENT "Rename the stripped lib to regular"
         )
 
-if(NOT DEFINED CMAKE_ANDROID_NDK)
+if(NOT DEFINED ANDROID)
         message("Compiling with GTest")
 
         # GTest
