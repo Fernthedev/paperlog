@@ -117,6 +117,7 @@ if(NOT DEFINED ANDROID)
         )
 
         add_compile_definitions(PAPERLOG_FMT_C_STDOUT)
+        add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
 
         # add src dir as include dir
         target_include_directories(paperlog_test PRIVATE test)
