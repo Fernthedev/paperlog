@@ -72,7 +72,9 @@ template <typename... TArgs>
 inline void WriteStdOut(int level, std::string_view ctx, std::string_view s,
                         TArgs &&...args) {
 #ifdef PAPERLOG_ANDROID_LOG
-    __android_log_print(level, ctx.data(), s.data(), std::forward<TArgs>(args)...);
+    __android_log_write(
+        level, ctx.data(),
+        fmt::format(fmt::runtime(s), std::forward<TArgs>(args)...).data());
 #endif
 
 #ifdef PAPERLOG_FMT_C_STDOUT
