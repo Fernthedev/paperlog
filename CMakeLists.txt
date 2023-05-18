@@ -1,5 +1,5 @@
 # include some defines automatically made by qpm
-include(qpm_defines.cmake)
+include(qpm_defines_fixed.cmake)
 
 # override mod id
 set(MOD_ID "paper")

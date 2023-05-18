@@ -59,7 +59,7 @@ using ContextID = std::string;
 using LogPath = std::ofstream;
 
 static std::vector<Paper::LogSink> sinks EARLY_INIT_ATTRIBUTE;
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts __attribute__((init_priority (105)));
+static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts EARLY_INIT_ATTRIBUTE;
 
 static LogPath globalFile EARLY_INIT_ATTRIBUTE;
 
