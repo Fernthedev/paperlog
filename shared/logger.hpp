@@ -10,6 +10,7 @@
 #endif
 
 #include <functional>
+#include <optional>
 
 //#include <fmtlog/fmtlog.h>
 
@@ -195,6 +196,27 @@ namespace Paper {
         }
     };
 
+    struct LoggerContext {
+        std::string tag;
+
+        constexpr LoggerContext(std::string_view tag) : tag(tag) {
+        }
+
+        template<LogLevel lvl, typename... TArgs>
+        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
+            return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
+        }
+
+        template<typename Exception = std::runtime_error, typename... TArgs>
+        inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
+            return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
+        }
+
+        inline auto Backtrace(uint16_t frameCount) const {
+            return Logger::Backtrace(tag, frameCount);
+        }
+    };
+
     namespace Logger {
         template<ConstLoggerContext ctx, bool registerFile = true>
         inline auto WithContext(std::string_view const logFile = ctx.tag) {
@@ -202,6 +224,13 @@ namespace Paper {
                 RegisterFileContextId(ctx.tag, logFile);
             }
             return ctx;
+        }
+        template<bool registerFile = true>
+        inline auto WithContextRuntime(std::string_view const tag, std::optional<std::string_view> logFile) {
+            if constexpr(registerFile) {
+                RegisterFileContextId(tag, logFile.value_or(tag));
+            }
+            return LoggerContext(tag);
         }
     }
 }
