@@ -109,6 +109,7 @@ if(NOT DEFINED ANDROID)
         add_executable(
         paperlog_test
         test/log.cpp
+        test/utf.cpp
         )
         target_link_libraries(
         paperlog_test
