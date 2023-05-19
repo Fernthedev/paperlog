@@ -281,8 +281,7 @@ void Paper::Internal::LogThread() {
             std::size_t stringEndOffset = 0;
             uint8_t skipCount = 0;
 
-            //  TODO: string view length not being respected in Clang 15 Linux
-            // causing line break to not work
+
             for (auto c : rawFmtStr) {
                 if (skipCount > 0) {
                     skipCount--;
@@ -292,6 +291,9 @@ void Paper::Internal::LogThread() {
 
                 // line break, write and continue
                 if (c == globalLoggerConfig.lineEnd) {
+                    //  TODO: string view length not being respected in Clang 15
+                    //  Linux when writing to std::cout
+                    // causing line break to not work
                     writeLogLambda(std::string_view(begin, stringEndOffset));
                     begin += stringEndOffset + 1;
                     stringEndOffset = 0;
