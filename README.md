@@ -77,3 +77,8 @@ Paper::Logger::AddLogSink([](ThreadData const& data, std::string_view fmtMessage
     
 });
 ```
+
+### Tests
+Paperlog does not depend on Android or ARM to work, which means testing.
+
+Tested on Linux Pop! OS 22.04 with `clang-15` and `libstdc++-12-dev`, use `pwsh ./build_desktop.ps1`

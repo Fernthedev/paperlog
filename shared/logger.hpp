@@ -9,6 +9,8 @@
 #include "modinfo_fmt.hpp"
 #endif
 
+#include <functional>
+
 //#include <fmtlog/fmtlog.h>
 
 namespace Paper {

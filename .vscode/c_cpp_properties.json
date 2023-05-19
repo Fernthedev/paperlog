@@ -5,7 +5,8 @@
         "ID=\"paper\"",
         "VERSION=\"0.1.0\"",
         "__GNUC__",
-        "__aarch64__"
+        "__aarch64__",
+        "PAPERLOG_FMT_C_STDOUT"
       ],
       "includePath": [
         "${workspaceFolder}/extern/includes/libil2cpp/il2cpp/libil2cpp", 

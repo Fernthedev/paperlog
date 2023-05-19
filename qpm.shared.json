@@ -16,13 +16,6 @@
         "id": "fmt",
         "versionRange": "^10.0.0",
         "additionalData": {}
-      },
-      {
-        "id": "modloader",
-        "versionRange": "^1.2.3",
-        "additionalData": {
-          "private": true
-        }
       }
     ],
     "workspace": {
@@ -36,22 +29,11 @@
   "restoredDependencies": [
     {
       "dependency": {
-        "id": "modloader",
-        "versionRange": "=1.2.3",
-        "additionalData": {
-          "soLink": "https://github.com/sc2ad/QuestLoader/releases/download/v1.2.3/libmodloader64.so",
-          "overrideSoName": "libmodloader.so",
-          "branchName": "version-v1.2.3"
-        }
-      },
-      "version": "1.2.3"
-    },
-    {
-      "dependency": {
         "id": "fmt",
         "versionRange": "=10.0.0",
         "additionalData": {
           "headersOnly": true,
+          "branchName": "version/v10_0_0",
           "compileOptions": {
             "systemIncludes": [
               "fmt/include/"

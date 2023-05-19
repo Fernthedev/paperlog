@@ -1,5 +1,5 @@
 # include some defines automatically made by qpm
-include(qpm_defines.cmake)
+include(qpm_defines_fixed.cmake)
 
 # override mod id
 set(MOD_ID "paper")
@@ -9,7 +9,7 @@ set(MOD_ID "paper")
 # However, the instability was seen using Android.mk/ndk-build builds. With Ninja + CMake, this problem seems to have been solved.
 # As always, test thoroughly
 # - Fern
-# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 cmake_minimum_required(VERSION 3.21)
 project(${COMPILE_ID})
@@ -18,7 +18,9 @@ project(${COMPILE_ID})
 # c++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+set(CMAKE_CXX_EXTENSIONS OFF)
+# set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -static-libstdc++")
 
 # define that stores the actual source directory
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -61,7 +63,10 @@ target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
 # codegen includes 
 target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
 
-target_link_libraries(${COMPILE_ID} PRIVATE -llog)
+# logcat
+if (DEFINED ANDROID)
+        target_link_libraries(${COMPILE_ID} PRIVATE -llog)
+endif()
 # add extern stuff like libs and other includes
 include(extern.cmake)
 
@@ -85,7 +90,7 @@ add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
         COMMENT "Rename the stripped lib to regular"
         )
 
-if(NOT DEFINED CMAKE_ANDROID_NDK)
+if(NOT DEFINED ANDROID)
         message("Compiling with GTest")
 
         # GTest
@@ -104,12 +109,16 @@ if(NOT DEFINED CMAKE_ANDROID_NDK)
         add_executable(
         paperlog_test
         test/log.cpp
+        test/utf.cpp
         )
         target_link_libraries(
         paperlog_test
         GTest::gtest_main
         paperlog
         )
+
+        add_compile_definitions(PAPERLOG_FMT_C_STDOUT)
+        add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
 
         # add src dir as include dir
         target_include_directories(paperlog_test PRIVATE test)

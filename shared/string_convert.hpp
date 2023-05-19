@@ -13,7 +13,7 @@ namespace Paper::StringConvert {
         };
 
         // Note that char is actually required here over char8_t-- this is due to NDK not having a char8_t specialization for this yet.
-        deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>> conv;
+        inline static deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>> conv;
 
         inline void convstr(char const *inp, char16_t *outp, int sz) {
             std::mbstate_t state;
@@ -35,8 +35,10 @@ namespace Paper::StringConvert {
     }
 
     inline std::string from_utf16(std::u16string_view ustr) {
-        std::string val(ustr.size() * sizeof(wchar_t) + 1, '\0');
-        auto resSize = detail::convstr(ustr.data(), val.data(), ustr.size(), val.size());
+        std::string val;
+        val.reserve(ustr.size() * sizeof(char) + 1);
+        auto resSize =
+            detail::convstr(ustr.data(), val.data(), ustr.size(), val.size());
         val.resize(resSize);
         return val;
     }

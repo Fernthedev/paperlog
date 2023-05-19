@@ -63,3 +63,8 @@ qpm_defines.cmake
 cmake-build-*/
 extern.cmake
 mod.json
+
+build_desktop/
+CMakeUserPresets.json
+
+binary_cache/

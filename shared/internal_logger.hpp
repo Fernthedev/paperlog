@@ -5,7 +5,9 @@
 
 #if __has_include(<source_location>)
 #include <source_location>
+#define PAPERLOG_SL_T std::source_location
 #elif __has_include(<experimental/source_location>)
+#define PAPERLOG_SL_T std::experimental::source_location
 #include <experimental/source_location>
 #else
 #include "source_location.hpp"
@@ -13,8 +15,9 @@
 
 namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
-    using sl = std::experimental::source_location;
+    using sl = PAPERLOG_SL_T;
 #else
+#warning Using nostd source location
     using sl = nostd::source_location;
 #endif
 

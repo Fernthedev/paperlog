@@ -9,13 +9,24 @@
 #include <optional>
 #include <fstream>
 #include <iostream>
-#include <android/log.h>
 #include <thread>
 #include <semaphore>
 #include <span>
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
+
+#if __has_include(<android/log.h>)
+#define PAPERLOG_ANDROID_LOG
+#include <android/log.h>
+#else
+// Stubs
+#define ANDROID_LOG_INFO 4
+#define ANDROID_LOG_ERROR 6
+#endif
+
+// Define this if you want to print to std::cout
+// #define PAPERLOG_FMT_C_STDOUT
 
 #if __has_include(<unwind.h>)
 #include <unwind.h>
@@ -27,7 +38,7 @@
 #endif
 
 moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
-std::binary_semaphore flushSemaphore;
+std::binary_semaphore flushSemaphore{1};
 
 struct StringHash {
     using is_transparent = void; // enables heterogenous lookup
@@ -48,7 +59,7 @@ using ContextID = std::string;
 using LogPath = std::ofstream;
 
 static std::vector<Paper::LogSink> sinks EARLY_INIT_ATTRIBUTE;
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts __attribute__((init_priority (105)));
+static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts EARLY_INIT_ATTRIBUTE;
 
 static LogPath globalFile EARLY_INIT_ATTRIBUTE;
 
@@ -57,13 +68,33 @@ constexpr auto globalFileName = "PaperLog.log";
 // To avoid loading errors
 static bool inited = false;
 
+template <typename... TArgs>
+inline void WriteStdOut(int level, std::string_view ctx, std::string_view s,
+                        TArgs &&...args) {
+#ifdef PAPERLOG_ANDROID_LOG
+    __android_log_write(
+        level, ctx.data(),
+        fmt::format(fmt::runtime(s), std::forward<TArgs>(args)...).data());
+#endif
+
+#ifdef PAPERLOG_FMT_C_STDOUT
+#warning Printing to stdout
+#ifndef PAPERLOG_FMT_NO_PREFIX
+    fmt::print(std::cout, "Level ({}) [{}] ", level, ctx);
+#endif
+    fmt::println(std::cout, fmt::runtime(s), std::forward<TArgs>(args)...);
+#endif
+}
+
 namespace Paper::Logger {
     void Init(std::string_view logPath, LoggerConfig const &config) {
         if (inited) {
             throw std::runtime_error("Already started the logger thread!");
         }
 
-        __android_log_print(ANDROID_LOG_INFO, "PAPERLOG", "Logging paper to folder %s and file %s", logPath.data(), globalFileName);
+        WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
+                       "Logging paper to folder %s and file %s", logPath.data(),
+                       globalFileName);
 
         globalLoggerConfig = {config};
         globalLogPath = logPath;
@@ -83,23 +114,23 @@ namespace Paper::Logger {
 #ifdef PAPER_NO_INIT
 #warning Using dlopen for initializing thread
 void __attribute__((constructor(200))) dlopen_initialize() {
-    __android_log_write(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
+        WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
 #ifdef PAPER_QUEST_MODLOADER
     std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
 #else
-    #error "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
+    #warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
     std::string path(globalLogPath);
 #endif
     try {
         Paper::Logger::Init(path, Paper::LoggerConfig());
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
-        __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
         throw e;
     } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
-        __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
         throw;
     }
 }
@@ -110,7 +141,7 @@ Paper::LoggerConfig& GlobalConfig() {
 }
 
 inline void logError(std::string_view error) {
-    __android_log_print((int) Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
+    WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
     if (globalFile.is_open()) {
         globalFile << error << std::endl;
     }
@@ -124,6 +155,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     auto const &level = threadData.level;
 
     // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
+#ifndef PAPERLOG_FMT_NO_PREFIX
     std::string const msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
                                 time, time, level, threadId, tag,
                                 location.file_name(), location.line(),
@@ -132,18 +164,23 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     ));
 
     // TODO: Reduce double formatting
-    std::string const androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"),
+    std::string_view locationFileName(location.file_name());
+
+    std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"),
                                              level, threadId,
-                                             location.file_name()
+                                             locationFileName
                                              // don't allow file name to be super long
-                                                .substr(std::min<size_t>(location.file_name().size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0)),
+                                                .substr(std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0)),
                                              location.line(),
                                              location.column(), location.function_name(),
                                              s));
+#else
+    std::string const msg(s);
+    std::string const androidMsg(s);
+#endif
 
-    __android_log_write((int) level, tag.data(), androidMsg.data());
+    WriteStdOut((int)level, tag.data(), s.data());
     globalFile << msg << '\n';
-
 
     if (contextFilePtr) {
         auto &f = *contextFilePtr;
@@ -241,32 +278,41 @@ void Paper::Internal::LogThread() {
             // intended for logcat and making \n play nicely
             auto maxStrLength = std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
             auto begin = rawFmtStr.data();
-            std::size_t stringEnd = 0;
+            std::size_t stringEndOffset = 0;
             uint8_t skipCount = 0;
+
 
             for (auto c : rawFmtStr) {
                 if (skipCount > 0) {
                     skipCount--;
-                    stringEnd++;
+                    stringEndOffset++;
                     continue;
                 }
 
+                // line break, write and continue
                 if (c == globalLoggerConfig.lineEnd) {
-                    writeLogLambda(std::string_view(begin, stringEnd));
-                    begin += stringEnd + 1;
-                    stringEnd = 0;
+                    //  TODO: string view length not being respected in Clang 15
+                    //  Linux when writing to std::cout
+                    // causing line break to not work
+                    writeLogLambda(std::string_view(begin, stringEndOffset));
+                    begin += stringEndOffset + 1;
+                    stringEndOffset = 0;
+                // skipping extra bytes because utf8 is variable
                 } else if((skipCount = charExtraLength(c)) > 0) {
-                    stringEnd++;
-                } else if (stringEnd >= maxStrLength) {
-                    writeLogLambda(std::string_view(begin, stringEnd));
-                    begin += stringEnd;
-                    stringEnd = 1;
+                    stringEndOffset++;
+                // string reached max length
+                } else if (stringEndOffset >= maxStrLength) {
+                    writeLogLambda(std::string_view(begin, stringEndOffset));
+                    begin += stringEndOffset;
+                    stringEndOffset = 1;
+                // increment string end index
                 } else {
-                    stringEnd++;
+                    stringEndOffset++;
                 }
             }
-            if (stringEnd > 0) {
-                writeLogLambda(std::string_view(begin, stringEnd));
+            // Write remaining string contents
+            if (stringEndOffset > 0) {
+                writeLogLambda(std::string(begin, stringEndOffset));
             }
             logsSinceLastFlush++;
 
