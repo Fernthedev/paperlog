@@ -199,7 +199,7 @@ namespace Paper {
     struct LoggerContext {
         std::string tag;
 
-        constexpr LoggerContext(std::string_view tag) : tag(tag) {
+        LoggerContext(std::string_view tag) : tag(tag) {
         }
 
         template<LogLevel lvl, typename... TArgs>
@@ -226,7 +226,7 @@ namespace Paper {
             return ctx;
         }
         template<bool registerFile = true>
-        inline auto WithContextRuntime(std::string_view const tag, std::optional<std::string_view> logFile) {
+        inline auto WithContextRuntime(std::string_view const tag, std::optional<std::string_view> logFile = {}) {
             if constexpr(registerFile) {
                 RegisterFileContextId(tag, logFile.value_or(tag));
             }

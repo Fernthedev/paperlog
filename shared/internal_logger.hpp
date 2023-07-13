@@ -17,7 +17,7 @@ namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
     using sl = PAPERLOG_SL_T;
 #else
-#warning Using nostd source location
+//#warning Using nostd source location
     using sl = nostd::source_location;
 #endif
 
