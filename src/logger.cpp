@@ -1,5 +1,8 @@
 #include "logger.hpp"
+#include "queue/concurrentqueue.h"
+#include "queue/blockingconcurrentqueue.h"
 
+#include <chrono>
 #include <fmt/ostream.h>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
@@ -37,7 +40,7 @@
 #define HAS_UNWIND
 #endif
 
-moodycamel::ConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
+moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 std::binary_semaphore flushSemaphore{1};
 
 struct StringHash {
@@ -213,8 +216,8 @@ void Paper::Internal::LogThread() {
     try {
         moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
-        Paper::ThreadData threadData{(std::string_view) "", std::this_thread::get_id(), "", Paper::sl::current(),
-                                     LogLevel::DBG, {}};
+        auto constexpr logBulkCount = 50;
+        Paper::ThreadData threadQueue[logBulkCount];
 
         std::ofstream* contextFile = nullptr;
         size_t logsSinceLastFlush = 0;
@@ -236,17 +239,23 @@ void Paper::Internal::LogThread() {
         flushLambda();
 
         while (true) {
-            if (!Paper::Internal::logQueue.try_dequeue(token, threadData)) {
-                if (doFlush) {
-                    flushLambda();
-                }
-                flushSemaphore.release();
-                std::this_thread::yield();
-                std::this_thread::sleep_for(std::chrono::microseconds(100));
-                continue;
+          auto dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(
+              token, threadQueue, logBulkCount, std::chrono::milliseconds(250));
+          
+          if (dequeCount == 0) {
+            if (doFlush) {
+              flushLambda();
             }
+            flushSemaphore.release();
+            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::microseconds(400));
+            continue;
+          }
 
-            auto const &rawFmtStr = threadData.str;
+          for (size_t i = 0; i < dequeCount; i++) {
+            auto const &threadData = threadQueue[i];
+            auto const &rawFmtStr =
+                threadData.str;
             auto const &tag = threadData.tag;
             auto const &location = threadData.loc;
             auto const &level = threadData.level;
@@ -261,7 +270,7 @@ void Paper::Internal::LogThread() {
             };
 
             auto it = registeredFileContexts.find(tag);
-            if (it != registeredFileContexts.end()) {
+            if (!tag.empty() && it != registeredFileContexts.end()) {
                 // if new context file, flush immediately
                 if (contextFile && &it->second != contextFile) {
                     contextFile->flush();
@@ -282,7 +291,7 @@ void Paper::Internal::LogThread() {
             uint8_t skipCount = 0;
 
 
-            for (auto c : rawFmtStr) {
+            for (auto const& c : rawFmtStr) {
                 if (skipCount > 0) {
                     skipCount--;
                     stringEndOffset++;
@@ -322,6 +331,7 @@ void Paper::Internal::LogThread() {
             if (false && logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
                 flushLambda();
             }
+          }
         }
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! {}", e.what());

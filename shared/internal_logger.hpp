@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include "queue/blockingconcurrentqueue.h"
 #include "queue/concurrentqueue.h"
 
 #if __has_include(<source_location>)
@@ -27,12 +28,15 @@ namespace Paper {
 
     struct ThreadData {
         ThreadData(ThreadData const&) = delete;
-        ThreadData(ThreadData&&) = default;
+        ThreadData(ThreadData &&) = default;
+
+        explicit ThreadData() : loc(Paper::sl::current()) {};
 
         ThreadData(std::string str, std::thread::id const &threadId,
-                             std::string_view const &tag, sl const &loc, LogLevel level,
-                             TimePoint const &logTime)
-                : str(std::move(str)), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
+                   std::string_view const &tag, sl const &loc, LogLevel level,
+                   TimePoint const &logTime)
+            : str(std::move(str)), threadId(threadId), tag(tag), loc(loc),
+              level(level), logTime(logTime) {}
 
         ThreadData(std::string_view const str, std::thread::id const &threadId,
                    std::string_view const &tag, sl const &loc, LogLevel level,
@@ -70,6 +74,6 @@ namespace Paper {
     namespace Internal {
         void LogThread();
 
-        extern moodycamel::ConcurrentQueue<ThreadData> logQueue;
+        extern moodycamel::BlockingConcurrentQueue<ThreadData> logQueue;
     }
 }
