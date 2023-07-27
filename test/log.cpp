@@ -28,7 +28,8 @@ void testMultithreadedSpam(int threadCount, int spamCount) {
         threads.emplace_back(&testLogSpamLoop, spamCount);
     }
 
-    for (auto& t : threads) {
+    for (auto &t : threads) {
+        if (!t.joinable()) continue;
         t.join();
     }
     profiler.mark("Threads finished logging");
@@ -56,6 +57,49 @@ TEST(LogTest, LogOutput) {
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "hi! 5\n");
 }
+TEST(LogTest, SingleThreadLogSpam) {
+    std::cout.clear();
+    testing::internal::CaptureStdout();
+
+    Paper::Profiler<std::chrono::nanoseconds> profiler;
+    profiler.suffix = "ns";
+    profiler.startTimer();
+
+    Paper::Logger::fmtLog<Paper::LogLevel::DBG>("Spam logging now!");
+    for (int i = 0; i < 100000; i++) {
+        Paper::Logger::fmtLog<Paper::LogLevel::DBG>("log i {}", i);
+    }
+    WaitForCompleteFlush();
+    profiler.endTimer();
+
+    std::string output = testing::internal::GetCapturedStdout();
+    std::cout << "Single thread took "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     profiler.elapsedTime())
+                     .count()
+              << "ms" << std::endl;
+}
+TEST(LogTest, MultiThreadLogSpam) {
+    std::cout.clear();
+    testing::internal::CaptureStdout();
+
+    Paper::Profiler<std::chrono::nanoseconds> profiler;
+    profiler.suffix = "ns";
+    profiler.startTimer();
+
+    Paper::Logger::fmtLog<Paper::LogLevel::DBG>("Spam logging now!");
+    testMultithreadedSpam(4, 100000);
+    WaitForCompleteFlush();
+    profiler.endTimer();
+
+    std::string output = testing::internal::GetCapturedStdout();
+    std::cout << "Multithread thread took "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     profiler.elapsedTime())
+                     .count()
+              << "ms" << std::endl;
+}
+
 // TODO: Fix
 // TEST(LogTest, LogOutputLinebreaks) {
 //     std::cout.clear();
