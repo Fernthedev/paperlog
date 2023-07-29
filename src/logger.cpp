@@ -273,12 +273,14 @@ void Paper::Internal::LogThread() {
             if (!tag.empty() && it != registeredFileContexts.end()) {
                 // if new context file, flush immediately
                 if (contextFile && &it->second != contextFile) {
-                    contextFile->flush();
+                  contextFile->flush();
+                  globalFile.flush();
                 }
                 contextFile = &it->second;
             } else {
                 if (contextFile) {
                     contextFile->flush();
+                    globalFile.flush();
                 }
                 contextFile = nullptr;
             }
