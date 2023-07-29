@@ -1,14 +1,13 @@
 #include "logger.hpp"
+#include "log_level.hpp"
 #include "queue/blockingconcurrentqueue.h"
 #include "queue/concurrentqueue.h"
-
 
 #include <chrono>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
 #include <fmt/ostream.h>
 #include <fmt/std.h>
-
 
 #include <exception>
 #include <filesystem>
@@ -20,7 +19,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-
 
 #if __has_include(<android/log.h>)
 #define PAPERLOG_ANDROID_LOG
@@ -39,7 +37,6 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <unwind.h>
-
 
 #define HAS_UNWIND
 #endif
@@ -108,7 +105,10 @@ void Init(std::string_view logPath, LoggerConfig const &config) {
   globalLoggerConfig = {config};
   globalLogPath = logPath;
   std::filesystem::create_directories(globalLogPath);
-  globalFile.open(fmt::format("{}/{}", logPath, globalFileName),
+
+  auto globalFileFilePath = std::filesystem::path(logPath) / globalFileName;
+
+  globalFile.open(globalFileFilePath,
                   std::ofstream::out | std::ofstream::trunc);
   std::thread(Internal::LogThread).detach();
   flushSemaphore.release();
@@ -193,7 +193,7 @@ inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
 
   WriteStdOut((int)level, tag.data(), s.data());
   globalFile << msg << '\n';
-//   globalFile.write(msg.data(), msg.size());
+  //   globalFile.write(msg.data(), msg.size());
 
   if (contextFilePtr) {
     auto &f = *contextFilePtr;
@@ -374,10 +374,20 @@ std::filesystem::path Paper::Logger::getLogDirectoryPathGlobal() {
 void Paper::Logger::RegisterFileContextId(std::string_view contextId,
                                           std::string_view logPath) {
 
-  auto filePath = getLogDirectoryPathGlobal() / logPath / ".log";
+  auto filePath = getLogDirectoryPathGlobal() / logPath;
+  filePath.replace_extension(".log");
 
-  registeredFileContexts.try_emplace(contextId.data(), filePath,
-                                     std::ofstream::out | std::ofstream::trunc);
+  Paper::Logger::fmtLog<LogLevel::INF>("Registering context {} at path {}",
+                                       contextId, filePath);
+
+  std::ofstream f;
+  f.open(filePath, std::ofstream::out | std::ofstream::trunc);
+  if (!f.is_open()) {
+    Paper::Logger::fmtLog<LogLevel::INF>(
+        "Unable to register context {} at path {}", contextId, filePath);
+    return;
+  }
+  registeredFileContexts.try_emplace(contextId.data(), std::move(f));
 }
 
 void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
