@@ -1,7 +1,9 @@
 #pragma once
 
 #include "_config.h"
+#include <chrono>
 #include <fmt/core.h>
+#include <thread>
 #include "log_level.hpp"
 #include "internal_logger.hpp"
 
@@ -111,14 +113,22 @@ namespace Paper {
 
     namespace Logger
     {
-        template<LogLevel level>
-        inline void vfmtLog(fmt::string_view const str, sl const& sourceLoc, std::string_view const tag, fmt::format_args const& args) noexcept {
-            while(!Internal::logQueue.enqueue(ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level, std::chrono::system_clock::now())));
+        inline void vfmtLog(fmt::string_view const str, LogLevel level,
+                            sl const &sourceLoc,
+                            std::string_view const tag,
+                            fmt::format_args const &args) noexcept {
+        while (!Internal::logQueue.enqueue(
+            ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag,
+                       sourceLoc, level, std::chrono::system_clock::now()))) {
+            std::this_thread::sleep_for(std::chrono::microseconds(500));
+            }
         }
 
         template<LogLevel lvl, typename... TArgs>
         constexpr auto fmtLogTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag, TArgs&&... args) {
-            return Logger::vfmtLog<lvl>(str, str.sourceLocation, tag, fmt::make_format_args(std::forward<TArgs>(args)...));
+            return Logger::vfmtLog(str, lvl,
+                                   str.sourceLocation, tag,
+                fmt::make_format_args(std::forward<TArgs>(args)...));
         }
 
         template<LogLevel lvl, typename... TArgs>
