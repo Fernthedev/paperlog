@@ -1,6 +1,6 @@
 #pragma once
 
-#if __has_include("modloader/shared/modloader.hpp")
+#if __has_include("modloader/shared/modloader.hpp") && defined (ANDROID)
 #define PAPER_QUEST_MODLOADER
 #endif
 

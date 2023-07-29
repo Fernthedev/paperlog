@@ -63,12 +63,20 @@ target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
 # codegen includes 
 target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
 
+
+target_include_directories(${COMPILE_ID} SYSTEM PRIVATE ${EXTERN_DIR}/includes/fmt/fmt/include/)
+target_compile_options(${COMPILE_ID} PRIVATE -DFMT_HEADER_ONLY)
+
 # logcat
-if (DEFINED ANDROID)
+if(DEFINED QPM_ANDROID)
         target_link_libraries(${COMPILE_ID} PRIVATE -llog)
+
+        # add extern stuff like libs and other includes
+        include(extern.cmake)
 endif()
-# add extern stuff like libs and other includes
-include(extern.cmake)
+
+
+
 
 add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
         COMMAND ${CMAKE_STRIP} -d --strip-all
@@ -90,7 +98,7 @@ add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
         COMMENT "Rename the stripped lib to regular"
         )
 
-if(NOT DEFINED ANDROID)
+if(NOT DEFINED QPM_ANDROID)
         message("Compiling with GTest")
 
         # GTest

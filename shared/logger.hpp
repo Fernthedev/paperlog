@@ -13,6 +13,7 @@
 
 #include <functional>
 #include <optional>
+#include <filesystem>
 
 //#include <fmtlog/fmtlog.h>
 
@@ -156,7 +157,7 @@ namespace Paper {
             return Backtrace(GLOBAL_TAG, frameCount);
         }
 
-        std::string_view getLogDirectoryPathGlobal();
+        std::filesystem::path getLogDirectoryPathGlobal();
 
         #ifndef PAPER_NO_INIT
         void Init(std::string_view logPath, LoggerConfig const& config = {});
