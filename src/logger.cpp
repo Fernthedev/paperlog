@@ -99,7 +99,7 @@ void Init(std::string_view logPath, LoggerConfig const &config) {
   }
 
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-              "Logging paper to folder %s and file %s", logPath.data(),
+              "Logging paper to folder {} and file {}", logPath.data(),
               globalFileName);
 
   globalLoggerConfig = {config};
@@ -149,7 +149,7 @@ void __attribute__((constructor(200))) dlopen_initialize() {
 Paper::LoggerConfig &GlobalConfig() { return globalLoggerConfig; }
 
 inline void logError(std::string_view error) {
-  WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
+  WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", "{}", error.data());
   if (globalFile.is_open()) {
     globalFile << error << std::endl;
   }
@@ -175,17 +175,19 @@ inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
       ));
 
   // TODO: Reduce double formatting
-  std::string_view locationFileName(location.file_name());
-
-  std::string androidMsg(fmt::format(
-      FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId,
-      locationFileName
+  std::string_view locationFileName(
+      location
+          .file_name()
           // don't allow file name to be super long
           .substr(
-              std::min<size_t>(locationFileName.size() -
+              std::min<size_t>(location.file_name().size() -
                                    globalLoggerConfig.MaximumFileLengthInLogcat,
-                               0)),
-      location.line(), location.column(), location.function_name(), s));
+                               0)));
+
+  std::string androidMsg(
+      fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId,
+                  locationFileName, location.line(), location.column(),
+                  location.function_name(), s));
 #else
   std::string const msg(s);
   std::string const androidMsg(s);
@@ -342,7 +344,7 @@ void Paper::Internal::LogThread() {
         }
         // Write remaining string contents
         if (stringEndOffset > 0) {
-          writeLogLambda(std::string(begin, stringEndOffset));
+          writeLogLambda(std::string_view(begin, stringEndOffset));
         }
         logsSinceLastFlush++;
 
