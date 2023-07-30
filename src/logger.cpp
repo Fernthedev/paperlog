@@ -250,8 +250,17 @@ void Paper::Internal::LogThread() {
     flushLambda();
 
     while (true) {
-      auto dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(
-          token, threadQueue, logBulkCount, std::chrono::milliseconds(250));
+      size_t dequeCount;
+
+      // Wait a while for new logs to show
+      if (doFlush) {
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(
+            token, threadQueue, logBulkCount, std::chrono::milliseconds(250));
+      } else {
+        // wait indefinitely for new logs since we don't need to flush
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(
+            token, threadQueue, logBulkCount);
+      }
 
       if (dequeCount == 0) {
         if (doFlush) {
