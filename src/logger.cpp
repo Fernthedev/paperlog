@@ -236,12 +236,13 @@ void Paper::Internal::LogThread() {
     size_t logsSinceLastFlush = 0;
 
     bool doFlush = false;
-    auto flushLambda = [&]() constexpr {
+    auto flushLambda = [&]() {
       // nothing more in queue, flush
-      if (contextFile) {
-        contextFile->flush();
-      }
       globalFile.flush();
+      for (auto &context : registeredFileContexts) {
+        context.second.flush();
+      }
+
       logsSinceLastFlush = 0;
       doFlush = false;
 
@@ -289,22 +290,6 @@ void Paper::Internal::LogThread() {
           writeLog(threadData, time, threadId, view, contextFile);
           doFlush = true;
         };
-
-        auto it = registeredFileContexts.find(tag);
-        if (!tag.empty() && it != registeredFileContexts.end()) {
-          // if new context file, flush immediately
-          if (contextFile && &it->second != contextFile) {
-            contextFile->flush();
-            globalFile.flush();
-          }
-          contextFile = &it->second;
-        } else {
-          if (contextFile) {
-            contextFile->flush();
-            globalFile.flush();
-          }
-          contextFile = nullptr;
-        }
 
         // Split/chunk string algorithm provided by sc2ad thanks
         // intended for logcat and making \n play nicely
