@@ -74,13 +74,9 @@ constexpr auto globalFileName = "PaperLog.log";
 // To avoid loading errors
 static bool inited = false;
 
-template <typename... TArgs>
-inline void WriteStdOut(int level, std::string_view ctx, std::string_view s,
-                        TArgs &&...args) {
+inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
-  __android_log_write(
-      level, ctx.data(),
-      fmt::format(fmt::runtime(s), std::forward<TArgs>(args)...).data());
+  __android_log_write(level, ctx.data(), s.data());
 #endif
 
 #ifdef PAPERLOG_FMT_C_STDOUT
@@ -88,7 +84,8 @@ inline void WriteStdOut(int level, std::string_view ctx, std::string_view s,
 #ifndef PAPERLOG_FMT_NO_PREFIX
   fmt::print(std::cout, "Level ({}) [{}] ", level, ctx);
 #endif
-  fmt::println(std::cout, fmt::runtime(s), std::forward<TArgs>(args)...);
+  std::cout << s << std::endl;
+  // fmt::println(std::cout, fmt::runtime(s));
 #endif
 }
 
@@ -99,8 +96,8 @@ void Init(std::string_view logPath, LoggerConfig const &config) {
   }
 
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-              "Logging paper to folder {} and file {}", logPath.data(),
-              globalFileName);
+              fmt::format("Logging paper to folder {} and file {}",
+                          logPath.data(), globalFileName));
 
   globalLoggerConfig = {config};
   globalLogPath = logPath;
@@ -149,9 +146,10 @@ void __attribute__((constructor(200))) dlopen_initialize() {
 Paper::LoggerConfig &GlobalConfig() { return globalLoggerConfig; }
 
 inline void logError(std::string_view error) {
-  WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", "{}", error.data());
+  WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", error);
   if (globalFile.is_open()) {
     globalFile << error << std::endl;
+    globalFile.flush();
   }
 }
 
@@ -258,7 +256,7 @@ void Paper::Internal::LogThread() {
       // Wait a while for new logs to show
       if (doFlush) {
         dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(
-            token, threadQueue, logBulkCount, std::chrono::milliseconds(250));
+            token, threadQueue, logBulkCount, std::chrono::milliseconds(10));
       } else {
         // wait indefinitely for new logs since we don't need to flush
         dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(
