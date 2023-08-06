@@ -1,6 +1,7 @@
 #pragma once
 
 #include <locale>
+#include <stdexcept>
 
 namespace Paper::StringConvert {
     namespace detail {
@@ -28,7 +29,7 @@ namespace Paper::StringConvert {
             char *to_next;
             auto convOut = conv.out(state, inp, inp + isz, from_next, outp, outp + osz, to_next);
             if (convOut != std::codecvt_base::ok) {
-                throw convOut;
+                throw std::runtime_error("Failed to convert " + std::to_string(convOut));
             }
             return (std::size_t) (to_next - outp);
         }
