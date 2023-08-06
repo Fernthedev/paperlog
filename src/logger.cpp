@@ -238,7 +238,9 @@ void Paper::Internal::LogThread() {
       // nothing more in queue, flush
       globalFile.flush();
       for (auto &context : registeredFileContexts) {
-        context.second.flush();
+        if (context.second.is_open()) {
+          context.second.flush();
+        }
       }
 
       logsSinceLastFlush = 0;
@@ -251,7 +253,7 @@ void Paper::Internal::LogThread() {
     flushLambda();
 
     while (true) {
-      size_t dequeCount;
+      size_t dequeCount = 0;
 
       // Wait a while for new logs to show
       if (doFlush) {
@@ -263,6 +265,8 @@ void Paper::Internal::LogThread() {
             token, threadQueue, logBulkCount);
       }
 
+
+      // Check if we should flush
       if (dequeCount == 0) {
         if (doFlush) {
           flushLambda();
@@ -334,8 +338,7 @@ void Paper::Internal::LogThread() {
         // Since I completely forgot what happened here
         // This commit suggests it reduces latency
         // https://github.com/Fernthedev/paperlog/commit/931b15a7f5b494272b486acabc3062038db79fa1#diff-2c46dd80094c3ffd00cd309628cb1d6e5c695f69f8dafb5c40747369a5d6ded0R199
-        if (false &&
-            logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
+        if (logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
           flushLambda();
         }
       }
