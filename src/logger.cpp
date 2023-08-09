@@ -297,7 +297,7 @@ void Paper::Internal::LogThread() {
           if (tag.empty()) {
             contextFile = nullptr;
           } else {
-            std::unique_lock lock(contextMutex);
+            // std::unique_lock lock(contextMutex);
             auto it = registeredFileContexts.find(tag);
             if (it != registeredFileContexts.end()) {
               contextFile = &it->second;
