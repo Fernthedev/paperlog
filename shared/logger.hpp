@@ -114,10 +114,9 @@ namespace Paper {
 
     namespace Logger
     {
-        inline void vfmtLog(fmt::string_view const str, LogLevel level,
-                            sl const &sourceLoc,
-                            std::string_view const tag,
-                            fmt::format_args const &args) noexcept {
+    inline void vfmtLog(fmt::string_view const str, LogLevel level,
+                        sl const &sourceLoc, std::string_view const tag,
+                        fmt::format_args const &args) noexcept {
         while (!Internal::logQueue.enqueue(
             ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag,
                        sourceLoc, level, std::chrono::system_clock::now()))) {
