@@ -231,7 +231,11 @@ void Paper::Internal::LogThread() {
     Paper::ThreadData threadQueue[logBulkCount];
 
     std::ofstream *contextFile = nullptr;
+    std::string_view selectedContext = "";
+
     size_t logsSinceLastFlush = 0;
+    std::chrono::system_clock::time_point lastLogTime =
+        std::chrono::system_clock::now();
 
     bool doFlush = false;
     auto flushLambda = [&]() {
@@ -245,6 +249,7 @@ void Paper::Internal::LogThread() {
 
       logsSinceLastFlush = 0;
       doFlush = false;
+      lastLogTime = std::chrono::system_clock::now();
 
       flushSemaphore.release();
     };
@@ -287,6 +292,20 @@ void Paper::Internal::LogThread() {
             std::chrono::system_clock::to_time_t(threadData.logTime);
         auto const &time = fmt::localtime(systemTime);
         std::string threadId = fmt::to_string(threadData.threadId);
+
+        if (tag != selectedContext) {
+          if (tag.empty()) {
+            contextFile = nullptr;
+          } else {
+            std::unique_lock lock(contextMutex);
+            auto it = registeredFileContexts.find(tag);
+            if (it != registeredFileContexts.end()) {
+              contextFile = &it->second;
+            }
+          }
+
+          selectedContext = tag;
+        }
 
         auto writeLogLambda = [&](std::string_view view) constexpr {
           writeLog(threadData, time, threadId, view, contextFile);
@@ -338,7 +357,11 @@ void Paper::Internal::LogThread() {
         // Since I completely forgot what happened here
         // This commit suggests it reduces latency
         // https://github.com/Fernthedev/paperlog/commit/931b15a7f5b494272b486acabc3062038db79fa1#diff-2c46dd80094c3ffd00cd309628cb1d6e5c695f69f8dafb5c40747369a5d6ded0R199
-        if (logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount) {
+
+        // And also log if time has passed
+        auto elapsedTime = std::chrono::system_clock::now() - lastLogTime;
+        if (logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount ||
+            elapsedTime > std::chrono::seconds(1)) {
           flushLambda();
         }
       }
@@ -359,6 +382,8 @@ void Paper::Internal::LogThread() {
 #endif
     throw;
   }
+
+  WriteStdOut(ANDROID_LOG_INFO, "PaperInternals", "Finished log thread");
 }
 
 void Paper::Logger::WaitForFlush() { flushSemaphore.acquire(); }
