@@ -8,7 +8,7 @@ TEST(UTFTest, UTF8ToUTF16) {
   auto utf16 = Paper::StringConvert::from_utf8("£ ह € 한");
   EXPECT_EQ(utf16, u"£ ह € 한");
 }
-TODO: Check this on Linux
+// TODO: Check this on Linux
 TEST(UTFTest, UTF16ToUTF8) {
   auto utf8 = Paper::StringConvert::from_utf16(u"한🌮🦀");
   EXPECT_EQ(utf8, "한🌮🦀");
