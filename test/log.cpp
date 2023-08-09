@@ -57,6 +57,15 @@ TEST(LogTest, LogOutput) {
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "hi! 5\n");
 }
+TEST(LogTest, LogContextOutput) {
+    std::cout.clear();
+    testing::internal::CaptureStdout();
+    Paper::Logger::fmtLogTag<Paper::LogLevel::INF>(
+        "hi this is a context log! {}", "Context", 5);
+    WaitForCompleteFlush();
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "hi this is a context log! 5\n");
+}
 TEST(LogTest, SingleThreadLogSpam) {
     std::cout.clear();
     testing::internal::CaptureStdout();
