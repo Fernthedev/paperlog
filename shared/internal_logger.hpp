@@ -14,6 +14,12 @@
 #include "source_location.hpp"
 #endif
 
+// NDK R26 is weird
+#if !__has_builtin(__builtin_source_location)
+#include "source_location.hpp"
+#define NOSTD_SOURCE_LOCATION_HPP
+#endif
+
 namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
     using sl = PAPERLOG_SL_T;
