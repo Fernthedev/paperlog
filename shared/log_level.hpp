@@ -1,9 +1,9 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <string_view>
 
-namespace Paper
-{
+namespace Paper {
     enum class LogLevel : uint8_t
     {
         DBG = 3,
@@ -43,6 +43,10 @@ struct fmt::formatter<Paper::LogLevel> : formatter<string_view>
 
         case LogLevel::ERR:
             levelStr = "ERROR";
+            break;
+
+        case LogLevel::CRIT:
+            levelStr = "CRITICAL";
             break;
         default:
             break;
