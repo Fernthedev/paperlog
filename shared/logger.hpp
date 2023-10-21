@@ -14,6 +14,7 @@
 #include <functional>
 #include <optional>
 #include <filesystem>
+#include <utility>
 
 //#include <fmtlog/fmtlog.h>
 
@@ -78,8 +79,9 @@ namespace Paper {
         sl sourceLocation;
 
         template <typename S>
-        requires (std::is_convertible_v<const S&, fmt::basic_string_view<char>>)
-        consteval inline BasicFmtStrSrcLoc(const S& s, sl const& sourceL = sl::current()) : parentType(s), sourceLocation(sourceL) {}
+          requires(std::is_convertible_v<S const&, fmt::basic_string_view<char>>)
+        consteval inline BasicFmtStrSrcLoc(S const& s, sl const& sourceL = sl::current())
+            : parentType(s), sourceLocation(sourceL) {}
 
         BasicFmtStrSrcLoc(fmt::runtime_format_string<char> r, sl const& sourceL = sl::current()) : parentType(r), sourceLocation(sourceL) {}
     };
@@ -181,50 +183,95 @@ namespace Paper {
         LoggerConfig& GlobalConfig();
 
         void AddLogSink(LogSink const& sink);
-    };
+        }; // namespace Logger
 
-    template<std::size_t sz>
-    struct ConstLoggerContext {
-        char tag[sz];
-
-        constexpr ConstLoggerContext(char const (&s)[sz]) {
-            std::copy(s, s + sz, tag);
+    namespace Logger {
+        template <typename... TArgs>
+        inline auto debug(FmtStrSrcLoc<TArgs...> const & s, TArgs&&... args) {
+            return Logger::fmtLog<LogLevel::DBG, TArgs...>(s, std::forward<TArgs>(args)...);   
         }
+        template <typename... TArgs>
+        inline auto info(FmtStrSrcLoc<TArgs...> const & s, TArgs&&... args) {
+            return Logger::fmtLog<LogLevel::INF, TArgs...>(s, std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto warn(FmtStrSrcLoc<TArgs...> const & s, TArgs&&... args) {
+            return Logger::fmtLog<LogLevel::WRN, TArgs...>(s, std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto error(FmtStrSrcLoc<TArgs...> const & s, TArgs&&... args) {
+            return Logger::fmtLog<LogLevel::ERR, TArgs...>(s, std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto critical(FmtStrSrcLoc<TArgs...> const & s, TArgs&&... args) {
+            return Logger::fmtLog<LogLevel::CRIT, TArgs...>(s, std::forward<TArgs>(args)...);
+        }
+    } // namespace Logger
 
-        template<LogLevel lvl, typename... TArgs>
+    template<typename Str>
+    struct BaseLoggerContext {
+        Str tag;
+
+        constexpr BaseLoggerContext(Str tag) : tag(std::move(tag)) {}
+        constexpr BaseLoggerContext() noexcept = default;
+        constexpr BaseLoggerContext(BaseLoggerContext &&) noexcept = default;
+        constexpr BaseLoggerContext(BaseLoggerContext const&) noexcept = default;
+        constexpr ~BaseLoggerContext() = default;
+
+        template <LogLevel lvl, typename... TArgs>
         constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
             return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
-        template<typename Exception = std::runtime_error, typename... TArgs>
+        template <typename Exception = std::runtime_error, typename... TArgs>
         inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
             return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
         }
 
-        inline auto Backtrace(uint16_t frameCount) const {
+        [[nodiscard]] inline auto Backtrace(uint16_t frameCount) const {
             return Logger::Backtrace(tag, frameCount);
+        }
+
+        template <typename... TArgs>
+        inline auto debug(FmtStrSrcLoc<TArgs...> const & s,
+                          TArgs &&...args) const {
+            return this->fmtLog<LogLevel::DBG, TArgs...>(s,
+                                                         std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto info(FmtStrSrcLoc<TArgs...> const& s, TArgs &&...args) const {
+            return this->fmtLog<LogLevel::INF>(s, std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto warn(FmtStrSrcLoc<TArgs...> const &s,
+                         TArgs &&...args) const {
+            return this->fmtLog<LogLevel::WRN>(s,
+                                               std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto error(FmtStrSrcLoc<TArgs...> const &s,
+                          TArgs &&...args) const {
+            return this->fmtLog<LogLevel::ERR>(s,
+                                               std::forward<TArgs>(args)...);
+        }
+        template <typename... TArgs>
+        inline auto critical(FmtStrSrcLoc<TArgs...> const &s,
+                             TArgs &&...args) const {
+            return this->fmtLog<LogLevel::CRIT>(s,
+                                                std::forward<TArgs>(args)...);
         }
     };
 
-    struct LoggerContext {
-        std::string tag;
-
-        LoggerContext(std::string_view tag) : tag(tag) {
+    template <std::size_t sz>
+    struct ConstLoggerContext : public BaseLoggerContext<char[sz]> {
+        constexpr ConstLoggerContext(char const (&s)[sz])
+            : BaseLoggerContext<char[sz]>() {
+            std::copy(s, s + sz, BaseLoggerContext<char[sz]>::tag);
         }
+    };
 
-        template<LogLevel lvl, typename... TArgs>
-        constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
-            return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
-        }
-
-        template<typename Exception = std::runtime_error, typename... TArgs>
-        inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
-            return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
-        }
-
-        inline auto Backtrace(uint16_t frameCount) const {
-            return Logger::Backtrace(tag, frameCount);
-        }
+    struct LoggerContext : public BaseLoggerContext<std::string> {
+        explicit LoggerContext(std::string_view s) : BaseLoggerContext<std::string>(std::string(s)) {}
     };
 
     namespace Logger {
