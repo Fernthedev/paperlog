@@ -41,9 +41,8 @@
 #define HAS_UNWIND
 #endif
 
-moodycamel::BlockingConcurrentQueue<Paper::ThreadData>
-    Paper::Internal::logQueue;
-std::binary_semaphore flushSemaphore{1};
+moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
+std::binary_semaphore flushSemaphore{ 1 };
 
 struct StringHash {
   using is_transparent = void; // enables heterogenous lookup
@@ -64,8 +63,7 @@ using ContextID = std::string;
 using LogPath = std::ofstream;
 
 static std::vector<Paper::LogSink> sinks EARLY_INIT_ATTRIBUTE;
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>>
-    registeredFileContexts EARLY_INIT_ATTRIBUTE;
+static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts EARLY_INIT_ATTRIBUTE;
 
 static LogPath globalFile EARLY_INIT_ATTRIBUTE;
 
@@ -90,29 +88,29 @@ inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 }
 
 namespace Paper::Logger {
-void Init(std::string_view logPath, LoggerConfig const &config) {
+void Init(std::string_view logPath, LoggerConfig const& config) {
   if (inited) {
     throw std::runtime_error("Already started the logger thread!");
   }
 
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-              fmt::format("Logging paper to folder {} and file {}",
-                          logPath.data(), globalFileName));
+              fmt::format("Logging paper to folder {} and file {}", logPath.data(), globalFileName));
 
-  globalLoggerConfig = {config};
+  globalLoggerConfig = { config };
   globalLogPath = logPath;
   std::filesystem::create_directories(globalLogPath);
 
   auto globalFileFilePath = std::filesystem::path(logPath) / globalFileName;
 
-  globalFile.open(globalFileFilePath,
-                  std::ofstream::out | std::ofstream::trunc);
+  globalFile.open(globalFileFilePath, std::ofstream::out | std::ofstream::trunc);
   std::thread(Internal::LogThread).detach();
   flushSemaphore.release();
   inited = true;
 }
 
-bool IsInited() { return inited; }
+bool IsInited() {
+  return inited;
+}
 } // namespace Paper::Logger
 
 // TODO: Fix constructor memory crash
@@ -122,17 +120,15 @@ void __attribute__((constructor(200))) dlopen_initialize() {
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
 #ifdef PAPER_QUEST_MODLOADER
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper",
-                                 Modloader::getApplicationId());
+  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
 #else
 #warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
   std::string path(globalLogPath);
 #endif
   try {
     Paper::Logger::Init(path, Paper::LoggerConfig());
-  } catch (std::exception const &e) {
-    std::string error =
-        fmt::format("Error occurred in logging thread! {}", e.what());
+  } catch (std::exception const& e) {
+    std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
     WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
     throw e;
   } catch (...) {
@@ -143,7 +139,9 @@ void __attribute__((constructor(200))) dlopen_initialize() {
 }
 #endif
 
-Paper::LoggerConfig &GlobalConfig() { return globalLoggerConfig; }
+Paper::LoggerConfig& GlobalConfig() {
+  return globalLoggerConfig;
+}
 
 inline void logError(std::string_view error) {
   WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", error);
@@ -153,38 +151,34 @@ inline void logError(std::string_view error) {
   }
 }
 
-inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
-                     std::string_view threadId, std::string_view s,
-                     /* nullable */ std::ofstream *contextFilePtr) {
+inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId,
+                     std::string_view s,
+                     /* nullable */ std::ofstream* contextFilePtr) {
 
-  auto const &rawFmtStr = threadData.str;
-  auto const &tag = threadData.tag;
-  auto const &location = threadData.loc;
-  auto const &level = threadData.level;
+  auto const& rawFmtStr = threadData.str;
+  auto const& tag = threadData.tag;
+  auto const& location = threadData.loc;
+  auto const& level = threadData.level;
 
   // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
 #ifndef PAPERLOG_FMT_NO_PREFIX
-  std::string const msg(fmt::format(
-      FMT_COMPILE(
-          "{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
-      time, time, level, threadId, tag, location.file_name(), location.line(),
-      location.column(), location.function_name(),
-      s // TODO: Is there a better way to do this?
-      ));
+  std::string const msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"), time,
+                                    time, level, threadId, tag, location.file_name(), location.line(),
+                                    location.column(), location.function_name(),
+                                    s // TODO: Is there a better way to do this?
+                                    ));
 
   // TODO: Reduce double formatting
   std::string_view locationFileName(location.file_name());
-  
+
   // limit length
   locationFileName =
       locationFileName
           // don't allow file name to be super long
           .substr(std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0));
 
-  std::string androidMsg(
-      fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId,
-                  locationFileName, location.line(), location.column(),
-                  location.function_name(), s));
+  std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId, locationFileName,
+                                     location.line(), location.column(), location.function_name(), s));
 #else
   std::string const msg(s);
   std::string const androidMsg(s);
@@ -195,12 +189,12 @@ inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
   //   globalFile.write(msg.data(), msg.size());
 
   if (contextFilePtr) {
-    auto &f = *contextFilePtr;
+    auto& f = *contextFilePtr;
     // f.write(msg.data(), msg.size());
     f << msg << '\n';
   }
 
-  for (auto const &sink : sinks) {
+  for (auto const& sink : sinks) {
     sink(threadData, msg);
   }
 }
@@ -229,18 +223,17 @@ void Paper::Internal::LogThread() {
     auto constexpr logBulkCount = 50;
     Paper::ThreadData threadQueue[logBulkCount];
 
-    std::ofstream *contextFile = nullptr;
+    std::ofstream* contextFile = nullptr;
     std::string_view selectedContext = "";
 
     size_t logsSinceLastFlush = 0;
-    std::chrono::system_clock::time_point lastLogTime =
-        std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point lastLogTime = std::chrono::system_clock::now();
 
     bool doFlush = false;
     auto flushLambda = [&]() {
       // nothing more in queue, flush
       globalFile.flush();
-      for (auto &context : registeredFileContexts) {
+      for (auto& context : registeredFileContexts) {
         if (context.second.is_open()) {
           context.second.flush();
         }
@@ -261,14 +254,12 @@ void Paper::Internal::LogThread() {
 
       // Wait a while for new logs to show
       if (doFlush) {
-        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(
-            token, threadQueue, logBulkCount, std::chrono::milliseconds(10));
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(token, threadQueue, logBulkCount,
+                                                                       std::chrono::milliseconds(10));
       } else {
         // wait indefinitely for new logs since we don't need to flush
-        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(
-            token, threadQueue, logBulkCount);
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(token, threadQueue, logBulkCount);
       }
-
 
       // Check if we should flush
       if (dequeCount == 0) {
@@ -282,14 +273,13 @@ void Paper::Internal::LogThread() {
       }
 
       for (size_t i = 0; i < dequeCount; i++) {
-        auto const &threadData = threadQueue[i];
-        auto const &rawFmtStr = threadData.str;
-        auto const &tag = threadData.tag;
-        auto const &location = threadData.loc;
-        auto const &level = threadData.level;
-        auto const &systemTime =
-            std::chrono::system_clock::to_time_t(threadData.logTime);
-        auto const &time = fmt::localtime(systemTime);
+        auto const& threadData = threadQueue[i];
+        auto const& rawFmtStr = threadData.str;
+        auto const& tag = threadData.tag;
+        auto const& location = threadData.loc;
+        auto const& level = threadData.level;
+        auto const& systemTime = std::chrono::system_clock::to_time_t(threadData.logTime);
+        auto const& time = fmt::localtime(systemTime);
         std::string threadId = fmt::to_string(threadData.threadId);
 
         if (tag != selectedContext) {
@@ -313,13 +303,12 @@ void Paper::Internal::LogThread() {
 
         // Split/chunk string algorithm provided by sc2ad thanks
         // intended for logcat and making \n play nicely
-        auto maxStrLength =
-            std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
+        auto maxStrLength = std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
         auto begin = rawFmtStr.data();
         std::size_t stringEndOffset = 0;
         uint8_t skipCount = 0;
 
-        for (auto const &c : rawFmtStr) {
+        for (auto const& c : rawFmtStr) {
           if (skipCount > 0) {
             skipCount--;
             stringEndOffset++;
@@ -359,15 +348,13 @@ void Paper::Internal::LogThread() {
 
         // And also log if time has passed
         auto elapsedTime = std::chrono::system_clock::now() - lastLogTime;
-        if (logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount ||
-            elapsedTime > std::chrono::seconds(1)) {
+        if (logsSinceLastFlush > globalLoggerConfig.LogMaxBufferCount || elapsedTime > std::chrono::seconds(1)) {
           flushLambda();
         }
       }
     }
-  } catch (std::exception const &e) {
-    std::string error =
-        fmt::format("Error occurred in logging thread! {}", e.what());
+  } catch (std::exception const& e) {
+    std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
     logError(error);
 #ifndef PAPER_NO_INIT
     inited = false;
@@ -385,27 +372,26 @@ void Paper::Internal::LogThread() {
   WriteStdOut(ANDROID_LOG_INFO, "PaperInternals", "Finished log thread");
 }
 
-void Paper::Logger::WaitForFlush() { flushSemaphore.acquire(); }
+void Paper::Logger::WaitForFlush() {
+  flushSemaphore.acquire();
+}
 
 std::filesystem::path Paper::Logger::getLogDirectoryPathGlobal() {
   return globalLogPath;
 }
 
 // TODO: Lock?
-void Paper::Logger::RegisterFileContextId(std::string_view contextId,
-                                          std::string_view logPath) {
+void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::string_view logPath) {
 
   auto filePath = getLogDirectoryPathGlobal() / logPath;
   filePath.replace_extension(".log");
 
-  Paper::Logger::fmtLog<LogLevel::INF>("Registering context {} at path {}",
-                                       contextId, filePath);
+  Paper::Logger::fmtLog<LogLevel::INF>("Registering context {} at path {}", contextId, filePath);
 
   std::ofstream f;
   f.open(filePath, std::ofstream::out | std::ofstream::trunc);
   if (!f.is_open()) {
-    Paper::Logger::fmtLog<LogLevel::INF>(
-        "Unable to register context {} at path {}", contextId, filePath);
+    Paper::Logger::fmtLog<LogLevel::INF>("Unable to register context {} at path {}", contextId, filePath);
     return;
   }
   registeredFileContexts.try_emplace(contextId.data(), std::move(f));
@@ -415,7 +401,7 @@ void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
   registeredFileContexts.erase(contextId.data());
 }
 
-void Paper::Logger::AddLogSink(LogSink const &sink) {
+void Paper::Logger::AddLogSink(LogSink const& sink) {
   sinks.emplace_back(sink);
 }
 
@@ -424,24 +410,23 @@ void Paper::Logger::AddLogSink(LogSink const &sink) {
 // https://github.com/sc2ad/beatsaber-hook/blob/138101a5a2b494911583b62140af6acf6e955e72/src/utils/logging.cpp#L211-L289
 namespace {
 struct BacktraceState {
-  void **current;
-  void **end;
+  void** current;
+  void** end;
 };
-static _Unwind_Reason_Code unwindCallback(struct _Unwind_Context *context,
-                                          void *arg) {
-  BacktraceState *state = static_cast<BacktraceState *>(arg);
+static _Unwind_Reason_Code unwindCallback(struct _Unwind_Context* context, void* arg) {
+  BacktraceState* state = static_cast<BacktraceState*>(arg);
   uintptr_t pc = _Unwind_GetIP(context);
   if (pc) {
     if (state->current == state->end) {
       return _URC_END_OF_STACK;
     } else {
-      *state->current++ = reinterpret_cast<void *>(pc);
+      *state->current++ = reinterpret_cast<void*>(pc);
     }
   }
   return _URC_NO_REASON;
 }
-size_t captureBacktrace(void **buffer, uint16_t max) {
-  BacktraceState state{buffer, buffer + max};
+size_t captureBacktrace(void** buffer, uint16_t max) {
+  BacktraceState state{ buffer, buffer + max };
   _Unwind_Backtrace(unwindCallback, &state);
 
   return state.current - buffer;
@@ -449,33 +434,28 @@ size_t captureBacktrace(void **buffer, uint16_t max) {
 } // namespace
 
 void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
-  void *buffer[frameCount + 1];
+  void* buffer[frameCount + 1];
   captureBacktrace(buffer, frameCount + 1);
-  fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag,
-                           frameCount);
-  fmtLogTag<LogLevel::DBG>(
-      "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***", tag);
+  fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag, frameCount);
+  fmtLogTag<LogLevel::DBG>("*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***", tag);
   fmtLogTag<LogLevel::DBG>("pid: {}, tid: {}", tag, getpid(), gettid());
   for (uint16_t i = 0; i < frameCount; ++i) {
     Dl_info info;
     if (dladdr(buffer[i + 1], &info)) {
       // Buffer points to 1 instruction ahead
-      long addr = reinterpret_cast<char *>(buffer[i + 1]) -
-                  reinterpret_cast<char *>(info.dli_fbase) - 4;
+      long addr = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_fbase) - 4;
       if (info.dli_sname) {
         int status;
         char const* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
         if (status) {
           demangled = info.dli_sname;
         }
-        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {} ({})", tag, i,
-                                 addr, info.dli_fname, demangled);
+        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {} ({})", tag, i, addr, info.dli_fname, demangled);
         if (demangled != info.dli_sname) {
-          free(const_cast<char *>(demangled));
+          free(const_cast<char*>(demangled));
         }
       } else {
-        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {}", tag, i,
-                                 addr, info.dli_fname);
+        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {}", tag, i, addr, info.dli_fname);
       }
     }
   }
@@ -484,7 +464,6 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
 #else
 
 #warning No unwind found, compiling stub backtrace function
-void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
-}
+void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
 
 #endif
