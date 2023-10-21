@@ -173,14 +173,13 @@ inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
       ));
 
   // TODO: Reduce double formatting
-  std::string_view locationFileName(
-      location
-          .file_name()
+  std::string_view locationFileName(location.file_name());
+  
+  // limit length
+  locationFileName =
+      locationFileName
           // don't allow file name to be super long
-          .substr(
-              std::min<size_t>(location.file_name().size() -
-                                   globalLoggerConfig.MaximumFileLengthInLogcat,
-                               0)));
+          .substr(std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0));
 
   std::string androidMsg(
       fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId,
@@ -206,7 +205,7 @@ inline void writeLog(Paper::ThreadData const &threadData, std::tm const &time,
   }
 }
 
-[[nodiscard]] constexpr uint8_t charExtraLength(const char c) {
+[[nodiscard]] constexpr uint8_t charExtraLength(char const c) {
   uint8_t shiftedC = c >> 3;
 
   if (shiftedC >= 0b11110) {
@@ -465,8 +464,7 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
                   reinterpret_cast<char *>(info.dli_fbase) - 4;
       if (info.dli_sname) {
         int status;
-        const char *demangled =
-            abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
+        char const* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
         if (status) {
           demangled = info.dli_sname;
         }
