@@ -3,29 +3,15 @@
 #include <utility>
 #include "queue/concurrentqueue.h"
 
-#if __has_include(<source_location>)
-#include <source_location>
-#define PAPERLOG_SL_T std::source_location
-#elif __has_include(<experimental/source_location>)
-#define PAPERLOG_SL_T std::experimental::source_location
-#include <experimental/source_location>
-#else
 #include "source_location.hpp"
-#endif
-
-// NDK R26 is weird
-#if !__has_builtin(__builtin_source_location)
-#include "source_location.hpp"
-#define NOSTD_SOURCE_LOCATION_HPP
-#endif
 
 namespace Paper {
-#ifndef NOSTD_SOURCE_LOCATION_HPP
-    using sl = PAPERLOG_SL_T;
-#else
+// #ifndef NOSTD_SOURCE_LOCATION_HPP
+    // using sl = PAPERLOG_SL_T;
+// #else
 //#warning Using nostd source location
     using sl = nostd::source_location;
-#endif
+// #endif
 
     enum class LogLevel : uint8_t;
 
