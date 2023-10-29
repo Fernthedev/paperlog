@@ -4,21 +4,26 @@
 #include "queue/blockingconcurrentqueue.h"
 #include "queue/concurrentqueue.h"
 
-#if __has_include(<source_location>)
-#include <source_location>
-#define PAPERLOG_SL_T std::source_location
-#elif __has_include(<experimental/source_location>)
-#define PAPERLOG_SL_T std::experimental::source_location
-#include <experimental/source_location>
-#else
+// TODO: Breaking change use std::source_location
 #include "source_location.hpp"
-#endif
 
-// NDK R26 is weird
-#if !__has_builtin(__builtin_source_location)
-#include "source_location.hpp"
-#define NOSTD_SOURCE_LOCATION_HPP
-#endif
+// #if __has_include(<source_location>)
+// #include <source_location>
+// #define PAPERLOG_SL_T std::source_location
+// #elif __has_include(<experimental/source_location>)
+// #define PAPERLOG_SL_T std::experimental::source_location
+// #include <experimental/source_location>
+// #elif defined(PAPERLOG_SL_T)
+// #error
+// #else
+// #include "source_location.hpp"
+// #endif
+
+// // NDK R26 is weird
+// #if !__has_builtin(__builtin_source_location)
+// #include "source_location.hpp"
+// #define NOSTD_SOURCE_LOCATION_HPP
+// #endif
 
 namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
