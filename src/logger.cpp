@@ -112,6 +112,7 @@ namespace Paper::Logger {
 
 // TODO: Fix constructor memory crash
 #ifdef PAPER_NO_INIT
+
 #warning Using dlopen for initializing thread
 void __attribute__((constructor(200))) dlopen_initialize() {
         WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
