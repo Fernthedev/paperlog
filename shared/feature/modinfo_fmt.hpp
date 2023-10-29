@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef NO_MODLOADER_FORMAT
+
 #include <fmt/format.h>
 
 #include "modloader/shared/modloader.hpp"
@@ -14,3 +16,5 @@ template <> struct fmt::formatter<ModInfo> : formatter<string_view> {
     return format_to(ctx.out(), "{}, {}", p.id, p.version);
   }
 };
+
+#endif

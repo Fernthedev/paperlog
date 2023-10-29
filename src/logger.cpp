@@ -121,6 +121,8 @@ void __attribute__((constructor(200))) dlopen_initialize() {
 
 #ifdef PAPER_QUEST_MODLOADER
   std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
+#elif defined(PAPER_QUEST_SCOTLAND2)
+  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", modloader::get_application_id());
 #else
 #warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
   std::string path(globalLogPath);
@@ -129,11 +131,11 @@ void __attribute__((constructor(200))) dlopen_initialize() {
     Paper::Logger::Init(path, Paper::LoggerConfig());
   } catch (std::exception const& e) {
     std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
     throw e;
   } catch (...) {
     std::string error = fmt::format("Error occurred in logging thread!");
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
     throw;
   }
 }

@@ -8,7 +8,10 @@
 #include "internal_logger.hpp"
 
 #ifdef PAPER_QUEST_MODLOADER
-#include "modinfo_fmt.hpp"
+#include "feature/modinfo_fmt.hpp"
+#endif
+#ifdef PAPER_QUEST_SCOTLAND2
+#include "feature/scotland2_fmt.hpp"
 #endif
 
 #include <functional>

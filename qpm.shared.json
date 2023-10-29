@@ -11,6 +11,13 @@
         "overrideSoName": "libpaperlog.so"
       }
     },
+    "workspace": {
+      "scripts": {
+        "build": [
+          "pwsh ./build.ps1"
+        ]
+      }
+    },
     "dependencies": [
       {
         "id": "fmt",
@@ -18,31 +25,27 @@
         "additionalData": {}
       },
       {
-        "id": "modloader",
-        "versionRange": "^1.2.3",
-        "additionalData": {}
+        "id": "scotland2",
+        "versionRange": "^0.1.2",
+        "additionalData": {
+          "private": true
+        }
       }
-    ],
-    "workspace": {
-      "scripts": {
-        "build": [
-          "pwsh ./build.ps1"
-        ]
-      }
-    }
+    ]
   },
   "restoredDependencies": [
     {
       "dependency": {
-        "id": "modloader",
-        "versionRange": "=1.2.3",
+        "id": "scotland2",
+        "versionRange": "=0.1.2",
         "additionalData": {
-          "soLink": "https://github.com/sc2ad/QuestLoader/releases/download/v1.2.3/libmodloader64.so",
-          "overrideSoName": "libmodloader.so",
-          "branchName": "version-v1.2.3"
+          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.2/libsl2.so",
+          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.2/debug_libsl2.so",
+          "overrideSoName": "libsl2.so",
+          "branchName": "version/v0_1_2"
         }
       },
-      "version": "1.2.3"
+      "version": "0.1.2"
     },
     {
       "dependency": {
