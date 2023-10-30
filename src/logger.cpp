@@ -94,7 +94,7 @@ void Init(std::string_view logPath, LoggerConfig const& config) {
   }
 
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-              fmt::format("Logging paper to folder {} and file {}", logPath.data(), globalFileName));
+              "Logging paper to folder " + std::string(logPath) + "and file " + globalFileName);
 
   globalLoggerConfig = { config };
   globalLogPath = logPath;
