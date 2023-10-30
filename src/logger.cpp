@@ -69,12 +69,11 @@ constexpr auto globalFileName = "PaperLog.log";
 static bool inited = false;
 
 template <typename... TArgs>
-inline void WriteStdOut(int level, std::string_view ctx, std::string_view s,
-                        TArgs &&...args) {
+inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
     __android_log_write(
         level, ctx.data(),
-        fmt::format(fmt::runtime(s), std::forward<TArgs>(args)...).data());
+        s.data());
 #endif
 
 #ifdef PAPERLOG_FMT_C_STDOUT
@@ -93,8 +92,7 @@ namespace Paper::Logger {
         }
 
         WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-                       "Logging paper to folder %s and file %s", logPath.data(),
-                       globalFileName);
+                       "Logging paper to folder " + std::string(logPath) + "and file " + globalFileName);
 
         globalLoggerConfig = {config};
         globalLogPath = logPath;
@@ -142,7 +140,7 @@ Paper::LoggerConfig& GlobalConfig() {
 }
 
 inline void logError(std::string_view error) {
-    WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", "%s", error.data());
+    WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", error);
     if (globalFile.is_open()) {
         globalFile << error << std::endl;
     }
