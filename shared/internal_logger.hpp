@@ -51,6 +51,8 @@ struct ThreadData {
              LogLevel level, TimePoint const& logTime)
       : str(str), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
 
+  ~ThreadData() = default;
+
   //        constexpr ThreadData(fmt::string_view const &str, fmt::format_args const &args, std::thread::id const
   //        &threadId,
   //                             std::string_view const &tag, sl const &loc, LogLevel level,
@@ -69,6 +71,7 @@ struct ThreadData {
   //        };
 
   ThreadData& operator=(ThreadData&& o) noexcept = default;
+  ThreadData& operator=(ThreadData const& o) noexcept = delete;
 
   std::string str;
   //        fmt::string_view str;

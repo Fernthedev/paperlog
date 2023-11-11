@@ -1,8 +1,3 @@
-#include "logger.hpp"
-#include "log_level.hpp"
-#include "queue/blockingconcurrentqueue.h"
-#include "queue/concurrentqueue.h"
-
 #include <chrono>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
@@ -20,17 +15,13 @@
 #include <unordered_map>
 #include <vector>
 
-#if __has_include(<android/log.h>)
-#define PAPERLOG_ANDROID_LOG
-#include <android/log.h>
-#else
-// Stubs
-#define ANDROID_LOG_INFO 4
-#define ANDROID_LOG_ERROR 6
-#endif
-
-// Define this if you want to print to std::cout
-// #define PAPERLOG_FMT_C_STDOUT
+#include "android_stubs.hpp"
+#include "logger.hpp"
+#include "early.hpp"
+#include "internal.hpp"
+#include "log_level.hpp"
+#include "queue/blockingconcurrentqueue.h"
+#include "queue/concurrentqueue.h"
 
 #if __has_include(<unwind.h>)
 #include <cxxabi.h>
@@ -41,36 +32,40 @@
 #define HAS_UNWIND
 #endif
 
-moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
-std::binary_semaphore flushSemaphore{ 1 };
 
-struct StringHash {
-  using is_transparent = void; // enables heterogenous lookup
-  std::size_t operator()(std::string_view sv) const {
-    std::hash<std::string_view> hasher;
-    return hasher(sv);
-  }
-};
 
-// Initialize variables before Init runs
-#define EARLY_INIT_ATTRIBUTE __attribute__((init_priority(105)));
+EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
+EARLY_INIT_ATTRIBUTE std::binary_semaphore flushSemaphore{ 1 };
+EARLY_INIT_ATTRIBUTE static Paper::LoggerConfig globalLoggerConfig;
+EARLY_INIT_ATTRIBUTE static std::filesystem::path globalLogPath;
 
-static Paper::LoggerConfig globalLoggerConfig EARLY_INIT_ATTRIBUTE;
+EARLY_INIT_ATTRIBUTE static std::vector<Paper::LogSink> sinks;
+EARLY_INIT_ATTRIBUTE static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts;
 
-static std::filesystem::path globalLogPath EARLY_INIT_ATTRIBUTE;
+EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
-using ContextID = std::string;
-using LogPath = std::ofstream;
+#pragma region internals
 
-static std::vector<Paper::LogSink> sinks EARLY_INIT_ATTRIBUTE;
-static std::unordered_map<ContextID, LogPath, StringHash, std::equal_to<>> registeredFileContexts EARLY_INIT_ATTRIBUTE;
-
-static LogPath globalFile EARLY_INIT_ATTRIBUTE;
-
-constexpr auto globalFileName = "PaperLog.log";
-
+namespace {
 // To avoid loading errors
 static bool inited = false;
+
+[[nodiscard]] constexpr uint8_t charExtraLength(char const c) {
+  uint8_t shiftedC = c >> 3;
+
+  if (shiftedC >= 0b11110) {
+    return 3;
+  }
+  if (shiftedC >= 0b11100) {
+    return 2;
+  }
+
+  if (shiftedC >= 0b11000) {
+    return 1;
+  }
+
+  return 0;
+}
 
 inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
@@ -87,66 +82,8 @@ inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 #endif
 }
 
-namespace Paper::Logger {
-void Init(std::string_view logPath, LoggerConfig const& config) {
-  if (inited) {
-    throw std::runtime_error("Already started the logger thread!");
-  }
-
-  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
-              "Logging paper to folder " + std::string(logPath) + "and file " + globalFileName);
-
-  globalLoggerConfig = { config };
-  globalLogPath = logPath;
-  std::filesystem::create_directories(globalLogPath);
-
-  auto globalFileFilePath = std::filesystem::path(logPath) / globalFileName;
-
-  globalFile.open(globalFileFilePath, std::ofstream::out | std::ofstream::trunc);
-  std::thread(Internal::LogThread).detach();
-  flushSemaphore.release();
-  inited = true;
-}
-
-bool IsInited() {
-  return inited;
-}
-} // namespace Paper::Logger
-
-// TODO: Fix constructor memory crash
-#ifdef PAPER_NO_INIT
-#warning Using dlopen for initializing thread
-void __attribute__((constructor(200))) dlopen_initialize() {
-  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
-
-#ifdef PAPER_QUEST_MODLOADER
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
-#elif defined(PAPER_QUEST_SCOTLAND2)
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", modloader::get_application_id());
-#else
-#warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
-  std::string path(globalLogPath);
-#endif
-  try {
-    Paper::Logger::Init(path, Paper::LoggerConfig());
-  } catch (std::exception const& e) {
-    std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
-    throw e;
-  } catch (...) {
-    std::string error = fmt::format("Error occurred in logging thread!");
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
-    throw;
-  }
-}
-#endif
-
-Paper::LoggerConfig& GlobalConfig() {
-  return globalLoggerConfig;
-}
-
 inline void logError(std::string_view error) {
-  WriteStdOut((int)Paper::LogLevel::ERR, "PAPERLOG", error);
+  WriteStdOut(static_cast<int>(Paper::LogLevel::ERR), "PAPERLOG", error);
   if (globalFile.is_open()) {
     globalFile << error << std::endl;
     globalFile.flush();
@@ -186,13 +123,11 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
   std::string const androidMsg(s);
 #endif
 
-  WriteStdOut((int)level, tag.data(), s.data());
+  WriteStdOut(static_cast<int>(level), tag, s.data());
   globalFile << msg << '\n';
-  //   globalFile.write(msg.data(), msg.size());
 
-  if (contextFilePtr) {
+  if (contextFilePtr != nullptr) {
     auto& f = *contextFilePtr;
-    // f.write(msg.data(), msg.size());
     f << msg << '\n';
   }
 
@@ -200,33 +135,80 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     sink(threadData, msg);
   }
 }
+} // namespace
 
-[[nodiscard]] constexpr uint8_t charExtraLength(char const c) {
-  uint8_t shiftedC = c >> 3;
+#pragma endregion
 
-  if (shiftedC >= 0b11110) {
-    return 3;
-  }
-  if (shiftedC >= 0b11100) {
-    return 2;
-  }
+#pragma region LoggerImpl
 
-  if (shiftedC >= 0b11000) {
-    return 1;
+namespace Paper::Logger {
+void Init(std::string_view logPath, LoggerConfig const& config) {
+  if (inited) {
+    throw std::runtime_error("Already started the logger thread!");
   }
 
-  return 0;
+  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
+              "Logging paper to folder " + std::string(logPath) + "and file " + GLOBAL_FILE_NAME);
+
+  globalLoggerConfig = { config };
+  globalLogPath = logPath;
+  std::filesystem::create_directories(globalLogPath);
+
+  auto globalFileFilePath = std::filesystem::path(logPath) / GLOBAL_FILE_NAME;
+
+  globalFile.open(globalFileFilePath, std::ofstream::out | std::ofstream::trunc);
+  std::thread(Internal::LogThread).detach();
+  flushSemaphore.release();
+  inited = true;
 }
+
+bool IsInited() {
+  return inited;
+}
+
+} // namespace Paper::Logger
+
+#pragma endregion
+
+#pragma region Internal
+
+// TODO: Fix constructor memory crash
+#ifdef PAPER_NO_INIT
+#warning Using dlopen for initializing thread
+void __attribute__((constructor(1000))) dlopen_initialize() {
+  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
+
+#ifdef PAPER_QUEST_MODLOADER
+  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
+#elif defined(PAPER_QUEST_SCOTLAND2)
+  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", modloader::get_application_id());
+#else
+#warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
+  std::string path(globalLogPath);
+#endif
+  try {
+    Paper::Logger::Init(path, Paper::LoggerConfig());
+  } catch (std::exception const& e) {
+    std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
+    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
+    throw e;
+  } catch (...) {
+    std::string error = fmt::format("Error occurred in logging thread!");
+    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
+    throw;
+  }
+}
+#endif
 
 void Paper::Internal::LogThread() {
   try {
     moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
     auto constexpr logBulkCount = 50;
-    Paper::ThreadData threadQueue[logBulkCount];
+    std::array<Paper::ThreadData, logBulkCount> threadQueue;
 
     std::ofstream* contextFile = nullptr;
-    std::string_view selectedContext = "";
+    std::string_view selectedContext;
 
     size_t logsSinceLastFlush = 0;
     std::chrono::system_clock::time_point lastLogTime = std::chrono::system_clock::now();
@@ -256,11 +238,11 @@ void Paper::Internal::LogThread() {
 
       // Wait a while for new logs to show
       if (doFlush) {
-        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(token, threadQueue, logBulkCount,
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk_timed(token, threadQueue.data(), logBulkCount,
                                                                        std::chrono::milliseconds(10));
       } else {
         // wait indefinitely for new logs since we don't need to flush
-        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(token, threadQueue, logBulkCount);
+        dequeCount = Paper::Internal::logQueue.wait_dequeue_bulk(token, threadQueue.data(), logBulkCount);
       }
 
       // Check if we should flush
@@ -306,7 +288,7 @@ void Paper::Internal::LogThread() {
         // Split/chunk string algorithm provided by sc2ad thanks
         // intended for logcat and making \n play nicely
         auto maxStrLength = std::min<size_t>(rawFmtStr.size(), globalLoggerConfig.MaxStringLen);
-        auto begin = rawFmtStr.data();
+        auto const* begin = rawFmtStr.data();
         std::size_t stringEndOffset = 0;
         uint8_t skipCount = 0;
 
@@ -407,6 +389,13 @@ void Paper::Logger::AddLogSink(LogSink const& sink) {
   sinks.emplace_back(sink);
 }
 
+Paper::LoggerConfig& Paper::Logger::GlobalConfig() {
+  return globalLoggerConfig;
+}
+
+#pragma endregion
+
+#pragma region BacktraceImpl
 #ifdef HAS_UNWIND
 // Backtrace stuff largely written by StackDoubleFlow
 // https://github.com/sc2ad/beatsaber-hook/blob/138101a5a2b494911583b62140af6acf6e955e72/src/utils/logging.cpp#L211-L289
@@ -418,7 +407,7 @@ struct BacktraceState {
 static _Unwind_Reason_Code unwindCallback(struct _Unwind_Context* context, void* arg) {
   BacktraceState* state = static_cast<BacktraceState*>(arg);
   uintptr_t pc = _Unwind_GetIP(context);
-  if (pc) {
+  if (pc != 0U) {
     if (state->current == state->end) {
       return _URC_END_OF_STACK;
     } else {
@@ -443,13 +432,13 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
   fmtLogTag<LogLevel::DBG>("pid: {}, tid: {}", tag, getpid(), gettid());
   for (uint16_t i = 0; i < frameCount; ++i) {
     Dl_info info;
-    if (dladdr(buffer[i + 1], &info)) {
+    if (dladdr(buffer[i + 1], &info) != 0) {
       // Buffer points to 1 instruction ahead
       long addr = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_fbase) - 4;
-      if (info.dli_sname) {
+      if (info.dli_sname != nullptr) {
         int status;
         char const* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
-        if (status) {
+        if (status != 0) {
           demangled = info.dli_sname;
         }
         fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {} ({})", tag, i, addr, info.dli_fname, demangled);
@@ -469,3 +458,5 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
 void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
 
 #endif
+
+#pragma endregion
