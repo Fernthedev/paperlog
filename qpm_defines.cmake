@@ -1,6 +1,6 @@
 # YOU SHOULD NOT MANUALLY EDIT THIS FILE, QPM WILL VOID ALL CHANGES
 # Version defines, pretty useful
-set(MOD_VERSION "1.2.9")
+set(MOD_VERSION "3.0.0")
 # take the mod name and just remove spaces, that will be MOD_ID, if you don't like it change it after the include of this file
 set(MOD_ID "Paper")
 
@@ -18,35 +18,30 @@ if (NOT DEFINED CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-
-
-
-if (DEFINED QPM_ANDROID)
-
-	# defines used in ninja / cmake ndk builds
-	if (NOT DEFINED CMAKE_ANDROID_NDK)
-		if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/ndkpath.txt")
-			file (STRINGS "ndkpath.txt" CMAKE_ANDROID_NDK)
-		else()
-			if(EXISTS $ENV{ANDROID_NDK_HOME})
-				set(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_HOME})
-			elseif(EXISTS $ENV{ANDROID_NDK_LATEST_HOME})
-				set(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_LATEST_HOME})
-			endif()
+# defines used in ninja / cmake ndk builds
+if (NOT DEFINED CMAKE_ANDROID_NDK)
+	if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/ndkpath.txt")
+		file (STRINGS "ndkpath.txt" CMAKE_ANDROID_NDK)
+	else()
+		if(EXISTS $ENV{ANDROID_NDK_HOME})
+			set(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_HOME})
+		elseif(EXISTS $ENV{ANDROID_NDK_LATEST_HOME})
+			set(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_LATEST_HOME})
 		endif()
 	endif()
-	if (NOT DEFINED CMAKE_ANDROID_NDK)
-		message(Big time error buddy, no NDK)
-	endif()
-	message(Using NDK ${CMAKE_ANDROID_NDK})
-	string(REPLACE "\\" "/" CMAKE_ANDROID_NDK ${CMAKE_ANDROID_NDK})
-
-	set(ANDROID_PLATFORM 24)
-	set(ANDROID_ABI arm64-v8a)
-	set(ANDROID_STL c++_static)
-	set(ANDROID_USE_LEGACY_TOOLCHAIN_FILE OFF)
-	set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 endif()
+if (NOT DEFINED CMAKE_ANDROID_NDK)
+	message(Big time error buddy, no NDK)
+endif()
+message(Using NDK ${CMAKE_ANDROID_NDK})
+string(REPLACE "\\" "/" CMAKE_ANDROID_NDK ${CMAKE_ANDROID_NDK})
+
+set(ANDROID_PLATFORM 24)
+set(ANDROID_ABI arm64-v8a)
+set(ANDROID_STL c++_static)
+set(ANDROID_USE_LEGACY_TOOLCHAIN_FILE OFF)
+
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 # define used for external data, mostly just the qpm dependencies
 set(EXTERN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${EXTERN_DIR_NAME})
 set(SHARED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${SHARED_DIR_NAME})

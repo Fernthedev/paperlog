@@ -43,7 +43,9 @@ jobs:
 
       - name: QPM Collapse
         run: |
-          qpm-rust collapse
+          qpm collapse
+          cd bootstrapper/scotland2
+          qpm restore
 
       - name: Build
         run: |
@@ -59,7 +61,7 @@ jobs:
         id: libname
         run: |
           cd ./build/
-          pattern="lib${module_id}.so"
+          pattern="lib${module_id}*.so"
           files=( $pattern )
           echo ::set-output name=NAME::"${files[0]}"
       - name: Upload non-debug artifact
