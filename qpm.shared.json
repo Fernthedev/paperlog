@@ -5,10 +5,11 @@
     "info": {
       "name": "Paper",
       "id": "paper",
-      "version": "1.2.14",
+      "version": "3.0.0",
       "url": "https://github.com/Fernthedev/paperlog",
       "additionalData": {
-        "overrideSoName": "libpaperlog.so"
+        "overrideSoName": "libpaperlog.so",
+        "cmake": true
       }
     },
     "workspace": {
@@ -23,30 +24,10 @@
         "id": "fmt",
         "versionRange": "^10.0.0",
         "additionalData": {}
-      },
-      {
-        "id": "scotland2",
-        "versionRange": "^0.1.2",
-        "additionalData": {
-          "private": true
-        }
       }
     ]
   },
   "restoredDependencies": [
-    {
-      "dependency": {
-        "id": "scotland2",
-        "versionRange": "=0.1.2",
-        "additionalData": {
-          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.2/libsl2.so",
-          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.2/debug_libsl2.so",
-          "overrideSoName": "libsl2.so",
-          "branchName": "version/v0_1_2"
-        }
-      },
-      "version": "0.1.2"
-    },
     {
       "dependency": {
         "id": "fmt",

@@ -30,6 +30,8 @@
 #include <unwind.h>
 
 #define HAS_UNWIND
+#else
+#warning No unwind support, backtraces will do nothing
 #endif
 
 
@@ -141,8 +143,12 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
 
 #pragma region LoggerImpl
 
-namespace Paper::Logger {
-void Init(std::string_view logPath, LoggerConfig const& config) {
+void Paper::Logger::Init(std::string_view logPath) {
+  LoggerConfig config{};
+  return Init(logPath, config);
+}
+
+void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
   if (inited) {
     throw std::runtime_error("Already started the logger thread!");
   }
@@ -162,43 +168,13 @@ void Init(std::string_view logPath, LoggerConfig const& config) {
   inited = true;
 }
 
-bool IsInited() {
+bool Paper::Logger::IsInited() {
   return inited;
 }
-
-} // namespace Paper::Logger
 
 #pragma endregion
 
 #pragma region Internal
-
-// TODO: Fix constructor memory crash
-#ifdef PAPER_NO_INIT
-#warning Using dlopen for initializing thread
-void __attribute__((constructor(1000))) dlopen_initialize() {
-  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
-
-#ifdef PAPER_QUEST_MODLOADER
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
-#elif defined(PAPER_QUEST_SCOTLAND2)
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", modloader::get_application_id());
-#else
-#warning "Must have a definition for globalLogPath if PAPER_NO_INIT is defined!
-  std::string path(globalLogPath);
-#endif
-  try {
-    Paper::Logger::Init(path, Paper::LoggerConfig());
-  } catch (std::exception const& e) {
-    std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
-    throw e;
-  } catch (...) {
-    std::string error = fmt::format("Error occurred in logging thread!");
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
-    throw;
-  }
-}
-#endif
 
 void Paper::Internal::LogThread() {
   try {
@@ -340,16 +316,12 @@ void Paper::Internal::LogThread() {
   } catch (std::exception const& e) {
     std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
     logError(error);
-#ifndef PAPER_NO_INIT
     inited = false;
-#endif
     throw e;
   } catch (...) {
     std::string error = fmt::format("Error occurred in logging thread!");
     logError(error);
-#ifndef PAPER_NO_INIT
     inited = false;
-#endif
     throw;
   }
 

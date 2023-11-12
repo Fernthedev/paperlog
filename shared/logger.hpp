@@ -157,10 +157,9 @@ inline auto Backtrace(uint16_t frameCount) {
 
 std::filesystem::path getLogDirectoryPathGlobal();
 
-#ifndef PAPER_NO_INIT
-void Init(std::string_view logPath, LoggerConfig const& config = {});
+void Init(std::string_view logPath);
+void Init(std::string_view logPath, LoggerConfig const& config);
 bool IsInited();
-#endif
 
 void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 

@@ -16,7 +16,3 @@
 #warning Removing quest modloader dependency
 #endif
 
-#if defined(PAPER_QUEST_MODLOADER) || defined(PAPER_QUEST_SCOTLAND2)
-#define PAPER_NO_INIT
-// TODO: Add some more potentially specific includes here
-#endif
