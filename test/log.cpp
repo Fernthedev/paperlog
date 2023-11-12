@@ -46,6 +46,12 @@ void WaitForCompleteFlush() {
   }
 }
 
+TEST(LogTest, LogInit) {
+  Paper::Logger::Init(".");
+  Paper::Logger::WaitForFlush();
+  EXPECT_EQ(Paper::Logger::IsInited(), true);
+}
+
 TEST(LogTest, LogOutput) {
   Paper::Logger::Init(".");
   std::cout.clear();

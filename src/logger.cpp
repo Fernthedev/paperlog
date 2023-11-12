@@ -48,6 +48,29 @@ EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
 #pragma region internals
 
+void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
+#ifdef PAPERLOG_ANDROID_LOG
+  __android_log_write(level, ctx.data(), s.data());
+#endif
+
+#ifdef PAPERLOG_FMT_C_STDOUT
+#warning Printing to stdout
+#ifndef PAPERLOG_FMT_NO_PREFIX
+  fmt::print(std::cout, "Level ({}) [{}] ", level, ctx);
+#endif
+  std::cout << s << std::endl;
+  // fmt::println(std::cout, fmt::runtime(s));
+#endif
+}
+
+void logError(std::string_view error) {
+  WriteStdOut(static_cast<int>(Paper::LogLevel::ERR), "PAPERLOG", error);
+  if (globalFile.is_open()) {
+    globalFile << error << std::endl;
+    globalFile.flush();
+  }
+}
+
 namespace {
 // To avoid loading errors
 static bool inited = false;
@@ -67,29 +90,6 @@ static bool inited = false;
   }
 
   return 0;
-}
-
-inline void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
-#ifdef PAPERLOG_ANDROID_LOG
-  __android_log_write(level, ctx.data(), s.data());
-#endif
-
-#ifdef PAPERLOG_FMT_C_STDOUT
-#warning Printing to stdout
-#ifndef PAPERLOG_FMT_NO_PREFIX
-  fmt::print(std::cout, "Level ({}) [{}] ", level, ctx);
-#endif
-  std::cout << s << std::endl;
-  // fmt::println(std::cout, fmt::runtime(s));
-#endif
-}
-
-inline void logError(std::string_view error) {
-  WriteStdOut(static_cast<int>(Paper::LogLevel::ERR), "PAPERLOG", error);
-  if (globalFile.is_open()) {
-    globalFile << error << std::endl;
-    globalFile.flush();
-  }
 }
 
 inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId,
@@ -150,7 +150,8 @@ void Paper::Logger::Init(std::string_view logPath) {
 
 void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
   if (inited) {
-    throw std::runtime_error("Already started the logger thread!");
+    return;
+    // throw std::runtime_error("Already started the logger thread!");
   }
 
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",

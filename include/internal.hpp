@@ -15,3 +15,6 @@ struct StringHash {
     return hasher(sv);
   }
 };
+
+extern void WriteStdOut(int level, std::string_view ctx, std::string_view s);
+extern void logError(std::string_view error);

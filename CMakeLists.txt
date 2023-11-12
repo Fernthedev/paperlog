@@ -12,14 +12,19 @@ set(MOD_ID "paper")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 cmake_minimum_required(VERSION 3.21)
-project(${COMPILE_ID})
-
+project(paperlog_project)
 
 # c++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+#Output everything to the same folder
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
+
 # set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -static-libstdc++")
 
 # define that stores the actual source directory
@@ -30,115 +35,24 @@ set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_compile_options(-frtti -fexceptions)
 add_compile_options(-O3)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # compile definitions used
 add_compile_definitions(VERSION=\"${MOD_VERSION}\")
 add_compile_definitions(MOD_ID=\"${MOD_ID}\")
 add_compile_definitions(FMT_HEADER_ONLY)
 
-if (DEFINED TEST_BUILD)
-    MESSAGE(STATUS "Compiling with test defines")
-    add_compile_definitions(PAPER_TEST_LOGS)
+if(DEFINED TEST_BUILD)
+        MESSAGE(STATUS "Compiling with test defines")
+        add_compile_definitions(PAPER_TEST_LOGS)
 endif()
 
-# recursively get all src files
-RECURSE_FILES(cpp_file_list ${SOURCE_DIR}/*.cpp)
-RECURSE_FILES(c_file_list ${SOURCE_DIR}/*.c)
-
-# add all src files to compile
-add_library(
-        ${COMPILE_ID}
-        SHARED
-        ${cpp_file_list}
-        ${c_file_list}
-)
-
-target_include_directories(${COMPILE_ID} PRIVATE .)
-
-# add src dir as include dir
-target_include_directories(${COMPILE_ID} PRIVATE ${SOURCE_DIR})
-# add include dir as include dir
-target_include_directories(${COMPILE_ID} PRIVATE ${INCLUDE_DIR})
-# add shared dir as include dir
-target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
-# codegen includes 
-target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGEN_ID}/include)
-
-
-target_include_directories(${COMPILE_ID} SYSTEM PRIVATE ${EXTERN_DIR}/includes/fmt/fmt/include/)
-target_compile_options(${COMPILE_ID} PRIVATE -DFMT_HEADER_ONLY)
-
-# logcat
-if(DEFINED QPM_ANDROID)
-        target_link_libraries(${COMPILE_ID} PRIVATE -llog)
-
-        # add extern stuff like libs and other includes
-        include(extern.cmake)
-endif()
-
-
-
-
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_STRIP} -d --strip-all
-        "lib${COMPILE_ID}.so" -o "stripped_lib${COMPILE_ID}.so"
-        COMMENT "Strip debug symbols done on final binary.")
-
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory debug
-        COMMENT "Make directory for debug symbols"
-        )
-
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rename lib${COMPILE_ID}.so debug/lib${COMPILE_ID}.so
-        COMMENT "Rename the lib to debug_ since it has debug symbols"
-        )
-
-add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rename stripped_lib${COMPILE_ID}.so lib${COMPILE_ID}.so
-        COMMENT "Rename the stripped lib to regular"
-        )
+# Add to all
+include_directories(SYSTEM ${EXTERN_DIR}/includes/fmt/fmt/include/)
+add_compile_options(-DFMT_HEADER_ONLY)
 
 if(NOT DEFINED QPM_ANDROID)
-        message("Compiling with GTest")
-
-        # GTest
-        include(FetchContent)
-        FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-        )
-        # For Windows: Prevent overriding the parent project's compiler/linker settings
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(googletest)
-
-
-        enable_testing()
-
-        add_executable(
-        paperlog_test
-        test/log.cpp
-        test/utf.cpp
-        )
-        target_link_libraries(
-        paperlog_test
-        GTest::gtest_main
-        paperlog
-        )
-
-        add_compile_definitions(PAPERLOG_FMT_C_STDOUT)
-        add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
-
-        # add src dir as include dir
-        target_include_directories(paperlog_test PRIVATE test)
-        # add include dir as include dir
-        target_include_directories(paperlog_test PRIVATE ${INCLUDE_DIR})
-        # add shared dir as include dir
-        target_include_directories(paperlog_test SYSTEM PUBLIC ${SHARED_DIR})
-        target_include_directories(paperlog_test SYSTEM PUBLIC extern/includes)
-        target_include_directories(paperlog_test SYSTEM PUBLIC extern/includes/fmt/fmt/include/)
-
-
-        include(GoogleTest)
-        gtest_discover_tests(paperlog_test)
-
+        include(${CMAKE_CURRENT_LIST_DIR}/cmake/gtest.cmake)
 endif()
+
+add_subdirectory(${SOURCE_DIR})
+add_subdirectory(bootstrapper)
