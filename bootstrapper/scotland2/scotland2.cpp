@@ -8,11 +8,25 @@
 #error SCOTLAND2 NOT FOUND! RUN `qpm restore` in `bootstrapper/scotland2`!
 #endif
 
+namespace {
+void findAndReplaceAll(std::string& data, std::string_view toSearch, std::string_view replaceStr) noexcept {
+  // Get the first occurrence
+  size_t pos = data.find(toSearch);
+  // Repeat till end is reached
+  while (pos != std::string::npos) {
+    // Replace this occurrence of Sub String
+    data.replace(pos, toSearch.size(), replaceStr);
+    // Get the next occurrence from the current position
+    pos = data.find(toSearch, pos + replaceStr.size());
+  }
+}
+} // namespace
+
 void __attribute__((constructor(1000))) dlopen_initialize() {
   WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
-
-  std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", modloader::get_application_id());
+  std::string path = "/sdcard/Android/data/{}/files/logs/paper";
+  findAndReplaceAll(path, "{}", modloader::get_application_id());
 
   try {
     Paper::Logger::Init(path, Paper::LoggerConfig());
