@@ -62,7 +62,6 @@ jobs:
           qpm collapse
       - name: QPM Setup Scotland2 bootstrapper
         run: |
-          qpm collapse
           cd src_bootstrapper/scotland2
           qpm restore
 
