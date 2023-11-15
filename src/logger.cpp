@@ -34,8 +34,6 @@
 #warning No unwind support, backtraces will do nothing
 #endif
 
-
-
 EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 EARLY_INIT_ATTRIBUTE std::binary_semaphore flushSemaphore{ 1 };
 EARLY_INIT_ATTRIBUTE static Paper::LoggerConfig globalLoggerConfig;
@@ -111,12 +109,10 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
 
   // TODO: Reduce double formatting
   std::string_view locationFileName(location.file_name());
-
+  auto maxLen = std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0);
   // limit length
-  locationFileName =
-      locationFileName
-          // don't allow file name to be super long
-          .substr(std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0));
+  // don't allow file name to be super long
+  locationFileName = locationFileName.substr(maxLen);
 
   std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId, locationFileName,
                                      location.line(), location.column(), location.function_name(), s));
