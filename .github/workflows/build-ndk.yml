@@ -44,7 +44,7 @@ jobs:
       - name: QPM Collapse
         run: |
           qpm collapse
-          cd bootstrapper/scotland2
+          cd src_bootstrapper/scotland2
           qpm restore
 
       - name: Build
