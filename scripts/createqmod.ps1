@@ -50,4 +50,6 @@ if ((-not ($clean.IsPresent)) -and (Test-Path $qmod))
 }
 
 Compress-Archive -Path $filelist -DestinationPath $zip -Update
+Compress-Archive -Path ["./build/libpaperlog_sl2.so","src_bootstrapper/scotland2/mod.json"] -DestinationPath paperlog_sl2.zip -Update
 Move-Item $zip $qmod -Force
+Move-Item "paperlog_sl2.zip" "paperlog_sl2.qmod" -Force
