@@ -1,0 +1,15 @@
+{
+  "_QPVersion": "1.1.0",
+  "name": "Paperlog Scotland2",
+  "id": "paperlog_scotland2",
+  "modloader": "Scotland2",
+  "author": "Fernthedev",
+  "version": "0.1.0",
+  "description": "Paperlog Bootstrapper for Scotland2 modloader",
+  "dependencies": [],
+  "modFiles": [],
+  "lateModFiles": [],
+  "libraryFiles": ["libpaperlog_sl2.so"],
+  "fileCopies": [],
+  "copyExtensions": []
+}
