@@ -71,7 +71,7 @@ jobs:
           qpm s build
           qpm qmod build
           cd src_bootstrapper/scotland2
-          qpm qmod build
+          # qpm qmod build
 
       - name: Make qmod paperlog
         run: |
