@@ -1,5 +1,5 @@
 # include some defines automatically made by qpm
-include(qpm_defines_fixed.cmake)
+include(./cmake/qpm.cmake)
 
 # override mod id
 set(MOD_ID "paper")
@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED 20)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-#Output everything to the same folder
+# Output everything to the same folder
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
@@ -55,4 +55,4 @@ if(NOT DEFINED QPM_ANDROID)
 endif()
 
 add_subdirectory(${SOURCE_DIR})
-add_subdirectory(bootstrapper)
+add_subdirectory(src_bootstrapper)

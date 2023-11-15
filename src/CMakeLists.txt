@@ -26,9 +26,6 @@ target_include_directories(${COMPILE_ID} PUBLIC ${SHARED_DIR})
 # logcat
 if(DEFINED QPM_ANDROID)
     target_link_libraries(${COMPILE_ID} PRIVATE -llog)
-
-    # add extern stuff like libs and other includes
-    include(${CMAKE_SOURCE_DIR}/extern.cmake)
 endif()
 
 add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
