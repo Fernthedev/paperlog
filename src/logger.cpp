@@ -125,7 +125,12 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
   std::string const androidMsg(s);
 #endif
 
-  WriteStdOut(static_cast<int>(level), tag, s.data());
+#ifdef PAPERLOG_ANDROID_LOG
+  WriteStdOut(static_cast<int>(level), tag, androidMsg);
+#else
+  WriteStdOut(static_cast<int>(level), tag, msg);
+#endif
+
   globalFile << msg << '\n';
 
   if (contextFilePtr != nullptr) {
