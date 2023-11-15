@@ -101,6 +101,6 @@ jobs:
             ./build/${{ steps.libname.outputs.NAME }}
             ./build/debug/debug_${{ steps.libname.outputs.NAME }}
             ./${{ env.qmodName }}.qmod
-            ./build/paperlog_sl2.qmod
+            ./paperlog_sl2.qmod
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
