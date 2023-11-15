@@ -178,7 +178,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
     std::string const androidMsg(s);
 #endif
 
-    WriteStdOut((int)level, tag.data(), s.data());
+    WriteStdOut((int)level, tag.data(), androidMsg.data());
     globalFile << msg << '\n';
 
     if (contextFilePtr) {
