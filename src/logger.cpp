@@ -1,3 +1,7 @@
+#include "logger.hpp"
+#include "log_level.hpp"
+
+#include <fmt/ostream.h>
 #include <chrono>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
@@ -51,23 +55,24 @@ namespace {
 // To avoid loading errors
 static bool inited = false;
 
-void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
+void WriteStdOut(Paper::LogLevel level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
-  __android_log_write(level, ctx.data(), s.data());
+    __android_log_write(
+        static_cast<int>(level), ctx.data(),
+        s.data());
 #endif
 
 #ifdef PAPERLOG_FMT_C_STDOUT
 #warning Printing to stdout
-#ifndef PAPERLOG_FMT_NO_PREFIX
-  fmt::print(std::cout, "Level ({}) [{}] ", level, ctx);
-#endif
-  std::cout << s << std::endl;
-  // fmt::println(std::cout, fmt::runtime(s));
+    // we don't use fmt here for faster speed and less size usage
+    std::cout << "Level (" << fmt::to_string(level) << ")";
+    std::cout << " [" << ctx << "]";
+    std::cout << " " << s << std::endl; 
 #endif
 }
 
 void logError(std::string_view error) {
-  WriteStdOut(static_cast<int>(Paper::LogLevel::ERR), "PAPERLOG", error);
+  WriteStdOut(Paper::LogLevel::ERR, "PAPERLOG", error);
   if (globalFile.is_open()) {
     globalFile << error << std::endl;
     globalFile.flush();
@@ -123,9 +128,9 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
 #endif
 
 #ifdef PAPERLOG_ANDROID_LOG
-  WriteStdOut(static_cast<int>(level), tag, androidMsg);
+  WriteStdOut(level, tag, androidMsg);
 #else
-  WriteStdOut(static_cast<int>(level), tag, msg);
+  WriteStdOut(level, tag, msg);
 #endif
 
   globalFile << msg << '\n';
@@ -156,7 +161,7 @@ void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
     // throw std::runtime_error("Already started the logger thread!");
   }
 
-  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG",
+  WriteStdOut(Paper::LogLevel::INF, "PAPERLOG",
               "Logging paper to folder " + std::string(logPath) + "and file " + GLOBAL_FILE_NAME);
 
   globalLoggerConfig = { config };
@@ -339,7 +344,7 @@ void Paper::Internal::LogThread() {
     throw;
   }
 
-  WriteStdOut(ANDROID_LOG_INFO, "PaperInternals", "Finished log thread");
+  WriteStdOut(Paper::LogLevel::INF, "PaperInternals", "Finished log thread");
 }
 
 void Paper::Logger::WaitForFlush() {
