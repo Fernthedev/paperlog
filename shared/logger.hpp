@@ -98,7 +98,12 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
 //    using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
 template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
 
-using LogSink = std::function<void(ThreadData const&, std::string_view fmtMessage)>;
+///
+/// @param originalString This param exists since strings can be splitted due to newlines etc.
+/// Use this when you need the exact printed string for this sink call.
+/// Unformatted refers to no Paper prefixes.
+/// This does not give the origianl string without the initial fmt run
+using LogSink = std::function<void(ThreadData const&, std::string_view fmtMessage, std::string_view originalString)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;

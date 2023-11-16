@@ -57,17 +57,15 @@ static bool inited = false;
 
 void WriteStdOut(Paper::LogLevel level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
-    __android_log_write(
-        static_cast<int>(level), ctx.data(),
-        s.data());
+  __android_log_write(static_cast<int>(level), ctx.data(), s.data());
 #endif
 
 #ifdef PAPERLOG_FMT_C_STDOUT
 #warning Printing to stdout
-    // we don't use fmt here for faster speed and less size usage
-    std::cout << "Level (" << fmt::to_string(level) << ")";
-    std::cout << " [" << ctx << "]";
-    std::cout << " " << s << std::endl; 
+  // we don't use fmt here for faster speed and less size usage
+  std::cout << "Level (" << fmt::to_string(level) << ")";
+  std::cout << " [" << ctx << "]";
+  std::cout << " " << s << std::endl;
 #endif
 }
 
@@ -96,22 +94,24 @@ void logError(std::string_view error) {
   return 0;
 }
 
-inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId,
-                     std::string_view s,
-                     /* nullable */ std::ofstream* contextFilePtr) {
+inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMessage, std::string_view unformattedMessage,
+              /* nullable */ std::ofstream* contextFilePtr) {
+  globalFile << fmtMessage << '\n';
+  if (contextFilePtr != nullptr) {
+    auto& f = *contextFilePtr;
+    f << fmtMessage << '\n';
+  }
+}
 
-  auto const& rawFmtStr = threadData.str;
-  auto const& tag = threadData.tag;
-  auto const& location = threadData.loc;
+inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view _fmtMessage,
+                std::string_view unformattedMessage) {
   auto const& level = threadData.level;
 
-  // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
-#ifndef PAPERLOG_FMT_NO_PREFIX
-  std::string const msg(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"), time,
-                                    time, level, threadId, tag, location.file_name(), location.line(),
-                                    location.column(), location.function_name(),
-                                    s // TODO: Is there a better way to do this?
-                                    ));
+
+#ifdef PAPERLOG_ANDROID_LOG
+  auto const& tag = threadData.tag;
+  auto const& location = threadData.loc;
+  auto const& threadId = fmt::to_string(threadData.threadId);
 
   // TODO: Reduce double formatting
   std::string_view locationFileName(location.file_name());
@@ -121,27 +121,39 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
   locationFileName = locationFileName.substr(maxLen);
 
   std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId, locationFileName,
-                                     location.line(), location.column(), location.function_name(), s));
-#else
-  std::string const msg(s);
-  std::string const androidMsg(s);
-#endif
+                                     location.line(), location.column(), location.function_name(), unformattedMessage));
 
-#ifdef PAPERLOG_ANDROID_LOG
   WriteStdOut(level, tag, androidMsg);
 #else
   WriteStdOut(level, tag, msg);
 #endif
+}
 
-  globalFile << msg << '\n';
+inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId,
+                     std::string_view originalString,
+                     /* nullable */ std::ofstream* contextFilePtr) {
 
-  if (contextFilePtr != nullptr) {
-    auto& f = *contextFilePtr;
-    f << msg << '\n';
-  }
+  auto const& tag = threadData.tag;
+  auto const& location = threadData.loc;
+  auto const& level = threadData.level;
+
+  // "{Ymd} [{HMSf}] {l}[{t:<6}] [{s}]"
+#ifndef PAPERLOG_FMT_NO_PREFIX
+  std::string const fullMessage(fmt::format(FMT_COMPILE("{:%Y-%m-%d} [{:%H:%M:%S}] {}[{:<6}] [{}] [{}:{}:{} @ {}]: {}"),
+                                            time, time, level, threadId, tag, location.file_name(), location.line(),
+                                            location.column(), location.function_name(),
+                                            originalString // TODO: Is there a better way to do this?
+                                            ));
+
+#else
+  std::string const fullMessage(originalString);
+#endif
+
+  stdOutSink(threadData, fullMessage, originalString);
+  fileSink(threadData, fullMessage, originalString, contextFilePtr);
 
   for (auto const& sink : sinks) {
-    sink(threadData, msg);
+    sink(threadData, fullMessage, originalString);
   }
 }
 } // namespace
