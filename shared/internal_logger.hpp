@@ -39,17 +39,17 @@ enum class LogLevel : uint8_t;
 
 using TimePoint = std::chrono::system_clock::time_point;
 
-struct ThreadData {
-  ThreadData(ThreadData const&) = delete;
-  ThreadData(ThreadData&&) = default;
+struct LogData {
+  LogData(LogData const&) = delete;
+  LogData(LogData&&) = default;
 
-  explicit ThreadData() : loc(Paper::sl::current()){};
+  explicit LogData() : loc(Paper::sl::current()){};
 
-  ThreadData(std::string str, std::thread::id threadId, std::string_view tag, sl const& loc,
-             LogLevel level, TimePoint logTime)
+  LogData(std::string str, std::thread::id threadId, std::string_view tag, sl const& loc, LogLevel level,
+          TimePoint logTime)
       : str(std::move(str)), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
 
-  ~ThreadData() = default;
+  ~LogData() = default;
 
   //        constexpr ThreadData(fmt::string_view const &str, fmt::format_args const &args, std::thread::id const
   //        &threadId,
@@ -68,12 +68,10 @@ struct ThreadData {
   //            return *this;
   //        };
 
-  ThreadData& operator=(ThreadData&& o) noexcept = default;
-  ThreadData& operator=(ThreadData const& o) noexcept = delete;
+  LogData& operator=(LogData&& o) noexcept = default;
+  LogData& operator=(LogData const& o) noexcept = delete;
 
   std::string str;
-  //        fmt::string_view str;
-  //        fmt::format_args args;
   std::thread::id threadId;
   std::string tag; // TODO: Use std::string_view?
   sl loc;
@@ -81,14 +79,16 @@ struct ThreadData {
   TimePoint logTime;
 };
 
+using ThreadData [[deprecated("Use Paper::Logdata instead!")]] = LogData;
+
 namespace Internal {
 void LogThread();
 
-void Queue(ThreadData&& threadData) noexcept;
-void Queue(ThreadData&& threadData, moodycamel::ProducerToken const& token) noexcept;
+void Queue(LogData&& threadData) noexcept;
+void Queue(LogData&& threadData, moodycamel::ProducerToken const& token) noexcept;
 moodycamel::ProducerToken MakeProducerToken() noexcept;
 
 // [[deprecated("Do not call! Kept for legacy purposes")]]
-extern moodycamel::BlockingConcurrentQueue<ThreadData> logQueue;
+extern moodycamel::BlockingConcurrentQueue<LogData> logQueue;
 } // namespace Internal
 } // namespace Paper

@@ -1,11 +1,7 @@
-#include "logger.hpp"
-#include "log_level.hpp"
-
 #include <fmt/ostream.h>
 #include <chrono>
 #include <fmt/chrono.h>
 #include <fmt/compile.h>
-#include <fmt/ostream.h>
 #include <fmt/std.h>
 
 #include <exception>
@@ -100,8 +96,7 @@ void logError(std::string_view error) {
   return 0;
 }
 
-inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMessage,
-                     std::string_view unformattedMessage,
+inline void fileSink(Paper::LogData const& threadData, std::string_view fmtMessage, std::string_view unformattedMessage,
                      /* nullable */ std::ofstream* contextFilePtr) {
   globalFile << fmtMessage << '\n';
   if (contextFilePtr != nullptr) {
@@ -110,7 +105,7 @@ inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMe
   }
 }
 
-inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view fmtMessage,
+inline void stdOutSink(Paper::LogData const& threadData, std::string_view fmtMessage,
                        std::string_view unformattedMessage) {
   auto const& level = threadData.level;
   auto const& tag = threadData.tag;
@@ -137,7 +132,7 @@ inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view fmt
 #endif
 }
 
-inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, std::string_view threadId,
+inline void writeLog(Paper::LogData const& threadData, std::tm const& time, std::string_view threadId,
                      std::string_view originalString,
                      /* nullable */ std::ofstream* contextFilePtr) {
 
@@ -204,12 +199,12 @@ bool Paper::Logger::IsInited() {
 
 #pragma region Internal
 
-void Paper::Internal::Queue(Paper::ThreadData&& threadData) noexcept {
-  Internal::logQueue.enqueue(std::forward<Paper::ThreadData>(threadData));
+void Paper::Internal::Queue(Paper::LogData&& threadData) noexcept {
+  Internal::logQueue.enqueue(std::forward<Paper::LogData>(threadData));
 }
 
-void Paper::Internal::Queue(Paper::ThreadData&& threadData, moodycamel::ProducerToken const& token) noexcept {
-  Internal::logQueue.enqueue(token, std::forward<Paper::ThreadData>(threadData));
+void Paper::Internal::Queue(Paper::LogData&& threadData, moodycamel::ProducerToken const& token) noexcept {
+  Internal::logQueue.enqueue(token, std::forward<Paper::LogData>(threadData));
 }
 moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noexcept {
   return moodycamel::ProducerToken(logQueue);
@@ -220,7 +215,7 @@ void Paper::Internal::LogThread() {
     moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
     auto constexpr logBulkCount = 50;
-    std::array<Paper::ThreadData, logBulkCount> threadQueue;
+    std::array<Paper::LogData, logBulkCount> threadQueue;
 
     std::ofstream* contextFile = nullptr;
     std::string_view selectedContext;

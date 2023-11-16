@@ -103,7 +103,7 @@ template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::ty
 /// Use this when you need the exact printed string for this sink call.
 /// Unformatted refers to no Paper prefixes.
 /// This does not give the origianl string without the initial fmt run
-using LogSink = std::function<void(ThreadData const&, std::string_view fmtMessage, std::string_view originalString)>;
+using LogSink = std::function<void(LogData const&, std::string_view fmtMessage, std::string_view originalString)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;
@@ -133,8 +133,8 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
   Internal::logQueue.enqueue(Paper::ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc,
                                                level, std::chrono::system_clock::now()));
 #else
-  ::Paper::Internal::Queue(Paper::ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level,
-                                             std::chrono::system_clock::now()));
+  ::Paper::Internal::Queue(Paper::LogData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level,
+                                          std::chrono::system_clock::now()));
 #endif
 }
 
