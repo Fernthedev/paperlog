@@ -7,6 +7,8 @@
 // TODO: Breaking change use std::source_location
 #include "source_location.hpp"
 
+#include "log_level.hpp"
+
 // #if __has_include(<source_location>)
 // #include <source_location>
 // #define PAPERLOG_SL_T std::source_location
@@ -43,13 +45,9 @@ struct ThreadData {
 
   explicit ThreadData() : loc(Paper::sl::current()){};
 
-  ThreadData(std::string str, std::thread::id const& threadId, std::string_view const& tag, sl const& loc,
-             LogLevel level, TimePoint const& logTime)
+  ThreadData(std::string str, std::thread::id threadId, std::string_view tag, sl const& loc,
+             LogLevel level, TimePoint logTime)
       : str(std::move(str)), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
-
-  ThreadData(std::string_view const str, std::thread::id const& threadId, std::string_view const& tag, sl const& loc,
-             LogLevel level, TimePoint const& logTime)
-      : str(str), threadId(threadId), tag(tag), loc(loc), level(level), logTime(logTime) {}
 
   ~ThreadData() = default;
 
@@ -79,13 +77,18 @@ struct ThreadData {
   std::thread::id threadId;
   std::string tag; // TODO: Use std::string_view?
   sl loc;
-  LogLevel level;
+  LogLevel level = LogLevel::INF;
   TimePoint logTime;
 };
 
 namespace Internal {
 void LogThread();
 
+void Queue(ThreadData&& threadData) noexcept;
+void Queue(ThreadData&& threadData, moodycamel::ProducerToken const& token) noexcept;
+moodycamel::ProducerToken MakeProducerToken() noexcept;
+
+// [[deprecated("Do not call! Kept for legacy purposes")]]
 extern moodycamel::BlockingConcurrentQueue<ThreadData> logQueue;
 } // namespace Internal
 } // namespace Paper

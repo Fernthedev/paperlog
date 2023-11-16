@@ -1,5 +1,9 @@
 #pragma once
 
+/// DEFINE PAPER_INLINE_QUEUE to use slightly faster queue logic at the cost of bigger binary size
+/// DEFINE NO_MODLOADER_FORMAT to disable modloader include and fmt struct
+/// DEFINE NO_SL2_FORMAT to disable scotland2 include and fmt struct
+
 #include "_config.h"
 #include <chrono>
 #include <fmt/core.h>
@@ -119,11 +123,14 @@ struct LoggerConfig {
 
 namespace Logger {
 inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& sourceLoc, std::string_view const tag,
-                    fmt::format_args const& args) noexcept {
-  while (!Internal::logQueue.enqueue(ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc,
-                                                level, std::chrono::system_clock::now()))) {
-    std::this_thread::sleep_for(std::chrono::microseconds(500));
-  }
+                    fmt::format_args&& args) noexcept {
+#ifdef PAPER_INLINE_QUEUE
+  Internal::logQueue.enqueue(Paper::ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc,
+                                               level, std::chrono::system_clock::now()));
+#else
+  ::Paper::Internal::Queue(Paper::ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level,
+                                             std::chrono::system_clock::now()));
+#endif
 }
 
 template <LogLevel lvl, typename... TArgs>
@@ -207,6 +214,9 @@ template <typename Str> struct BaseLoggerContext {
   constexpr BaseLoggerContext(BaseLoggerContext&&) noexcept = default;
   constexpr BaseLoggerContext(BaseLoggerContext const&) noexcept = default;
   constexpr ~BaseLoggerContext() = default;
+
+  BaseLoggerContext& operator=(BaseLoggerContext&& o) noexcept = default;
+  BaseLoggerContext& operator=(BaseLoggerContext const& o) noexcept = default;
 
   template <LogLevel lvl, typename... TArgs>
   constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {

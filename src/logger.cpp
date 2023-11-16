@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "android_stubs.hpp"
+#include "internal_logger.hpp"
 #include "logger.hpp"
 #include "early.hpp"
 #include "internal.hpp"
@@ -177,6 +178,17 @@ bool Paper::Logger::IsInited() {
 #pragma endregion
 
 #pragma region Internal
+
+void Paper::Internal::Queue(Paper::ThreadData&& threadData) noexcept {
+  Internal::logQueue.enqueue(std::forward<Paper::ThreadData>(threadData));
+}
+
+void Paper::Internal::Queue(Paper::ThreadData&& threadData, moodycamel::ProducerToken const& token) noexcept {
+  Internal::logQueue.enqueue(token, std::forward<Paper::ThreadData>(threadData));
+}
+moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noexcept {
+  return moodycamel::ProducerToken(logQueue);
+}
 
 void Paper::Internal::LogThread() {
   try {
