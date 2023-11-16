@@ -5,6 +5,10 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/scotland2.cpp
 )
 
+
+target_link_libraries(paperlog_sl2 -llog)
+
+
 target_include_directories(paperlog_sl2 PRIVATE ${INCLUDE_DIR})
 target_include_directories(paperlog_sl2 PRIVATE ${CMAKE_CURRENT_LIST_DIR}/extern/includes/)
 
