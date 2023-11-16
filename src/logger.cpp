@@ -39,6 +39,10 @@
 #warning No unwind support, backtraces will do nothing
 #endif
 
+#ifdef PAPERLOG_FMT_NO_PREFIX
+#warning Removing fmt prefixes from logs
+#endif
+
 EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
 EARLY_INIT_ATTRIBUTE std::binary_semaphore flushSemaphore{ 1 };
 EARLY_INIT_ATTRIBUTE static Paper::LoggerConfig globalLoggerConfig;
@@ -63,9 +67,11 @@ void WriteStdOut(Paper::LogLevel level, std::string_view ctx, std::string_view s
 #ifdef PAPERLOG_FMT_C_STDOUT
 #warning Printing to stdout
   // we don't use fmt here for faster speed and less size usage
-  std::cout << "Level (" << fmt::to_string(level) << ")";
-  std::cout << " [" << ctx << "]";
-  std::cout << " " << s << std::endl;
+  // TODO: Adding level and context greatly reduces performance. Optimize somehow
+  //   std::cout << "Level (" << fmt::to_string(level) << ") ";
+  std::cout << "Level (" << Paper::format_as(level) << ") ";
+  std::cout << "[" << ctx << "] ";
+  std::cout << s << std::endl;
 #endif
 }
 
@@ -94,8 +100,9 @@ void logError(std::string_view error) {
   return 0;
 }
 
-inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMessage, std::string_view unformattedMessage,
-              /* nullable */ std::ofstream* contextFilePtr) {
+inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMessage,
+                     std::string_view unformattedMessage,
+                     /* nullable */ std::ofstream* contextFilePtr) {
   globalFile << fmtMessage << '\n';
   if (contextFilePtr != nullptr) {
     auto& f = *contextFilePtr;
@@ -104,12 +111,12 @@ inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMe
 }
 
 inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view fmtMessage,
-                std::string_view unformattedMessage) {
+                       std::string_view unformattedMessage) {
   auto const& level = threadData.level;
   auto const& tag = threadData.tag;
 
   // Reduce log bloat for android logcat
-#ifdef PAPERLOG_ANDROID_LOG
+#if defined(PAPERLOG_ANDROID_LOG) && !defined(PAPERLOG_FMT_NO_PREFIX)
   auto const& location = threadData.loc;
   auto const& threadId = fmt::to_string(threadData.threadId);
 
