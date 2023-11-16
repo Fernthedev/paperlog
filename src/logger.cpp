@@ -39,7 +39,13 @@
 #warning Removing fmt prefixes from logs
 #endif
 
-EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::ThreadData> Paper::Internal::logQueue;
+// extern defines
+EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::LogData> Paper::Internal::logQueue;
+
+
+#pragma region internals
+
+namespace {
 EARLY_INIT_ATTRIBUTE std::binary_semaphore flushSemaphore{ 1 };
 EARLY_INIT_ATTRIBUTE static Paper::LoggerConfig globalLoggerConfig;
 EARLY_INIT_ATTRIBUTE static std::filesystem::path globalLogPath;
@@ -49,9 +55,6 @@ EARLY_INIT_ATTRIBUTE static std::unordered_map<ContextID, LogPath, StringHash, s
 
 EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
-#pragma region internals
-
-namespace {
 // To avoid loading errors
 static bool inited = false;
 
