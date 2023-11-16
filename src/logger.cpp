@@ -15,7 +15,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "android_stubs.hpp"
 #include "internal_logger.hpp"
 #include "logger.hpp"
 #include "early.hpp"
@@ -39,12 +38,29 @@
 #warning Removing fmt prefixes from logs
 #endif
 
+#ifdef PAPERLOG_STDOUT_LOG
+#warning Logging to stdout!
+#endif
+
+#ifdef PAPERLOG_ANDROID_LOG
+#warning Logging to android logcat!
+#include <android/log.h>
+#endif
+
+#ifdef PAPERLOG_GLOBAL_FILE_LOG
+#warning Logging to file log! Does not fully comply at the moment
+#endif
+
+#ifdef PAPERLOG_CONTEXT_FILE_LOG
+#warning Logging to context file log! Does not fully comply at the moment
+#endif
+
 // extern defines
 EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::LogData> Paper::Internal::logQueue;
 
-
 #pragma region internals
 
+// fields
 namespace {
 EARLY_INIT_ATTRIBUTE std::binary_semaphore flushSemaphore{ 1 };
 EARLY_INIT_ATTRIBUTE static Paper::LoggerConfig globalLoggerConfig;
@@ -57,27 +73,78 @@ EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
 // To avoid loading errors
 static bool inited = false;
+} // namespace
+namespace {
+namespace Sinks {
 
-void WriteStdOut(Paper::LogLevel level, std::string_view ctx, std::string_view s) {
+void fileSink(Paper::LogData const& threadData, std::string_view fmtMessage, std::string_view unformattedMessage,
+              /* nullable */ std::ofstream* contextFilePtr) {
+#ifdef PAPERLOG_GLOBAL_FILE_LOG
+  globalFile << fmtMessage << '\n';
+#endif
+#ifdef PAPERLOG_CONTEXT_FILE_LOG
+  if (contextFilePtr != nullptr) {
+    auto& f = *contextFilePtr;
+    f << fmtMessage << '\n';
+  }
+#endif
+}
+
+void stdOutSink(Paper::LogData const& threadData, std::string_view fmtMessage, std::string_view _unformattedMessage) {
+  auto const& level = threadData.level;
+  auto const& tag = threadData.tag;
+
+  std::cout << "Level (" << Paper::format_as(level) << ") ";
+  std::cout << "[" << tag << "] ";
+  std::cout << fmtMessage << std::endl;
+}
+
 #ifdef PAPERLOG_ANDROID_LOG
-  __android_log_write(static_cast<int>(level), ctx.data(), s.data());
+void androidLogcatSink(Paper::LogData const& threadData, std::string_view _fmtMessage,
+                       std::string_view unformattedMessage) {
+  auto const& level = threadData.level;
+  auto const& tag = threadData.tag;
+
+  // Reduce log bloat for android logcat
+#ifdef PAPERLOG_FMT_NO_PREFIX
+  auto androidMsg = unformattedMessage;
+#else
+  auto const& location = threadData.loc;
+  auto const& threadId = fmt::to_string(threadData.threadId);
+
+  // TODO: Reduce double formatting
+  std::string_view locationFileName(location.file_name());
+  auto maxLen = std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0);
+
+  // limit length
+  // don't allow file name to be super long
+  locationFileName = locationFileName.substr(maxLen);
+
+  std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId, locationFileName,
+                                     location.line(), location.column(), location.function_name(), unformattedMessage));
+
+#endif
+  __android_log_write(static_cast<int>(level), tag.data(), androidMsg.data());
+}
+#endif
+} // namespace Sinks
+} // namespace
+
+namespace {
+void logInternal(Paper::LogLevel level, std::string_view s) {
+#ifdef PAPERLOG_ANDROID_LOG
+  __android_log_write(static_cast<int>(level), "PAPER", s.data());
 #endif
 
-#ifdef PAPERLOG_FMT_C_STDOUT
-#warning Printing to stdout
-  // we don't use fmt here for faster speed and less size usage
-  // TODO: Adding level and context greatly reduces performance. Optimize somehow
-  //   std::cout << "Level (" << fmt::to_string(level) << ") ";
-  std::cout << "Level (" << Paper::format_as(level) << ") ";
-  std::cout << "[" << ctx << "] ";
-  std::cout << s << std::endl;
+#ifdef PAPERLOG_STDOUT_LOG
+  std::cout << "PAPER: [" << Paper::format_as(level) << "] " << s << std::endl;
 #endif
 }
 
 void logError(std::string_view error) {
-  WriteStdOut(Paper::LogLevel::ERR, "PAPERLOG", error);
+  logInternal(Paper::LogLevel::ERR, error);
   if (globalFile.is_open()) {
-    globalFile << error << std::endl;
+    globalFile << "PAPER INTERNAL ERROR " << error << std::endl;
     globalFile.flush();
   }
 }
@@ -99,42 +166,6 @@ void logError(std::string_view error) {
   return 0;
 }
 
-inline void fileSink(Paper::LogData const& threadData, std::string_view fmtMessage, std::string_view unformattedMessage,
-                     /* nullable */ std::ofstream* contextFilePtr) {
-  globalFile << fmtMessage << '\n';
-  if (contextFilePtr != nullptr) {
-    auto& f = *contextFilePtr;
-    f << fmtMessage << '\n';
-  }
-}
-
-inline void stdOutSink(Paper::LogData const& threadData, std::string_view fmtMessage,
-                       std::string_view unformattedMessage) {
-  auto const& level = threadData.level;
-  auto const& tag = threadData.tag;
-
-  // Reduce log bloat for android logcat
-#if defined(PAPERLOG_ANDROID_LOG) && !defined(PAPERLOG_FMT_NO_PREFIX)
-  auto const& location = threadData.loc;
-  auto const& threadId = fmt::to_string(threadData.threadId);
-
-  // TODO: Reduce double formatting
-  std::string_view locationFileName(location.file_name());
-  auto maxLen = std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0);
-
-  // limit length
-  // don't allow file name to be super long
-  locationFileName = locationFileName.substr(maxLen);
-
-  std::string androidMsg(fmt::format(FMT_COMPILE("{}[{:<6}] [{}:{}:{} @ {}]: {}"), level, threadId, locationFileName,
-                                     location.line(), location.column(), location.function_name(), unformattedMessage));
-
-  WriteStdOut(level, tag, androidMsg);
-#else
-  WriteStdOut(level, tag, fmtMessage);
-#endif
-}
-
 inline void writeLog(Paper::LogData const& threadData, std::tm const& time, std::string_view threadId,
                      std::string_view originalString,
                      /* nullable */ std::ofstream* contextFilePtr) {
@@ -150,14 +181,23 @@ inline void writeLog(Paper::LogData const& threadData, std::tm const& time, std:
                                             location.column(), location.function_name(),
                                             originalString // TODO: Is there a better way to do this?
                                             ));
-
 #else
   std::string_view const fullMessage(originalString);
 #endif
 
-  stdOutSink(threadData, fullMessage, originalString);
-  fileSink(threadData, fullMessage, originalString, contextFilePtr);
+  // realtime android logging
+#ifdef PAPERLOG_ANDROID_LOG
+  Sinks::androidLogcatSink(threadData, fullMessage, originalString);
+#endif
+  // realtime console logging
+#ifdef PAPERLOG_STDOUT_LOG
+  Sinks::stdOutSink(threadData, fullMessage, originalString);
+#endif
 
+  // file logging
+  Sinks::fileSink(threadData, fullMessage, originalString, contextFilePtr);
+
+  // additional sinks
   for (auto const& sink : sinks) {
     sink(threadData, fullMessage, originalString);
   }
@@ -179,8 +219,7 @@ void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
     // throw std::runtime_error("Already started the logger thread!");
   }
 
-  WriteStdOut(Paper::LogLevel::INF, "PAPERLOG",
-              "Logging paper to folder " + std::string(logPath) + "and file " + GLOBAL_FILE_NAME);
+  logInternal(Paper::LogLevel::INF, "Logging paper to folder " + std::string(logPath) + "and file " + GLOBAL_FILE_NAME);
 
   globalLoggerConfig = { config };
   globalLogPath = logPath;
@@ -362,7 +401,7 @@ void Paper::Internal::LogThread() {
     throw;
   }
 
-  WriteStdOut(Paper::LogLevel::INF, "PaperInternals", "Finished log thread");
+  logInternal(Paper::LogLevel::INF, "Finished log thread");
 }
 
 void Paper::Logger::WaitForFlush() {

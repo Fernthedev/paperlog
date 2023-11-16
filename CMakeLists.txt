@@ -41,6 +41,14 @@ add_compile_definitions(VERSION=\"${MOD_VERSION}\")
 add_compile_definitions(MOD_ID=\"${MOD_ID}\")
 add_compile_definitions(FMT_HEADER_ONLY)
 
+# Paper log options
+add_compile_definitions(PAPERLOG_GLOBAL_FILE_LOG)
+add_compile_definitions(PAPERLOG_CONTEXT_FILE_LOG)
+
+if(DEFINED ANDROID)
+        add_compile_definitions(PAPERLOG_ANDROID_LOG)
+endif()
+
 if(DEFINED TEST_BUILD)
         MESSAGE(STATUS "Compiling with test defines")
         add_compile_definitions(PAPER_TEST_LOGS)

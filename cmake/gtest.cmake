@@ -1,6 +1,6 @@
 message("Compiling with GTest")
 
-add_compile_definitions(PAPERLOG_FMT_C_STDOUT)
+add_compile_definitions(PAPERLOG_STDOUT_LOG)
 add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
 
 # GTest
