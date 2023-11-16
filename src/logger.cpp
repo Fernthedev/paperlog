@@ -112,7 +112,7 @@ namespace Paper::Logger {
 
 #warning Using dlopen for initializing thread
 void __attribute__((constructor(200))) dlopen_initialize() {
-        WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
+        WriteStdOut(Paper::LogLevel::INF, "PAPERLOG", "DLOpen initializing");
 
 #ifdef PAPER_QUEST_MODLOADER
     std::string path = fmt::format("/sdcard/Android/data/{}/files/logs/paper", Modloader::getApplicationId());
@@ -124,11 +124,11 @@ void __attribute__((constructor(200))) dlopen_initialize() {
         Paper::Logger::Init(path, Paper::LoggerConfig());
     } catch (std::exception const &e) {
         std::string error = fmt::format("Error occurred in logging thread! {}", e.what());
-        WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        WriteStdOut(Paper::LogLevel::ERR, "PAPERLOG", error.data());
         throw e;
     } catch (...) {
         std::string error = fmt::format("Error occurred in logging thread!");
-        WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error.data());
+        WriteStdOut(Paper::LogLevel::ERR, "PAPERLOG", error.data());
         throw;
     }
 }
