@@ -68,3 +68,5 @@ build_desktop/
 CMakeUserPresets.json
 
 binary_cache/
+
+.cache/
