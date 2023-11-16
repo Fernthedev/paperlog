@@ -103,19 +103,20 @@ inline void fileSink(Paper::ThreadData const& threadData, std::string_view fmtMe
   }
 }
 
-inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view _fmtMessage,
+inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view fmtMessage,
                 std::string_view unformattedMessage) {
   auto const& level = threadData.level;
-
-
-#ifdef PAPERLOG_ANDROID_LOG
   auto const& tag = threadData.tag;
+
+  // Reduce log bloat for android logcat
+#ifdef PAPERLOG_ANDROID_LOG
   auto const& location = threadData.loc;
   auto const& threadId = fmt::to_string(threadData.threadId);
 
   // TODO: Reduce double formatting
   std::string_view locationFileName(location.file_name());
   auto maxLen = std::min<size_t>(locationFileName.size() - globalLoggerConfig.MaximumFileLengthInLogcat, 0);
+
   // limit length
   // don't allow file name to be super long
   locationFileName = locationFileName.substr(maxLen);
@@ -125,7 +126,7 @@ inline void stdOutSink(Paper::ThreadData const& threadData, std::string_view _fm
 
   WriteStdOut(level, tag, androidMsg);
 #else
-  WriteStdOut(level, tag, msg);
+  WriteStdOut(level, tag, fmtMessage);
 #endif
 }
 
@@ -146,7 +147,7 @@ inline void writeLog(Paper::ThreadData const& threadData, std::tm const& time, s
                                             ));
 
 #else
-  std::string const fullMessage(originalString);
+  std::string_view const fullMessage(originalString);
 #endif
 
   stdOutSink(threadData, fullMessage, originalString);

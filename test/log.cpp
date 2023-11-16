@@ -62,27 +62,7 @@ TEST(LogTest, LogOutput) {
   std::string output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Level (INFO) [GLOBAL] hi! 5\n");
 }
-TEST(LogTest, LogContextOutput) {
-  std::cout.clear();
-  auto context = Paper::Logger::WithContext<"Context">();
-  
-  testing::internal::CaptureStdout();
-  context.fmtLog<Paper::LogLevel::INF>("context hi! {}", 6);
-  WaitForCompleteFlush();
 
-  std::string output = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(output, "Level (INFO) [" + std::string(context.tag) + "] context hi! 6\n");
-}
-TEST(LogTest, LogContextTagOutput) {
-  std::cout.clear();
-  testing::internal::CaptureStdout();
-  std::string context = "Context";
-
-  Paper::Logger::fmtLogTag<Paper::LogLevel::INF>("hi this is a context log! {}", context, 5);
-  WaitForCompleteFlush();
-  std::string output = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(output, "Level (INFO) [" + context + "] hi this is a context log! 5\n");
-}
 TEST(LogTest, SingleThreadLogSpam) {
   std::cout.clear();
   testing::internal::CaptureStdout();
@@ -120,6 +100,28 @@ TEST(LogTest, MultiThreadLogSpam) {
   std::cout << "Multithread thread took "
             << std::chrono::duration_cast<std::chrono::milliseconds>(profiler.elapsedTime()).count() << "ms"
             << std::endl;
+}
+
+TEST(LogTest, LogContextOutput) {
+  std::cout.clear();
+  auto context = Paper::Logger::WithContext<"Context">();
+
+  testing::internal::CaptureStdout();
+  context.fmtLog<Paper::LogLevel::INF>("context hi! {}", 6);
+  WaitForCompleteFlush();
+
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Level (INFO) [" + std::string(context.tag) + "] context hi! 6\n");
+}
+TEST(LogTest, LogContextTagOutput) {
+  std::cout.clear();
+  testing::internal::CaptureStdout();
+  std::string context = "Context";
+
+  Paper::Logger::fmtLogTag<Paper::LogLevel::INF>("hi this is a context log! {}", context, 5);
+  WaitForCompleteFlush();
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Level (INFO) [" + context + "] hi this is a context log! 5\n");
 }
 
 // TODO: Fix
