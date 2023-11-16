@@ -25,7 +25,7 @@ void findAndReplaceAll(std::string& data, std::string_view toSearch, std::string
 } // namespace
 
 void __attribute__((constructor(1000))) dlopen_initialize() {
-  WriteStdOut(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
+  __android_log_write(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
   std::string path = "/sdcard/Android/data/{}/files/logs/paper";
   findAndReplaceAll(path, "{}", modloader::get_application_id());
@@ -34,11 +34,11 @@ void __attribute__((constructor(1000))) dlopen_initialize() {
     Paper::Logger::Init(path, Paper::LoggerConfig());
   } catch (std::exception const& e) {
     std::string error = "Error occurred in logging thread!" + std::string(e.what());
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
+    __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.c_str());
     throw e;
   } catch (...) {
     std::string error = "Error occurred in logging thread!";
-    WriteStdOut(ANDROID_LOG_ERROR, "PAPERLOG", error);
+    __android_log_write(ANDROID_LOG_ERROR, "PAPERLOG", error.c_str());
     throw;
   }
 }

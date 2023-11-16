@@ -46,6 +46,10 @@ EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
 #pragma region internals
 
+namespace {
+// To avoid loading errors
+static bool inited = false;
+
 void WriteStdOut(int level, std::string_view ctx, std::string_view s) {
 #ifdef PAPERLOG_ANDROID_LOG
   __android_log_write(level, ctx.data(), s.data());
@@ -68,10 +72,6 @@ void logError(std::string_view error) {
     globalFile.flush();
   }
 }
-
-namespace {
-// To avoid loading errors
-static bool inited = false;
 
 [[nodiscard]] constexpr uint8_t charExtraLength(char const c) {
   uint8_t shiftedC = c >> 3;
