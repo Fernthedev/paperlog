@@ -35,6 +35,7 @@ add_compile_definitions(VERSION=\"${MOD_VERSION}\")
 add_compile_definitions(MOD_ID=\"${MOD_ID}\")
 add_compile_definitions(FMT_HEADER_ONLY)
 
+
 if (DEFINED TEST_BUILD)
     MESSAGE(STATUS "Compiling with test defines")
     add_compile_definitions(PAPER_TEST_LOGS)
@@ -52,6 +53,10 @@ add_library(
         ${c_file_list}
 )
 
+
+target_include_directories(${COMPILE_ID} SYSTEM PRIVATE ${EXTERN_DIR}/includes/fmt/fmt/include/)
+target_compile_options(${COMPILE_ID} PRIVATE -DFMT_HEADER_ONLY)
+
 target_include_directories(${COMPILE_ID} PRIVATE .)
 
 # add src dir as include dir
@@ -66,9 +71,9 @@ target_include_directories(${COMPILE_ID} PRIVATE ${EXTERN_DIR}/includes/${CODEGE
 # logcat
 if (DEFINED ANDROID)
         target_link_libraries(${COMPILE_ID} PRIVATE -llog)
+        include(extern.cmake)
 endif()
 # add extern stuff like libs and other includes
-include(extern.cmake)
 
 add_custom_command(TARGET ${COMPILE_ID} POST_BUILD
         COMMAND ${CMAKE_STRIP} -d --strip-all

@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 
+#include "log_level.hpp"
 #include "string_convert.hpp"
 
 #include "logger.hpp"
@@ -54,7 +55,17 @@ TEST(LogTest, LogOutput) {
     Paper::Logger::fmtLog<Paper::LogLevel::INF>("hi! {}", 5);
     WaitForCompleteFlush();
     std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output, "hi! 5\n");
+    EXPECT_EQ(output, "Level (INFO) [GLOBAL] hi! 5\n");
+}
+TEST(LogTest, LogContextOutput) {
+    std::cout.clear();
+    testing::internal::CaptureStdout();
+    auto context = Paper::Logger::WithContext<"Context!">();
+    context.fmtLog<Paper::LogLevel::INF>("context hi! {}", 6);
+    WaitForCompleteFlush();
+
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "Level (INFO) [" + std::string(context.tag) + "] context hi! 6\n");
 }
 // TODO: Fix
 // TEST(LogTest, LogOutputLinebreaks) {
@@ -74,7 +85,7 @@ TEST(LogTest, UTF8) {
     WaitForCompleteFlush();
 
     std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output, "£ ह € 한\n");
+    EXPECT_EQ(output, "Level (INFO) [GLOBAL] £ ह € 한\n");
 }
 TEST(LogTest, UTF16ToUTF8) {
     std::cout.clear();
@@ -85,11 +96,14 @@ TEST(LogTest, UTF16ToUTF8) {
      WaitForCompleteFlush();
 
      std::string output = testing::internal::GetCapturedStdout();
-     EXPECT_EQ(output, "Testing UTF-16 conversion chars 한🌮🦀\n");
-     EXPECT_EQ(output, "Testing UTF-16 conversion chars " +
-                           Paper::StringConvert::from_utf16(u"한🌮🦀") + "\n");
-    //  EXPECT_EQ(Paper::StringConvert::from_utf8(output),
-    //            u"Testing UTF-16 conversion chars 한🌮🦀\n");
+     EXPECT_EQ(
+         output,
+         "Level (INFO) [GLOBAL] Testing UTF-16 conversion chars 한🌮🦀\n");
+     EXPECT_EQ(output,
+               "Level (INFO) [GLOBAL] Testing UTF-16 conversion chars " +
+                   Paper::StringConvert::from_utf16(u"한🌮🦀") + "\n");
+     //  EXPECT_EQ(Paper::StringConvert::from_utf8(output),
+     //            u"Testing UTF-16 conversion chars 한🌮🦀\n");
 }
 
 // TODO: Spam log
