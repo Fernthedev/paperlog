@@ -37,8 +37,8 @@ if (($clean.IsPresent) -or (-not (Test-Path -Path "build")))
 } 
 
 if ($test.IsPresent) {
-    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DTEST_BUILD=1 -B build_desktop --preset desktop
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DTEST_BUILD=1 -B build_desktop
 } else {
-    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build_desktop --preset desktop
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build_desktop
 }
 & cmake --build ./build_desktop

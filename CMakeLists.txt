@@ -49,7 +49,10 @@ endif()
 # Add to all
 include_directories(SYSTEM ${EXTERN_DIR}/includes/fmt/fmt/include/)
 add_compile_options(-DFMT_HEADER_ONLY)
-add_compile_options(-flto)
+
+if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+        add_compile_options(-flto)
+endif()
 
 if(NOT DEFINED QPM_ANDROID)
         include(${CMAKE_CURRENT_LIST_DIR}/cmake/gtest.cmake)
