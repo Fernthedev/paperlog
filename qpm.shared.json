@@ -1,5 +1,6 @@
 {
   "config": {
+    "version": "0.1.0",
     "sharedDir": "shared",
     "dependenciesDir": "extern",
     "info": {
@@ -9,13 +10,19 @@
       "url": "https://github.com/Fernthedev/paperlog",
       "additionalData": {
         "overrideSoName": "libpaperlog.so",
-        "cmake": true
+        "cmake": false
       }
     },
     "workspace": {
       "scripts": {
         "build": [
-          "pwsh ./build.ps1"
+          "pwsh ./scripts/build.ps1"
+        ],
+        "copy": [
+          "pwsh ./scripts/copy.ps1"
+        ],
+        "qmod": [
+          "pwsh ./scripts/createqmod.ps1 $0"
         ]
       }
     },

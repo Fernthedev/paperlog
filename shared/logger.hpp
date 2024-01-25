@@ -8,6 +8,7 @@
 #include <chrono>
 #include <fmt/core.h>
 #include <thread>
+#include <type_traits>
 #include "log_level.hpp"
 #include "internal_logger.hpp"
 
@@ -262,6 +263,11 @@ template <std::size_t sz> struct ConstLoggerContext : public BaseLoggerContext<c
 
 struct LoggerContext : public BaseLoggerContext<std::string> {
   explicit LoggerContext(std::string_view s) : BaseLoggerContext<std::string>(std::string(s)) {}
+
+  // allow implicit conversion
+  template <typename U>
+  requires(std::is_constructible_v<std::string, U>)
+  LoggerContext(BaseLoggerContext<U> const& s) : BaseLoggerContext<std::string>(s.tag) {}
 };
 
 namespace Logger {
