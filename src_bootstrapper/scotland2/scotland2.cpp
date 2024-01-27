@@ -27,7 +27,7 @@ void findAndReplaceAll(std::string& data, std::string_view toSearch, std::string
 void __attribute__((constructor(1000))) dlopen_initialize() {
   __android_log_write(ANDROID_LOG_INFO, "PAPERLOG", "DLOpen initializing");
 
-  std::string path = "/sdcard/Android/data/{}/files/logs/paper";
+  std::string path = "/sdcard/ModData/{}/logs";
   findAndReplaceAll(path, "{}", modloader::get_application_id());
 
   try {
