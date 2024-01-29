@@ -56,7 +56,7 @@
 #endif
 
 // extern defines
-EARLY_INIT_ATTRIBUTE moodycamel::BlockingConcurrentQueue<Paper::LogData> Paper::Internal::logQueue;
+EARLY_INIT_ATTRIBUTE PAPER_EXPORT moodycamel::BlockingConcurrentQueue<Paper::LogData> Paper::Internal::logQueue;
 
 #pragma region internals
 
@@ -208,12 +208,12 @@ inline void writeLog(Paper::LogData const& threadData, std::tm const& time, std:
 
 #pragma region LoggerImpl
 
-void Paper::Logger::Init(std::string_view logPath) {
+PAPER_EXPORT void Paper::Logger::Init(std::string_view logPath) {
   LoggerConfig config{};
   return Init(logPath, config);
 }
 
-void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
+PAPER_EXPORT void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
   if (inited) {
     return;
     // throw std::runtime_error("Already started the logger thread!");
@@ -233,7 +233,7 @@ void Paper::Logger::Init(std::string_view logPath, LoggerConfig const& config) {
   inited = true;
 }
 
-bool Paper::Logger::IsInited() {
+PAPER_EXPORT bool Paper::Logger::IsInited() {
   return inited;
 }
 
@@ -241,18 +241,18 @@ bool Paper::Logger::IsInited() {
 
 #pragma region Internal
 
-void Paper::Internal::Queue(Paper::LogData&& threadData) noexcept {
+PAPER_EXPORT void Paper::Internal::Queue(Paper::LogData&& threadData) noexcept {
   Internal::logQueue.enqueue(std::forward<Paper::LogData>(threadData));
 }
 
-void Paper::Internal::Queue(Paper::LogData&& threadData, moodycamel::ProducerToken const& token) noexcept {
+PAPER_EXPORT void Paper::Internal::Queue(Paper::LogData&& threadData, moodycamel::ProducerToken const& token) noexcept {
   Internal::logQueue.enqueue(token, std::forward<Paper::LogData>(threadData));
 }
-moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noexcept {
+PAPER_EXPORT moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noexcept {
   return moodycamel::ProducerToken(logQueue);
 }
 
-void Paper::Internal::LogThread() {
+PAPER_EXPORT void Paper::Internal::LogThread() {
   try {
     moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
@@ -404,16 +404,16 @@ void Paper::Internal::LogThread() {
   logInternal(Paper::LogLevel::INF, "Finished log thread");
 }
 
-void Paper::Logger::WaitForFlush() {
+PAPER_EXPORT void Paper::Logger::WaitForFlush() {
   flushSemaphore.acquire();
 }
 
-std::filesystem::path Paper::Logger::getLogDirectoryPathGlobal() {
+PAPER_EXPORT std::filesystem::path Paper::Logger::getLogDirectoryPathGlobal() {
   return globalLogPath;
 }
 
 // TODO: Lock?
-void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::string_view logPath) {
+PAPER_EXPORT void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::string_view logPath) {
 
   auto filePath = getLogDirectoryPathGlobal() / logPath;
   filePath.replace_extension(".log");
@@ -429,15 +429,15 @@ void Paper::Logger::RegisterFileContextId(std::string_view contextId, std::strin
   registeredFileContexts.try_emplace(contextId.data(), std::move(f));
 }
 
-void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
+PAPER_EXPORT void Paper::Logger::UnregisterFileContextId(std::string_view contextId) {
   registeredFileContexts.erase(contextId.data());
 }
 
-void Paper::Logger::AddLogSink(LogSink const& sink) {
+PAPER_EXPORT void Paper::Logger::AddLogSink(LogSink const& sink) {
   sinks.emplace_back(sink);
 }
 
-Paper::LoggerConfig& Paper::Logger::GlobalConfig() {
+PAPER_EXPORT Paper::LoggerConfig& Paper::Logger::GlobalConfig() {
   return globalLoggerConfig;
 }
 
@@ -472,7 +472,7 @@ size_t captureBacktrace(void** buffer, uint16_t max) {
 }
 } // namespace
 
-void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
+PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
   void* buffer[frameCount + 1];
   captureBacktrace(buffer, frameCount + 1);
   fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag, frameCount);
@@ -503,7 +503,7 @@ void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
 #else
 
 #warning No unwind found, compiling stub backtrace function
-void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
+PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {}
 
 #endif
 

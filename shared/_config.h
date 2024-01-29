@@ -16,3 +16,9 @@
 #warning Removing quest modloader dependency
 #endif
 
+#define PAPER_EXPORT __attribute__((visibility("default")))
+#ifdef __cplusplus
+#define PAPER_FUNC extern "C" __attribute__((visibility("default")))
+#else
+#define PAPER_FUNC MODLOADER_EXPORT
+#endif

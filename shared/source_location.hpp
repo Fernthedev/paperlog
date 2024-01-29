@@ -51,6 +51,9 @@ public:
     return columnOffset;
   }
 
+  constexpr static source_location no_source() noexcept {
+    return source_location("no_source_loc", "no_source_loc", -1, -1);
+  }
 private:
   constexpr source_location(char const* fileName, char const* functionName, const uint_least32_t lineNumber,
                             const uint_least32_t columnOffset) noexcept

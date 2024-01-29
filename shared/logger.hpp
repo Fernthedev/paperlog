@@ -64,7 +64,8 @@ static constexpr const std::string_view GLOBAL_TAG = "GLOBAL";
 
 // TODO: Inherit when NDK fixes bug
 // https://github.com/android/ndk/issues/1677
-template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
+template <typename Char, typename... TArgs>
+struct BasicFmtStrSrcLoc {
   using ParentType = fmt::basic_format_string<Char, TArgs...>;
   ParentType parentType;
 
@@ -106,7 +107,7 @@ template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::ty
 /// This does not give the origianl string without the initial fmt run
 using LogSink = std::function<void(LogData const&, std::string_view fmtMessage, std::string_view originalString)>;
 
-struct LoggerConfig {
+struct PAPER_EXPORT LoggerConfig {
   LoggerConfig() = default;
 
   char lineEnd = '\n';
@@ -162,36 +163,36 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, std::string_view
   throw Exception(fmt::format("{} {}", tag, exceptionMsg));
 }
 
-void Backtrace(std::string_view tag, uint16_t frameCount);
+PAPER_EXPORT void Backtrace(std::string_view tag, uint16_t frameCount);
 
 inline auto Backtrace(uint16_t frameCount) {
   return Backtrace(GLOBAL_TAG, frameCount);
 }
 
-std::filesystem::path getLogDirectoryPathGlobal();
+PAPER_EXPORT std::filesystem::path getLogDirectoryPathGlobal();
 
-void Init(std::string_view logPath);
-void Init(std::string_view logPath, LoggerConfig const& config);
-bool IsInited();
+PAPER_EXPORT void Init(std::string_view logPath);
+PAPER_EXPORT void Init(std::string_view logPath, LoggerConfig const& config);
+PAPER_EXPORT bool IsInited();
 
-void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
+PAPER_EXPORT void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
 
 inline auto RegisterFileContextId(std::string_view contextId) {
   return Logger::RegisterFileContextId(contextId, contextId);
 }
 
-void UnregisterFileContextId(std::string_view contextId);
+PAPER_EXPORT void UnregisterFileContextId(std::string_view contextId);
 
-void WaitForFlush();
+PAPER_EXPORT void WaitForFlush();
 /**
  * @brief Returns a mutable reference to the global configuration.
  * NOTE THAT MODIFYING THIS MAY NOT BE UPDATED ON THE CURRENT FLUSH DUE TO RACE CONDITIONS!
  *
  * @return LoggerConfig& The mutable reference to the global configuration.
  **/
-LoggerConfig& GlobalConfig();
+PAPER_EXPORT LoggerConfig& GlobalConfig();
 
-void AddLogSink(LogSink const& sink);
+PAPER_EXPORT void AddLogSink(LogSink const& sink);
 }; // namespace Logger
 
 namespace Logger {
@@ -255,7 +256,8 @@ template <typename Str> struct BaseLoggerContext {
   }
 };
 
-template <std::size_t sz> struct ConstLoggerContext : public BaseLoggerContext<char[sz]> {
+template <std::size_t sz>
+struct ConstLoggerContext : public BaseLoggerContext<char[sz]> {
   constexpr ConstLoggerContext(char const (&s)[sz]) : BaseLoggerContext<char[sz]>() {
     std::copy(s, s + sz, BaseLoggerContext<char[sz]>::tag);
   }

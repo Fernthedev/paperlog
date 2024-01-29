@@ -34,6 +34,7 @@ set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # compile options used
 add_compile_options(-frtti -fexceptions)
 add_compile_options(-O3)
+add_compile_options(-fPIE -fPIC -fvisibility=hidden)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # compile definitions used
