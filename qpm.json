@@ -8,7 +8,10 @@
     "url": "https://github.com/Fernthedev/paperlog",
     "additionalData": {
       "overrideSoName": "libpaperlog.so",
-      "cmake": false
+      "cmake": false,
+      "compileOptions": {
+        "systemIncludes": ["shared/utfcpp"]
+      }
     }
   },
   "workspace": {

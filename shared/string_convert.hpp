@@ -1,9 +1,17 @@
 #pragma once
 
-#include <locale>
 #include <stdexcept>
+#include <utf8/cpp11.h>
+
+#ifdef PAPER_USE_STD_UTF_CONVERT
+#include <locale>
+#else
+#include "utf8.h"
+#endif
 
 namespace Paper::StringConvert {
+
+#ifdef PAPER_USE_STD_UTF_CONVERT
 namespace detail {
 template <class Facet> struct deletable_facet : Facet {
   template <class... Args> deletable_facet(Args&&... args) : Facet(std::forward<Args>(args)...) {}
@@ -49,4 +57,19 @@ inline std::u16string from_utf8(std::string_view str) {
   val.shrink_to_fit();
   return val;
 }
+
+
+#else
+
+inline std::string from_utf16(std::u16string_view ustr) {
+  return utf8::utf16to8(ustr);
+}
+
+// TODO: Not tested
+inline std::u16string from_utf8(std::string_view str) {
+  return utf8::utf8to16(str);
+}
+
+#endif
+
 } // namespace Paper::StringConvert

@@ -59,6 +59,8 @@ endif()
 include_directories(SYSTEM ${EXTERN_DIR}/includes/fmt/fmt/include/)
 add_compile_options(-DFMT_HEADER_ONLY)
 
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/shared/utfcpp/source)
+
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
         add_compile_options(-flto)
 endif()
