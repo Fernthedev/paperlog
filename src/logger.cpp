@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <ratio>
 #include <semaphore>
 #include <span>
 #include <thread>
@@ -22,6 +23,8 @@
 #include "log_level.hpp"
 #include "queue/blockingconcurrentqueue.h"
 #include "queue/concurrentqueue.h"
+
+#include <csignal>
 
 #if __has_include(<unwind.h>)
 #include <cxxabi.h>
@@ -72,7 +75,8 @@ EARLY_INIT_ATTRIBUTE static std::unordered_map<ContextID, LogPath, StringHash, s
 EARLY_INIT_ATTRIBUTE static LogPath globalFile;
 
 // To avoid loading errors
-static bool inited = false;
+volatile bool inited = false;
+std::optional<std::thread::id> threadId;
 } // namespace
 namespace {
 namespace Sinks {
@@ -204,6 +208,24 @@ inline void writeLog(Paper::LogData const& threadData, std::tm const& time, std:
 }
 } // namespace
 
+namespace {
+void signal_handler(int signal) {
+  logInternal(Paper::LogLevel::ERR, fmt::format("Received signal handler {}, waiting to flush!", signal));
+  if (!inited) {
+    return;
+  }
+  if (std::this_thread::get_id() == threadId) {
+    logInternal(Paper::LogLevel::ERR, "Signal was called from log thread!");
+    return;
+  }
+
+  Paper::Logger::WaitForFlush();
+  while (Paper::Internal::logQueue.size_approx() > 0 && inited) {
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+  }
+}
+} // namespace
+
 #pragma endregion
 
 #pragma region LoggerImpl
@@ -230,7 +252,6 @@ PAPER_EXPORT void Paper::Logger::Init(std::string_view logPath, LoggerConfig con
   globalFile.open(globalFileFilePath, std::ofstream::out | std::ofstream::trunc);
   std::thread(Internal::LogThread).detach();
   flushSemaphore.release();
-  inited = true;
 }
 
 PAPER_EXPORT bool Paper::Logger::IsInited() {
@@ -254,6 +275,16 @@ PAPER_EXPORT moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noex
 
 PAPER_EXPORT void Paper::Internal::LogThread() {
   try {
+    inited = true;
+    threadId = std::optional(std::this_thread::get_id());
+    
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGABRT, signal_handler);
+    std::signal(SIGFPE, signal_handler);
+    std::signal(SIGILL, signal_handler);
+    std::signal(SIGSEGV, signal_handler);
+    std::signal(SIGTERM, signal_handler);
+
     moodycamel::ConsumerToken token(Paper::Internal::logQueue);
 
     auto constexpr logBulkCount = 50;
