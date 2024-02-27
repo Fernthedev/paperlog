@@ -12,7 +12,7 @@
         "overrideSoName": "libpaperlog.so",
         "compileOptions": {
           "systemIncludes": [
-            "shared/utfcpp"
+            "shared/utfcpp/source"
           ]
         },
         "cmake": false
