@@ -546,7 +546,7 @@ std::optional<std::string> getBuildId(std::string_view filename) {
 }
 
 PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
-  if(frameCount < 0) return;
+  if(frameCount <= 0) return;
   void* buffer[frameCount + 1];
   captureBacktrace(buffer, frameCount + 1);
   fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag, frameCount);
@@ -572,15 +572,15 @@ PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t 
           }
           if(offset < 10000) {
               if(hasBuildId) {
-                  fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {} ({}+{}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, offset, buildId->c_str());
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}+{}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, offset, buildId->c_str());
               } else {
-                  fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {} ({}+{})", tag, i, addr, info.dli_fname, demangled, offset);
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}+{})", tag, i, addr, info.dli_fname, demangled, offset);
               }
           } else {
               if(hasBuildId) {
-                  fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {} ({}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, buildId->c_str());
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, buildId->c_str());
               } else {
-                  fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {} ({})", tag, i, addr, info.dli_fname, demangled);
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({})", tag, i, addr, info.dli_fname, demangled);
               }
           }
           if (!status) {
@@ -588,9 +588,9 @@ PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t 
           }
       } else {
           if(hasBuildId) {
-              fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {} (BuildId: {})", tag, i, addr, info.dli_fname, buildId->c_str());
+              fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} (BuildId: {})", tag, i, addr, info.dli_fname, buildId->c_str());
           } else {
-              fmtLogTag<LogLevel::DBG>("        #{:02} pc {:016Lx}  {}", tag, i, addr, info.dli_fname);
+              fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {}", tag, i, addr, info.dli_fname);
           }
       }
     }
