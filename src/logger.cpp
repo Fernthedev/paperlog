@@ -8,13 +8,16 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <optional>
 #include <ratio>
 #include <semaphore>
 #include <span>
 #include <thread>
+#include <map>
 #include <unordered_map>
 #include <vector>
+#include <link.h>
 
 #include "internal_logger.hpp"
 #include "logger.hpp"
@@ -503,29 +506,92 @@ size_t captureBacktrace(void** buffer, uint16_t max) {
 }
 } // namespace
 
+std::optional<std::string> getBuildId(std::string_view filename) {
+    std::ifstream infile(filename.data(), std::ios_base::binary);
+    if (!infile.is_open()) {
+        return std::nullopt;
+    }
+    infile.seekg(0);
+    ElfW(Ehdr) elf;
+    infile.read(reinterpret_cast<char*>(&elf), sizeof(ElfW(Ehdr)));
+    for(int i = 0; i < elf.e_shnum; i++) {
+        infile.seekg(elf.e_shoff + i * elf.e_shentsize);
+        ElfW(Shdr) section;
+        infile.read(reinterpret_cast<char*>(&section), sizeof(ElfW(Shdr)));
+        if(section.sh_type == SHT_NOTE && section.sh_size == 0x24) {
+            char data[0x24];
+            infile.seekg(section.sh_offset);
+            infile.read(data, 0x24);
+            ElfW(Nhdr)* note = reinterpret_cast<ElfW(Nhdr)*>(data);
+            if(note->n_namesz == 4 && note->n_descsz == 20) {
+                if(memcmp(reinterpret_cast<void*>(data + 12), "GNU", 4) == 0) {
+                    std::stringstream stream;
+                    stream << std::hex << std::setw(sizeof(uint8_t)*2);
+                    auto buildIdAddr = reinterpret_cast<uint8_t*>(data + 16);
+                    for(int i = 0; i < 5; i++) {
+                        uint32_t value;
+                        auto ptr = (reinterpret_cast<uint8_t*>(&value));
+                        ptr[0] = *(buildIdAddr + i * sizeof(uint32_t) + 3);
+                        ptr[1] = *(buildIdAddr + i * sizeof(uint32_t) + 2);
+                        ptr[2] = *(buildIdAddr + i * sizeof(uint32_t) + 1);
+                        ptr[3] = *(buildIdAddr + i * sizeof(uint32_t));
+                        stream << value;
+                    }
+                    return stream.str();
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 PAPER_EXPORT void Paper::Logger::Backtrace(std::string_view const tag, uint16_t frameCount) {
+  if(frameCount <= 0) return;
   void* buffer[frameCount + 1];
   captureBacktrace(buffer, frameCount + 1);
   fmtLogTag<LogLevel::DBG>("Printing backtrace with: {} max lines:", tag, frameCount);
   fmtLogTag<LogLevel::DBG>("*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***", tag);
   fmtLogTag<LogLevel::DBG>("pid: {}, tid: {}", tag, getpid(), gettid());
+  std::map<const char*, std::optional<std::string>> buildIds;
   for (uint16_t i = 0; i < frameCount; ++i) {
     Dl_info info;
     if (dladdr(buffer[i + 1], &info) != 0) {
+      if(!buildIds.contains(info.dli_fname)) {
+        buildIds[info.dli_fname] = getBuildId(info.dli_fname);
+      }
+      auto buildId = buildIds[info.dli_fname];
+      bool hasBuildId = buildId.has_value();
       // Buffer points to 1 instruction ahead
-      long addr = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_fbase) - 4;
-      if (info.dli_sname != nullptr) {
-        int status;
-        char const* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
-        if (status != 0) {
-          demangled = info.dli_sname;
-        }
-        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {} ({})", tag, i, addr, info.dli_fname, demangled);
-        if (demangled != info.dli_sname) {
-          free(const_cast<char*>(demangled));
-        }
+      uintptr_t addr = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_fbase) - 4;
+      uintptr_t offset = reinterpret_cast<char*>(buffer[i + 1]) - reinterpret_cast<char*>(info.dli_saddr) - 4;
+      if (info.dli_sname) {
+          int status;
+          const char* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
+          if (status) {
+              demangled = info.dli_sname;
+          }
+          if(offset < 10000) {
+              if(hasBuildId) {
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}+{}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, offset, buildId->c_str());
+              } else {
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}+{})", tag, i, addr, info.dli_fname, demangled, offset);
+              }
+          } else {
+              if(hasBuildId) {
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({}) (BuildId: {})", tag, i, addr, info.dli_fname, demangled, buildId->c_str());
+              } else {
+                  fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} ({})", tag, i, addr, info.dli_fname, demangled);
+              }
+          }
+          if (!status) {
+              free(const_cast<char*>(demangled));
+          }
       } else {
-        fmtLogTag<LogLevel::DBG>("        #{:02}  pc {:016Lx}  {}", tag, i, addr, info.dli_fname);
+          if(hasBuildId) {
+              fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {} (BuildId: {})", tag, i, addr, info.dli_fname, buildId->c_str());
+          } else {
+              fmtLogTag<LogLevel::DBG>("      #{:02} pc {:016x}  {}", tag, i, addr, info.dli_fname);
+          }
       }
     }
   }
