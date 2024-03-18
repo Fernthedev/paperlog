@@ -103,7 +103,7 @@ void stdOutSink(Paper::LogData const& threadData, std::string_view fmtMessage, s
 
   std::cout << "Level (" << Paper::format_as(level) << ") ";
   std::cout << "[" << tag << "] ";
-  std::cout << fmtMessage << std::endl;
+  std::cout << fmtMessage << '\n';
 }
 
 #ifdef PAPERLOG_ANDROID_LOG

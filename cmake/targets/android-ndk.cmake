@@ -43,3 +43,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 
 # Set triplet for vcpkg
 set(VCPKG_TARGET_TRIPLET arm64-android)
+
+
+add_compile_definitions(PAPERLOG_ANDROID_LOG)
+

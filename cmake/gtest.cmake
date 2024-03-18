@@ -5,6 +5,9 @@ message("Compiling with GTest")
 add_compile_definitions(PAPERLOG_STDOUT_LOG)
 add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
 
+MESSAGE(STATUS "Compiling with test defines")
+add_compile_definitions(PAPER_TEST_LOGS)
+
 # GTest
 include(FetchContent)
 FetchContent_Declare(

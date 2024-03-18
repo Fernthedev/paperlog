@@ -1,0 +1,2 @@
+
+add_compile_definitions(PAPERLOG_STDOUT_LOG)
