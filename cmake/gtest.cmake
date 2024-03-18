@@ -1,3 +1,5 @@
+include_guard()
+
 message("Compiling with GTest")
 
 add_compile_definitions(PAPERLOG_STDOUT_LOG)
@@ -16,27 +18,25 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+# recursively get all src files
+RECURSE_FILES(cpp_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp)
+RECURSE_FILES(c_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.c)
+
 add_executable(
-    paperlog_test
-    test/log.cpp
-    test/utf.cpp
+    ${PROJECT_NAME}_test
+    ${cpp_test_file_list}
+    ${c_test_file_list}
 )
 target_link_libraries(
-    paperlog_test
+    ${PROJECT_NAME}_test
+    PRIVATE ${PROJECT_NAME}
     GTest::gtest_main
-    ${COMPILE_ID}
 )
 
-# add src dir as include dir
-target_include_directories(paperlog_test PRIVATE test)
-
-# add include dir as include dir
-target_include_directories(paperlog_test PRIVATE ${INCLUDE_DIR})
-
-# add shared dir as include dir
-target_include_directories(paperlog_test SYSTEM PUBLIC ${SHARED_DIR})
-target_include_directories(paperlog_test SYSTEM PUBLIC extern/includes)
-target_include_directories(paperlog_test SYSTEM PUBLIC extern/includes/fmt/fmt/include/)
+target_include_directories(${PROJECT_NAME}_test PRIVATE ${INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME}_test PRIVATE ${SHARED_DIR})
+target_include_directories(${PROJECT_NAME}_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
 include(GoogleTest)
-gtest_discover_tests(paperlog_test)
+gtest_discover_tests(${PROJECT_NAME}_test)
+

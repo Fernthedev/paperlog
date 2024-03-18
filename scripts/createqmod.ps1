@@ -1,41 +1,72 @@
 Param(
-    [String]$qmodname="",
     [Parameter(Mandatory=$false)]
-    [Switch]$clean
+    [String] $qmodName="",
+
+    [Parameter(Mandatory=$false)]
+    [Switch] $help
 )
 
-if ($qmodName -eq "")
-{
-    echo "Give a proper qmod name and try again"
+if ($help -eq $true) {
+    Write-Output "`"createqmod`" - Creates a .qmod file with your compiled libraries and mod.json."
+    Write-Output "`n-- Arguments --`n"
+
+    Write-Output "-QmodName `t The file name of your qmod"
+
     exit
 }
+
 $mod = "./mod.json"
+
+& $PSScriptRoot/validate-modjson.ps1
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 $modJson = Get-Content $mod -Raw | ConvertFrom-Json
+
+if ($qmodName -eq "") {
+    $qmodName = $modJson.name
+}
 
 $filelist = @($mod)
 
 $cover = "./" + $modJson.coverImage
-if ((-not ($cover -eq "./")) -and (Test-Path $cover))
-{
+if ((-not ($cover -eq "./")) -and (Test-Path $cover)) {
     $filelist += ,$cover
 }
 
-foreach ($mod in $modJson.modFiles)
-{
-        $path = "./build/" + $mod
-    if (-not (Test-Path $path))
-    {
+foreach ($mod in $modJson.modFiles) {
+    $path = "./build/" + $mod
+    if (-not (Test-Path $path)) {
         $path = "./extern/libs/" + $mod
+    }
+    if (-not (Test-Path $path)) {
+        Write-Output "Error: could not find dependency: $path"
+        exit 1
     }
     $filelist += $path
 }
 
-foreach ($lib in $modJson.libraryFiles)
-{
-    $path = "./extern/libs/" + $lib
-    if (-not (Test-Path $path))
-    {
-        $path = "./build/" + $lib
+foreach ($mod in $modJson.lateModFiles) {
+    $path = "./build/" + $mod
+    if (-not (Test-Path $path)) {
+        $path = "./extern/libs/" + $mod
+    }
+    if (-not (Test-Path $path)) {
+        Write-Output "Error: could not find dependency: $path"
+        exit 1
+    }
+    $filelist += $path
+}
+
+
+foreach ($lib in $modJson.libraryFiles) {
+    $path = "./build/" + $lib
+    if (-not (Test-Path $path)) {
+        $path = "./extern/libs/" + $lib
+    }
+    if (-not (Test-Path $path)) {
+        Write-Output "Error: could not find dependency: $path"
+        exit 1
     }
     $filelist += $path
 }
@@ -43,15 +74,5 @@ foreach ($lib in $modJson.libraryFiles)
 $zip = $qmodName + ".zip"
 $qmod = $qmodName + ".qmod"
 
-if ((-not ($clean.IsPresent)) -and (Test-Path $qmod))
-{
-    echo "Making Clean Qmod"
-    Move-Item $qmod $zip -Force
-}
-
 Compress-Archive -Path $filelist -DestinationPath $zip -Update
-Compress-Archive -Path @("./build/libpaperlog_sl2.so","./src_bootstrapper/scotland2/mod.json") -DestinationPath paperlog_sl2.zip -Update
 Move-Item $zip $qmod -Force
-Move-Item "paperlog_sl2.zip" "paperlog_sl2.qmod" -Force
-
-echo "Made qmod $qmod"
