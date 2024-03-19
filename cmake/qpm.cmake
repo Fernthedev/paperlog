@@ -7,8 +7,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake)
 # read in information about the mod from qpm.json
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/qpm.json PACKAGE_JSON)
 
-set(QPM TRUE)
-
 string(JSON PACKAGE_INFO GET ${PACKAGE_JSON} info)
 
 string(JSON PACKAGE_NAME GET ${PACKAGE_INFO} name)
@@ -26,4 +24,3 @@ set(SHARED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${SHARED_DIR_NAME})
 
 # TODO: This is empty by the time this is called
 set(COMPILE_ID ${CMAKE_PROJECT_NAME})
-

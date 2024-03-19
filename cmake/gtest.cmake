@@ -6,7 +6,7 @@ add_compile_definitions(PAPERLOG_STDOUT_LOG)
 add_compile_definitions(PAPERLOG_FMT_NO_PREFIX)
 
 MESSAGE(STATUS "Compiling with test defines")
-add_compile_definitions(PAPER_TEST_LOGS)
+# add_compile_definitions(PAPER_TEST_LOGS)
 
 # GTest
 include(FetchContent)
@@ -21,25 +21,29 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-# recursively get all src files
-RECURSE_FILES(cpp_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp)
-RECURSE_FILES(c_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.c)
+# Run at end to link with project
+cmake_language(DEFER DIRECTORY ${CMAKE_SOURCE_DIR} CALL _setup_gtest_project())
+function(_setup_gtest_project)
+    # recursively get all src files
+    RECURSE_FILES(cpp_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp)
+    RECURSE_FILES(c_test_file_list ${CMAKE_CURRENT_SOURCE_DIR}/test/*.c)
 
-add_executable(
-    ${PROJECT_NAME}_test
-    ${cpp_test_file_list}
-    ${c_test_file_list}
-)
-target_link_libraries(
-    ${PROJECT_NAME}_test
-    PRIVATE ${PROJECT_NAME}
-    GTest::gtest_main
-)
+    add_executable(
+        ${PROJECT_NAME}_test
+        ${cpp_test_file_list}
+        ${c_test_file_list}
+    )
+    target_link_libraries(
+        ${PROJECT_NAME}_test
+        PRIVATE ${PROJECT_NAME}
+        GTest::gtest_main
+    )
 
-target_include_directories(${PROJECT_NAME}_test PRIVATE ${INCLUDE_DIR})
-target_include_directories(${PROJECT_NAME}_test PRIVATE ${SHARED_DIR})
-target_include_directories(${PROJECT_NAME}_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    target_include_directories(${PROJECT_NAME}_test PRIVATE ${INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME}_test PRIVATE ${SHARED_DIR})
+    target_include_directories(${PROJECT_NAME}_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
-include(GoogleTest)
-gtest_discover_tests(${PROJECT_NAME}_test)
 
+    include(GoogleTest)
+    gtest_discover_tests(${PROJECT_NAME}_test)
+endfunction(_setup_gtest_project)

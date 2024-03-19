@@ -28,7 +28,7 @@
 
 namespace Paper {
 
-static constexpr const std::string_view GLOBAL_TAG = "GLOBAL";
+static constexpr const auto GLOBAL_TAG = "GLOBAL";
 //
 //    template <typename... TArgs>
 //    struct FmtStringHackTArgs {

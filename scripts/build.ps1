@@ -3,7 +3,10 @@ Param(
     [Switch] $clean,
 
     [Parameter(Mandatory=$false)]
-    [Switch] $help
+    [Switch] $help,
+
+    [Parameter(Mandatory=$false)]
+    [Switch] $hostTarget
 )
 
 if ($help -eq $true) {
@@ -27,5 +30,10 @@ if (($clean.IsPresent) -or (-not (Test-Path -Path "build"))) {
     new-item -Path build -ItemType Directory
 } 
 
-& cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build
-& cmake --build ./build
+if ($hostTarget.IsPresent) {
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build_desktop -DQUEST=OFF -DTEST=ON
+    & cmake --build ./build_desktop
+} else {
+    & cmake -G "Ninja" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -B build
+    & cmake --build ./build
+}
