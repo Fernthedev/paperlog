@@ -174,6 +174,7 @@ PAPER_EXPORT moodycamel::ProducerToken Paper::Internal::MakeProducerToken() noex
 
 PAPER_EXPORT void Paper::Internal::LogThread() {
   try {
+    Sinks::logInternal(LogLevel::INF, "Started log thread!");
     inited.test_and_set(std::memory_order_acquire);
     threadId = std::optional(std::this_thread::get_id());
 

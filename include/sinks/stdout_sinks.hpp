@@ -3,6 +3,7 @@
 #include "internal_logger.hpp"
 #include "logger.hpp"
 #include <fmt/compile.h>
+#include <iostream>
 
 #ifdef PAPERLOG_FMT_NO_PREFIX
 #warning Removing fmt prefixes from logs
@@ -38,7 +39,6 @@ inline void logInternal(Paper::LogLevel level, std::string_view s) {
 inline void logError(std::string_view error) {
   Paper::Sinks::logInternal(Paper::LogLevel::ERR, error);
 }
-
 
 #ifdef PAPERLOG_STDOUT_LOG
 inline void stdOutSink(Paper::LogData const& threadData, std::string_view fmtMessage,
