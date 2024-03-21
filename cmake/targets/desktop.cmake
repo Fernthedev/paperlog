@@ -1,2 +1,4 @@
 
 add_compile_definitions(PAPERLOG_STDOUT_LOG)
+add_compile_definitions(PAPERLOG_GLOBAL_FILE_LOG)
+add_compile_definitions(PAPERLOG_CONTEXT_FILE_LOG)

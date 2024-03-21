@@ -46,4 +46,5 @@ set(VCPKG_TARGET_TRIPLET arm64-android)
 
 
 add_compile_definitions(PAPERLOG_ANDROID_LOG)
-
+add_compile_definitions(PAPERLOG_GLOBAL_FILE_LOG)
+add_compile_definitions(PAPERLOG_CONTEXT_FILE_LOG)

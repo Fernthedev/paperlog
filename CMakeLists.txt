@@ -37,10 +37,9 @@ endif()
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/qpm.cmake)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/release.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/debug.cmake)
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/builds/release.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/builds/debug.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/builds/strip.cmake)
 
 project(paperlog
         VERSION ${PACKAGE_VERSION})
