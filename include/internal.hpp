@@ -4,7 +4,7 @@
 #include <fstream>
 
 using ContextID = std::string;
-using LogPath = std::ofstream;
+using LogFile = std::ofstream;
 
 constexpr auto GLOBAL_FILE_NAME = "PaperLog.log";
 
