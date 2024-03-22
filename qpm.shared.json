@@ -28,6 +28,10 @@
         ],
         "qmod": [
           "pwsh ./scripts/createqmod.ps1 $0"
+        ],
+        "test": [
+          "pwsh ./scripts/build.ps1 --hostTarget",
+          "./build_desktop/paperlog_test"
         ]
       }
     },

@@ -15,7 +15,7 @@ set(EXTERN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern)
 
 
 if(WIN32 AND NOT WINDOWS_CLANG)
-        message("Using MSVC")
+        message("Using MSVC. Does not work at the moment, use Windows Clang instead!")
         set(MSVC TRUE)
 endif()
 
