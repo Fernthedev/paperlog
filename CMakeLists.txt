@@ -1,73 +1,106 @@
-# include some defines automatically made by qpm
-include(./cmake/qpm.cmake)
+cmake_minimum_required(VERSION 3.22)
 
-# override mod id
-set(MOD_ID "paper")
+option(QUEST "Build for quest" ON)
+option(TEST "Build tests" OFF)
+option(WINDOWS_CLANG "Use Windows clang options" OFF)
 
-# Enable link time optimization
-# In my experience, this can be highly unstable but it nets a huge size optimization and likely performance
-# However, the instability was seen using Android.mk/ndk-build builds. With Ninja + CMake, this problem seems to have been solved.
-# As always, test thoroughly
-# - Fern
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
-cmake_minimum_required(VERSION 3.21)
-project(paperlog_project)
-
-# c++ standard
+# Globals
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Output everything to the same folder
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
-
-# set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -static-libstdc++")
-
-# define that stores the actual source directory
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(EXTERN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern)
 
-# compile options used
-add_compile_options(-frtti -fexceptions)
-add_compile_options(-O3)
-add_compile_options(-fPIE -fPIC -fvisibility=hidden)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# compile definitions used
-add_compile_definitions(VERSION=\"${MOD_VERSION}\")
-add_compile_definitions(MOD_ID=\"${MOD_ID}\")
-add_compile_definitions(FMT_HEADER_ONLY)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
 
-# Paper log options
-add_compile_definitions(PAPERLOG_GLOBAL_FILE_LOG)
-add_compile_definitions(PAPERLOG_CONTEXT_FILE_LOG)
-
-if(DEFINED ANDROID)
-        add_compile_definitions(PAPERLOG_ANDROID_LOG)
+if(WIN32 AND NOT WINDOWS_CLANG)
+        message("Using MSVC. Does not work at the moment, use Windows Clang instead!")
+        set(MSVC TRUE)
 endif()
 
-if(DEFINED TEST_BUILD)
-        MESSAGE(STATUS "Compiling with test defines")
-        add_compile_definitions(PAPER_TEST_LOGS)
+# stop symbols leaking
+# add_link_options(-Wl, --exclude-libs, ALL)
+if(MSVC)
+        message("Using MSVC build flags")
+        # MSVC
+        add_compile_options(/GR- /EHsc /wd4251 /wd4275 /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
+else()
+        add_compile_options(-frtti -fexceptions -fvisibility=hidden -fPIE -fPIC)
 endif()
 
 # Add to all
 include_directories(SYSTEM ${EXTERN_DIR}/includes/fmt/fmt/include/)
-add_compile_options(-DFMT_HEADER_ONLY)
-
+add_compile_definitions(FMT_HEADER_ONLY)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/shared/utfcpp/source)
 
-if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+# Add includes
+if(TEST)
+        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake)
+endif()
+
+# Quest
+if(QUEST)
+        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/targets/quest.cmake)
+else()
+        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/targets/desktop.cmake)
+endif()
+
+# Build options must be set at end
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/qpm.cmake)
+
+# Debug
+if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+        add_compile_options(-g)
+endif()
+
+# Debug
+if(${CMAKE_BUILD_TYPE} STREQUAL "RELEASE" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo" OR ${CMAKE_BUILD_TYPE} STREQUAL "MinSizeRel")
+        # Better optimizations
+        add_compile_options(-O3)
+
+        # LTO
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
         add_compile_options(-flto)
+
+        if(DEFINED COMPILE_ID)
+        endif()
 endif()
 
-if(NOT DEFINED QPM_ANDROID)
-        include(${CMAKE_CURRENT_LIST_DIR}/cmake/gtest.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip.cmake)
+
+project(paperlog
+        VERSION ${PACKAGE_VERSION})
+
+add_compile_definitions(MOD_ID="${CMAKE_PROJECT_NAME}")
+add_compile_definitions(VERSION="${CMAKE_PROJECT_VERSION}")
+
+# Set COMPILE_ID for qpm extern purposes
+set(COMPILE_ID ${CMAKE_PROJECT_NAME})
+
+# recursively get all src files
+RECURSE_FILES(cpp_file_list ${SOURCE_DIR}/*.cpp)
+RECURSE_FILES(c_file_list ${SOURCE_DIR}/*.c)
+
+add_library(
+        ${CMAKE_PROJECT_NAME}
+        SHARED
+        ${cpp_file_list}
+        ${c_file_list}
+)
+
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${INCLUDE_DIR})
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${SHARED_DIR})
+
+# TODO: Setup qpm extern from toolchain
+# Must be set at end
+if(DEFINED ANDROID)
+        target_link_libraries(${COMPILE_ID} PRIVATE -llog)
 endif()
 
-add_subdirectory(${SOURCE_DIR})
 add_subdirectory(src_bootstrapper)

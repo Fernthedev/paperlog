@@ -49,6 +49,7 @@ void WaitForCompleteFlush() {
 
 TEST(LogTest, LogInit) {
   Paper::Logger::Init(".");
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   Paper::Logger::WaitForFlush();
   EXPECT_EQ(Paper::Logger::IsInited(), true);
 }

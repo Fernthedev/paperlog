@@ -1,4 +1,4 @@
 
-if(DEFINED QPM_ANDROID)
+if(DEFINED ANDROID)
     add_subdirectory(scotland2)
 endif()

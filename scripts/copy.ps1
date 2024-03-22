@@ -18,21 +18,21 @@ Param(
     [String] $custom="",
 
     [Parameter(Mandatory=$false)]
-    [Switch] $file,
+    [String] $file="",
 
     [Parameter(Mandatory=$false)]
     [Switch] $help
 )
 
 if ($help -eq $true) {
-    echo "`"Copy`" - Builds and copies your mod to your quest, and also starts Beat Saber with optional logging"
-    echo "`n-- Arguments --`n"
+    Write-Output "`"Copy`" - Builds and copies your mod to your quest, and also starts Beat Saber with optional logging"
+    Write-Output "`n-- Arguments --`n"
 
-    echo "-Clean `t`t Performs a clean build (equvilant to running `"Build -clean`")"
-    echo "-UseDebug `t Copied the debug version of the mod to your quest"
-    echo "-Log `t`t Logs Beat Saber using the `"Start-Logging`" command"
+    Write-Output "-Clean `t`t Performs a clean build (equvilant to running `"build -clean`")"
+    Write-Output "-UseDebug `t Copies the debug version of the mod to your quest"
+    Write-Output "-Log `t`t Logs Beat Saber using the `"Start-Logging`" command"
 
-    echo "`n-- Logging Arguments --`n"
+    Write-Output "`n-- Logging Arguments --`n"
 
     & $PSScriptRoot/start-logging.ps1 -help -excludeHeader
 
@@ -42,18 +42,40 @@ if ($help -eq $true) {
 & $PSScriptRoot/build.ps1 -clean:$clean
 
 if ($LASTEXITCODE -ne 0) {
-    echo "Failed to build, exiting..."
+    Write-Output "Failed to build, exiting..."
     exit $LASTEXITCODE
 }
 
-if ($useDebug -eq $true) {
-    $fileName = Get-ChildItem lib*.so -Path "build/debug" -Name
-} else {
-    $fileName = Get-ChildItem lib*.so -Path "build/" -Name
+& $PSScriptRoot/validate-modjson.ps1
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+$modJson = Get-Content "./mod.json" -Raw | ConvertFrom-Json
+
+$modFiles = $modJson.modFiles
+
+foreach ($fileName in $modFiles) {
+    if ($useDebug -eq $true) {
+        & adb push build/debug/$fileName /sdcard/ModData/com.beatgames.beatsaber/ModLoader/early_mods/$fileName
+    } else {
+        & adb push build/$fileName /sdcard/ModData/com.beatgames.beatsaber/ModLoader/early_mods/$fileName
+    }
 }
 
-& adb push build/$fileName /sdcard/ModData/com.beatgames.beatsaber/Modloader/libs/$fileName
+$lateModFiles = $modJson.lateModFiles
+
+foreach ($fileName in $lateModFiles) {
+    if ($useDebug -eq $true) {
+        & adb push build/debug/$fileName /sdcard/ModData/com.beatgames.beatsaber/ModLoader/mods/$fileName
+    } else {
+        & adb push build/$fileName /sdcard/ModData/com.beatgames.beatsaber/ModLoader/mods/$fileName
+    }
+}
+
 
 & $PSScriptRoot/restart-game.ps1
 
-if ($log -eq $true) { & $PSScriptRoot/start-logging.ps1 -self:$self -all:$all -custom:$custom -file:$file }
+if ($log -eq $true) {
+    & adb logcat -c
+    & $PSScriptRoot/start-logging.ps1 -self:$self -all:$all -custom:$custom -file:$file
+}

@@ -2,7 +2,7 @@ name: Publish QPM Package
 
 env:
   module_id: paperlog
-  qmodName: paperlog
+  qmodName: paperlog_sl2
   cache-name: paperlog_cache
 
 on:
@@ -70,8 +70,6 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           qpm s build
           qpm qmod build
-          cd src_bootstrapper/scotland2
-          # qpm qmod build
 
       - name: Make qmod paperlog
         run: |
@@ -99,6 +97,5 @@ jobs:
             ./build/${{ steps.libname.outputs.NAME }}
             ./build/debug/debug_${{ steps.libname.outputs.NAME }}
             ./${{ env.qmodName }}.qmod
-            ./paperlog_sl2.qmod
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

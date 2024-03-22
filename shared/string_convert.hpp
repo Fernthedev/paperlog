@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdexcept>
-#include <utf8/cpp11.h>
+#include <utf8/cpp17.h>
 
 #ifdef PAPER_USE_STD_UTF_CONVERT
 #include <locale>

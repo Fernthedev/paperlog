@@ -2,13 +2,14 @@
   "_QPVersion": "1.0.0",
   "name": "${mod_name}",
   "id": "${mod_id}",
+  "modloader": "Scotland2",
   "author": "Fernthedev",
   "version": "${version}",
   "isLibrary": true,
   "description": "Logging library for mods light as paper",
   "dependencies": [],
   "modFiles": [],
-  "libraryFiles": [],
+  "libraryFiles": ["libpaperlog_sl2.so"],
   "fileCopies": [],
   "copyExtensions": []
 }
