@@ -537,7 +537,8 @@ std::optional<std::string> getBuildId(std::string_view filename) {
                         ptr[3] = *(buildIdAddr + i * sizeof(uint32_t));
                         stream << value;
                     }
-                    return stream.str();
+                    auto buildid = stream.str();
+                    return std::string(std::clamp<int>(40 - buildid.size(), 0, 40), '0') + buildid;
                 }
             }
         }
