@@ -2,7 +2,7 @@ name: NDK build
 
 env:
   module_id: paperlog
-  qmodName: paperlog
+  qmodName: paperlog_sl2
   cache-name: paperlog_cache
 
 on:
@@ -55,8 +55,6 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           qpm s build
           qpm qmod build
-          cd src_bootstrapper/scotland2
-          # qpm qmod build
 
       - name: Make qmod paperlog
         run: |
