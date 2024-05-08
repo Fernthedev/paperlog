@@ -526,7 +526,7 @@ std::optional<std::string> getBuildId(std::string_view filename) {
             if(note->n_namesz == 4 && note->n_descsz == 20) {
                 if(memcmp(reinterpret_cast<void*>(data + 12), "GNU", 4) == 0) {
                     std::stringstream stream;
-                    stream << std::hex << std::setw(sizeof(uint8_t)*2);
+                    stream << std::hex;
                     auto buildIdAddr = reinterpret_cast<uint8_t*>(data + 16);
                     for(int i = 0; i < 5; i++) {
                         uint32_t value;
@@ -535,10 +535,10 @@ std::optional<std::string> getBuildId(std::string_view filename) {
                         ptr[1] = *(buildIdAddr + i * sizeof(uint32_t) + 2);
                         ptr[2] = *(buildIdAddr + i * sizeof(uint32_t) + 1);
                         ptr[3] = *(buildIdAddr + i * sizeof(uint32_t));
-                        stream << value;
+                        stream << std::setfill('0') << std::setw(sizeof(uint32_t)*2) << value;
                     }
                     auto buildid = stream.str();
-                    return std::string(std::clamp<int>(40 - buildid.size(), 0, 40), '0') + buildid;
+                    return buildid;
                 }
             }
         }
