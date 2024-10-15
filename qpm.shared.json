@@ -29,12 +29,15 @@
         "qmod": [
           "pwsh ./scripts/createqmod.ps1 $0"
         ]
-      }
+      },
+      "qmodIncludeDirs": [],
+      "qmodIncludeFiles": [],
+      "qmodOutput": null
     },
     "dependencies": [
       {
         "id": "fmt",
-        "versionRange": "^10.0.0",
+        "versionRange": "^11.0.0",
         "additionalData": {}
       }
     ]
@@ -43,10 +46,10 @@
     {
       "dependency": {
         "id": "fmt",
-        "versionRange": "=10.0.0",
+        "versionRange": "=11.0.2",
         "additionalData": {
           "headersOnly": true,
-          "branchName": "version/v10_0_0",
+          "branchName": "version/v11_0_2",
           "compileOptions": {
             "systemIncludes": [
               "fmt/include/"
@@ -57,7 +60,7 @@
           }
         }
       },
-      "version": "10.0.0"
+      "version": "11.0.2"
     }
   ]
 }

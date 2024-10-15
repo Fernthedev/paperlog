@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fmt/format.h>
+#include <fmt/base.h>
 #include <string_view>
 
 namespace Paper {
