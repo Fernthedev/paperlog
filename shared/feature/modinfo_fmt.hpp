@@ -2,7 +2,7 @@
 
 #ifndef NO_MODLOADER_FORMAT
 
-#include <fmt/format.h>
+#include <fmt/base.h>
 
 #include "modloader/shared/modloader.hpp"
 

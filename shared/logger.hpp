@@ -6,7 +6,8 @@
 
 #include "_config.h"
 #include <chrono>
-#include <fmt/core.h>
+#include <fmt/base.h>
+#include <fmt/xchar.h>
 #include <thread>
 #include <type_traits>
 #include "log_level.hpp"
@@ -98,7 +99,7 @@ struct BasicFmtStrSrcLoc {
 
 //    template <typename... Args>
 //    using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
-template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, fmt::type_identity_t<Args>...>;
+template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::type_identity_t<Args>...>;
 
 ///
 /// @param originalString This param exists since strings can be splitted due to newlines etc.
@@ -142,7 +143,7 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
 
 template <LogLevel lvl, typename... TArgs>
 constexpr auto fmtLogTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag, TArgs&&... args) {
-  return Logger::vfmtLog(str, lvl, str.sourceLocation, tag, fmt::make_format_args(std::forward<TArgs>(args)...));
+  return Logger::vfmtLog(str, lvl, str.sourceLocation, tag, fmt::make_format_args(args...));
 }
 
 template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
