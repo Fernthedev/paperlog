@@ -1,12 +1,17 @@
+use std::{fs, path::PathBuf};
+
+use crate::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+
 #[test]
 fn test_logger_initialization() {
     let config = LoggerConfig {
         max_string_len: 1024,
         log_max_buffer_count: 50,
         line_end: '\n',
+        context_log_path: "./logs".into(),
     };
+    let log_path = PathBuf::from("./logs/test_log.log");
 
-    let log_path = PathBuf::from("test_log.txt");
     let logger = LoggerThread::new(config, log_path.clone()).unwrap();
     let thread = logger.init().unwrap();
 
@@ -22,7 +27,9 @@ fn test_logger_config() {
         max_string_len: 2048,
         log_max_buffer_count: 100,
         line_end: '\r',
+        context_log_path: "./logs".into(),
     };
+    let log_path = PathBuf::from("./logs/test_log.log");
 
     assert_eq!(config.max_string_len, 2048);
     assert_eq!(config.log_max_buffer_count, 100);
@@ -35,14 +42,14 @@ fn test_logger_thread_safe() {
         max_string_len: 1024,
         log_max_buffer_count: 50,
         line_end: '\n',
+        context_log_path: "./logs".into(),
     };
+    let log_path = PathBuf::from("./logs/test_log.log");
 
-    let log_path = PathBuf::from("test_log_safe.txt");
     let logger = LoggerThread::new(config, log_path.clone()).unwrap();
-    let thread = logger.init().unwrap();
+    let thread = logger.init();
 
-    let thread_safe_logger = ThreadSafeLoggerThread::new(thread);
-    assert!(thread_safe_logger.is_some());
+    assert!(thread.is_ok());
 
     fs::remove_file(log_path).unwrap();
 }

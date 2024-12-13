@@ -1,7 +1,7 @@
 use std::{
     cell::OnceCell,
     collections::HashMap,
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{BufWriter, Write},
     path::PathBuf,
     sync::{
@@ -12,11 +12,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use color_eyre::eyre::{bail, eyre};
-use itertools::Itertools;
-use log_data::LogData;
-
 use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, Result};
+use color_eyre::{
+    eyre::{bail, eyre, Context},
+    owo_colors::colors::css::Gold,
+};
+use itertools::Itertools;
 
 #[cfg(all(target_os = "android", feature = "logcat"))]
 pub mod logcat_logger;
@@ -31,11 +32,11 @@ pub mod stdout_logger;
 pub mod sink_logger;
 
 mod log_data;
+pub use log_data::LogData;
 
 pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
 
 pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThread>>;
-
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -55,7 +56,6 @@ pub struct LoggerThread {
     flush_semaphore: Arc<SemaphoreLite>,
 
     inited: AtomicBool,
-    thread_id: Option<thread::ThreadId>,
 
     #[cfg(feature = "file")]
     global_file: BufWriter<File>,
@@ -70,21 +70,38 @@ impl LoggerThread {
         let flush_semaphore = Arc::new(SemaphoreLite::new());
 
         #[cfg(feature = "file")]
-        let global_file = BufWriter::new(
-            OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&log_path)
-                .map_err(|e| eyre!("Unable to create global file at {}", e.to_string()))?,
-        );
+        let global_file = {
+            fs::create_dir_all(&config.context_log_path).with_context(|| {
+                format!(
+                    "Unable to make logging directory for contexts {}",
+                    config.context_log_path.display()
+                )
+            })?;
+
+            if let Some(parent) = log_path.parent() {
+                fs::create_dir_all(parent).with_context(|| {
+                    format!(
+                        "Unable to make logging directory for global file {}",
+                        config.context_log_path.display()
+                    )
+                })?;
+            }
+
+            let inner = File::create(&log_path).map_err(|e| {
+                eyre!(
+                    "Unable to create global file at {}: {}",
+                    log_path.display(),
+                    e.to_string()
+                )
+            })?;
+            BufWriter::new(inner)
+        };
 
         Ok(LoggerThread {
             config,
             log_queue,
             flush_semaphore,
             inited: AtomicBool::new(false),
-            thread_id: None,
 
             #[cfg(feature = "file")]
             global_file,
@@ -96,13 +113,12 @@ impl LoggerThread {
         })
     }
 
-    pub fn init(mut self) -> Result<ThreadSafeLoggerThread> {
+    pub fn init(self) -> Result<ThreadSafeLoggerThread> {
         if self.inited.load(Ordering::SeqCst) {
             bail!("LoggerThread already initialized");
         }
 
         self.inited.store(true, Ordering::SeqCst);
-        self.thread_id = Some(thread::current().id());
 
         let log_queue_clone = Arc::clone(&self.log_queue);
         let flush_semaphore_clone = Arc::clone(&self.flush_semaphore);
@@ -120,14 +136,33 @@ impl LoggerThread {
         Ok(thread_safe_self)
     }
 
-    pub fn queue_log(&self, level: LogLevel, tag: Option<String>, message: String, file: PathBuf, line: u32) {
+    pub fn is_inited(&self) -> &AtomicBool {
+        &self.inited
+    }
+
+    pub fn get_queue(&self) -> &Mutex<Vec<LogData>> {
+        &self.log_queue.1
+    }
+
+    pub fn get_sinks(&self) -> &Vec<Box<dyn LogCallback>> {
+        &self.sinks
+    }
+
+    pub fn queue_log(
+        &self,
+        level: LogLevel,
+        tag: Option<String>,
+        message: String,
+        file: String,
+        line: u32,
+    ) {
         let log_data = LogData {
             level,
             tag,
             message: message.to_string(),
             timestamp: Instant::now(),
-            file,
-            line
+            file: file.into(),
+            line,
         };
 
         let (sempahore, queue) = self.log_queue.as_ref();
@@ -144,7 +179,13 @@ impl LoggerThread {
         let backtrace = Backtrace::capture();
         let backtrace_str = format!("{:?}", backtrace);
 
-        self.queue_log(LogLevel::ERROR, None, backtrace_str, file!().into(), line!());
+        self.queue_log(
+            LogLevel::ERROR,
+            None,
+            backtrace_str,
+            file!().into(),
+            line!(),
+        );
 
         Ok(())
     }
@@ -154,11 +195,7 @@ impl LoggerThread {
         {
             let log_path = self.config.context_log_path.join(tag).with_extension("log");
             let file = BufWriter::new(
-                OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&log_path)
+                File::create(&log_path)
                     .map_err(|e| eyre!("Unable to create context file at {}", e.to_string()))?,
             );
 
@@ -211,11 +248,24 @@ impl LoggerThread {
             if exceeded_log_buffer || elapsed_time {
                 logs_since_last_flush = 0;
                 last_log_time = Instant::now();
-                flush_semaphore.signal();
             }
 
-            log_semaphore_lite.wait();
+            // wait for further logs if nothing left
+            if log_mutex.lock().unwrap().is_empty() {
+                flush_semaphore.signal();
+                log_semaphore_lite.wait();
+            }
         }
+    }
+
+    ///
+    /// Waits indefinitely until the next queue is flushed
+    /// May block until a log is called forth
+    pub(crate) fn wait_for_flush(&self) {
+        self.log_queue.0.wait();
+    }
+    pub(crate) fn wait_for_flush_timeout(&self, duration: Duration) {
+        self.log_queue.0.wait_timeout(duration);
     }
 }
 
