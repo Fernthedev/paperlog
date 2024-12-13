@@ -1,0 +1,35 @@
+[package]
+name = "paper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cbindgen = "0.27"
+color-eyre = "0.6.3"
+itertools = "0.13.0"
+
+[workspace]
+members = ["questloader", "scotland2"]
+
+[lib]
+name = "paper2"
+
+[features]
+default = ["global_log", "context_log", "ffi", "backtrace", "file", "stdout", "sinks", "logcat"]
+global_log = []
+context_log = []
+ffi = []
+backtrace = []
+file = []
+stdout = []
+logcat = []
+sinks = []
+
+# android specific features
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-sys = "0.6"
+
+
+[target.'cfg(target_os = "android")'.features]
+default = ["logcat"]
+

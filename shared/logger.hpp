@@ -25,9 +25,24 @@
 #include <filesystem>
 #include <utility>
 
+// TODO: Breaking change use std::source_location
+#include "source_location.hpp"
+
+#include "log_level.hpp"
+
 // #include <fmtlog/fmtlog.h>
 
 namespace Paper {
+#ifndef NOSTD_SOURCE_LOCATION_HPP
+using sl = PAPERLOG_SL_T;
+#else
+// #warning Using nostd source location
+using sl = nostd::source_location;
+#endif
+
+enum class LogLevel : uint8_t;
+
+using TimePoint = std::chrono::system_clock::time_point;
 
 static constexpr const std::string_view GLOBAL_TAG = "GLOBAL";
 //

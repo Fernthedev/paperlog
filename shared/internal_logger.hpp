@@ -5,10 +5,7 @@
 #include "queue/blockingconcurrentqueue.h"
 #include "queue/concurrentqueue.h"
 
-// TODO: Breaking change use std::source_location
-#include "source_location.hpp"
 
-#include "log_level.hpp"
 
 // #if __has_include(<source_location>)
 // #include <source_location>
@@ -29,16 +26,7 @@
 // #endif
 
 namespace Paper {
-#ifndef NOSTD_SOURCE_LOCATION_HPP
-using sl = PAPERLOG_SL_T;
-#else
-// #warning Using nostd source location
-using sl = nostd::source_location;
-#endif
 
-enum class LogLevel : uint8_t;
-
-using TimePoint = std::chrono::system_clock::time_point;
 
 struct PAPER_EXPORT LogData {
   LogData(LogData const&) = delete;
