@@ -4,12 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+cfg-if = "1"
 color-eyre = "0.6.3"
 itertools = "0.13.0"
 
+tracing = { version = "0.1", features = [
+    "std",
+], default-features = false, optional = true }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+], default-features = false, optional = true }
+tracing-error = { version = "0.2", default-features = false, optional = true }
+paranoid-android = { version = "0.2", optional = true }
+
 [dev-dependencies]
-capture-stdio = "0.1.1"
 cbindgen = "0.27"
+tracing-test = "0.2.5"
 
 [workspace]
 members = ["questloader", "scotland2"]
@@ -18,15 +28,31 @@ members = ["questloader", "scotland2"]
 name = "paper2"
 
 [features]
-default = ["global_log", "context_log", "ffi", "backtrace", "file", "stdout", "sinks", "logcat"]
+default = [
+    "global_log",
+    "context_log",
+    "ffi",
+    "backtrace",
+    "file",
+    "sinks",
+    "logcat",
+]
 global_log = []
 context_log = []
 ffi = []
 backtrace = []
-file = []
-stdout = []
-logcat = []
+
 sinks = []
+file = []
+logcat = []
+stdout = []
+
+tracing = [
+    "dep:tracing",
+    "dep:tracing-error",
+    "dep:tracing-subscriber",
+    "dep:paranoid-android",
+]
 
 # android specific features
 [target.'cfg(target_os = "android")'.dependencies]
@@ -35,4 +61,3 @@ ndk-sys = "0.6"
 
 [target.'cfg(target_os = "android")'.features]
 default = ["logcat"]
-

@@ -2,6 +2,10 @@
 
 use crate::{log_level::LogLevel, Result};
 
+// assert tracing is not enabled
+#[cfg(not(feature = "tracing"))]
+compile_error!("The 'tracing' feature must be enabled to use this logger.");
+
 use std::{mem::size_of, ptr::null};
 
 use ndk_sys::{__android_log_is_loggable, __android_log_message, __android_log_write_log_message};

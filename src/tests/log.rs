@@ -1,5 +1,5 @@
-use capture_stdio::{Capture, OutputCapture};
 use color_eyre::eyre::Result;
+use tracing_test::traced_test;
 
 use crate::log_level::LogLevel;
 use crate::logger::LoggerConfig;
@@ -10,21 +10,27 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-fn capture_stdout<F: FnOnce()>(func: F) -> Result<String> {
-    // Redirect stdout
-    let mut output = OutputCapture::capture()?;
-    func(); // Run the code you want to capture output from
-    let vec = output.get_output().lock().unwrap().clone();
-    let s = String::from_utf8(vec)?;
-    output.restore();
-
-    Ok(s)
-}
-
 fn wait_for_complete_flush(logger: &LoggerThread) {
     thread::sleep(Duration::from_millis(2));
     // logger.wait_for_flush();
     logger.wait_for_flush_timeout(Duration::from_millis(500));
+}
+
+fn find_log(log_str: impl Into<String>) -> impl Fn(&[&str]) -> Result<(), String> {
+    let log = log_str.into();
+
+    // Ensure that the string `logged` is logged exactly twice
+    move |lines: &[&str]| {
+        let found = lines.iter().any(|line| line.contains(&log));
+
+        match found {
+            true => Ok(()),
+            false => Err(format!(
+                "Unable to find string {log} in logs. Logs: \n{}",
+                lines.join("\n")
+            )),
+        }
+    }
 }
 
 #[test]
@@ -40,7 +46,9 @@ fn test_log_init() -> Result<()> {
     let logger = LoggerThread::new(config, log_path).unwrap();
     assert!(!logger.is_inited().load(std::sync::atomic::Ordering::SeqCst));
 
-    let logger = logger.init()?;
+    let logger = logger.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
     assert!(logger
         .read()
         .unwrap()
@@ -50,6 +58,7 @@ fn test_log_init() -> Result<()> {
 }
 
 #[test]
+#[traced_test]
 fn test_log_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
@@ -59,8 +68,11 @@ fn test_log_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
-    let output = capture_stdout(|| {
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
+    
+    let output = {
         logger.read().unwrap().queue_log(
             LogLevel::INFO,
             None,
@@ -69,9 +81,10 @@ fn test_log_output() -> Result<()> {
             line!(),
         );
         wait_for_complete_flush(&logger.read().unwrap());
-    })?;
+    };
 
-    assert_eq!(output, "INFO [GLOBAL] hi! 5\n");
+    logs_assert(find_log("INFO [GLOBAL] hi! 5"));
+
     Ok(())
 }
 
@@ -85,7 +98,9 @@ fn test_single_thread_log_spam() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
     let output = {
         let start = Instant::now();
         logger.read().unwrap().queue_log(
@@ -124,7 +139,9 @@ fn test_multithread_log_spam() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
     let output = {
         let start = Instant::now();
         logger.read().unwrap().queue_log(
@@ -161,6 +178,7 @@ fn test_multithread_log_spam() -> Result<()> {
 }
 
 #[test]
+#[traced_test]
 fn test_log_context_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
@@ -170,9 +188,10 @@ fn test_log_context_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
 
-    let output = capture_stdout(|| {
+    let output = {
         logger.read().unwrap().queue_log(
             LogLevel::INFO,
             Some("context".to_owned()),
@@ -181,13 +200,14 @@ fn test_log_context_output() -> Result<()> {
             line!(),
         );
         wait_for_complete_flush(&logger.read().unwrap());
-    })?;
+    };
 
-    assert_eq!(output, "INFO [Context] context hi! 6\n");
+    logs_assert(find_log("INFO [Context] context hi! 6"));
     Ok(())
 }
 
 #[test]
+#[traced_test]
 fn test_log_context_tag_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
@@ -197,9 +217,11 @@ fn test_log_context_tag_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
     let context = "Context";
-    let output = capture_stdout(|| {
+    let output = {
         logger.read().unwrap().queue_log(
             LogLevel::INFO,
             Some(context.to_string()),
@@ -208,13 +230,15 @@ fn test_log_context_tag_output() -> Result<()> {
             line!(),
         );
         wait_for_complete_flush(&logger.read().unwrap());
-    })?;
+        thread::sleep(Duration::from_millis(2));
+    };
 
-    assert_eq!(output, "INFO [Context] hi this is a context log! 5\n");
+    logs_assert(find_log("INFO [Context] hi this is a context log! 5"));
     Ok(())
 }
 
 #[test]
+#[traced_test]
 fn test_utf8() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
@@ -224,8 +248,10 @@ fn test_utf8() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init()?;
-    let output = capture_stdout(|| {
+    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    thread::sleep(Duration::from_millis(2));
+
+    let output = {
         logger.read().unwrap().queue_log(
             LogLevel::INFO,
             None,
@@ -234,9 +260,9 @@ fn test_utf8() -> Result<()> {
             line!(),
         );
         wait_for_complete_flush(&logger.read().unwrap());
-    })?;
+    };
 
-    assert_eq!(output, "INFO [GLOBAL] £ ह € 한\n");
+    logs_assert(find_log("INFO [GLOBAL] £ ह € 한\n"));
     Ok(())
 }
 
@@ -250,7 +276,7 @@ fn test_utf8() -> Result<()> {
 //     };
 //     let log_path = PathBuf::from("./logs/test_log.log");
 
-//     let logger = LoggerThread::new(config, log_path)?.init()?;
+//     let logger = LoggerThread::new(config, log_path)?.init(false)?;
 //     let output = capture_stdout(|| {
 //         logger.read().unwrap().queue_log(
 //             LogLevel::INFO,

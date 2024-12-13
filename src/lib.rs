@@ -20,7 +20,7 @@ pub fn init_logger(path: PathBuf) -> Result<ThreadSafeLoggerThread> {
     };
 
     let logger = LoggerThread::new(config, path)?;
-    let thread = logger.init()?;
+    let thread = logger.init(false)?;
 
     Ok(thread)
 }

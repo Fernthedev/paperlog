@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, time::Duration};
 
 use crate::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
 
@@ -8,12 +8,14 @@ fn test_logger_initialization() {
         max_string_len: 1024,
         log_max_buffer_count: 50,
         line_end: '\n',
-        context_log_path: "./logs".into(),
+        context_log_path: "./logs/10".into(),
     };
-    let log_path = PathBuf::from("./logs/test_log.log");
+    let log_path = config.context_log_path.join("test_log.log");
 
     let logger = LoggerThread::new(config, log_path.clone()).unwrap();
-    let thread = logger.init().unwrap();
+    let thread = logger.init(false).unwrap();
+
+    std::thread::sleep(Duration::from_millis(500));
 
     if cfg!(feature = "file") {
         assert!(log_path.exists());
@@ -27,9 +29,9 @@ fn test_logger_config() {
         max_string_len: 2048,
         log_max_buffer_count: 100,
         line_end: '\r',
-        context_log_path: "./logs".into(),
+        context_log_path: "./logs/1".into(),
     };
-    let log_path = PathBuf::from("./logs/test_log.log");
+    let log_path = config.context_log_path.join("test_log.log");
 
     assert_eq!(config.max_string_len, 2048);
     assert_eq!(config.log_max_buffer_count, 100);
@@ -42,12 +44,12 @@ fn test_logger_thread_safe() {
         max_string_len: 1024,
         log_max_buffer_count: 50,
         line_end: '\n',
-        context_log_path: "./logs".into(),
+        context_log_path: "./logs/1".into(),
     };
-    let log_path = PathBuf::from("./logs/test_log.log");
+    let log_path = config.context_log_path.join("test_log.log");
 
     let logger = LoggerThread::new(config, log_path.clone()).unwrap();
-    let thread = logger.init();
+    let thread = logger.init(false);
 
     assert!(thread.is_ok());
 

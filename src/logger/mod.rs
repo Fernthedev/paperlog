@@ -1,8 +1,10 @@
 use std::{
+    backtrace::Backtrace,
     cell::OnceCell,
     collections::HashMap,
     fs::{self, File, OpenOptions},
     io::{BufWriter, Write},
+    panic::{PanicHookInfo, PanicInfo},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -13,6 +15,7 @@ use std::{
 };
 
 use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, Result};
+use cfg_if::cfg_if;
 use color_eyre::{
     eyre::{bail, eyre, Context},
     owo_colors::colors::css::Gold,
@@ -22,7 +25,7 @@ use itertools::Itertools;
 #[cfg(all(target_os = "android", feature = "logcat"))]
 pub mod logcat_logger;
 
-#[cfg(feature = "stdout")]
+#[cfg(feature = "file")]
 pub mod file_logger;
 
 #[cfg(feature = "stdout")]
@@ -30,6 +33,9 @@ pub mod stdout_logger;
 
 #[cfg(feature = "sinks")]
 pub mod sink_logger;
+
+#[cfg(feature = "tracing")]
+pub mod tracing_logger;
 
 mod log_data;
 pub use log_data::LogData;
@@ -59,6 +65,8 @@ pub struct LoggerThread {
 
     #[cfg(feature = "file")]
     global_file: BufWriter<File>,
+
+    #[cfg(feature = "file")]
     context_map: HashMap<String, BufWriter<File>>,
 
     sinks: Vec<Box<dyn LogCallback>>,
@@ -113,7 +121,7 @@ impl LoggerThread {
         })
     }
 
-    pub fn init(self) -> Result<ThreadSafeLoggerThread> {
+    pub fn init(self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
         if self.inited.load(Ordering::SeqCst) {
             bail!("LoggerThread already initialized");
         }
@@ -124,6 +132,17 @@ impl LoggerThread {
         let flush_semaphore_clone = Arc::clone(&self.flush_semaphore);
         let thread_safe_self: Arc<RwLock<LoggerThread>> = Arc::new(self.into());
         let thread_safe_self_clone = Arc::clone(&thread_safe_self);
+
+        #[cfg(feature = "tracing")]
+        cfg_if! {
+            if #[cfg(all(target_os = "android"))] {
+                paranoid_android::init("paper");
+            }
+        }
+
+        if install_panic_hook {
+            std::panic::set_hook(panic_hook(true, true, thread_safe_self.clone()));
+        }
 
         thread::spawn(move || {
             Self::log_thread(
@@ -252,6 +271,17 @@ impl LoggerThread {
 
             // wait for further logs if nothing left
             if log_mutex.lock().unwrap().is_empty() {
+                #[cfg(feature = "file")]
+                {
+                    // flush file
+                    let mut logger_thread = logger_thread.write().unwrap();
+                    logger_thread.global_file.flush()?;
+                    logger_thread
+                        .context_map
+                        .values_mut()
+                        .try_for_each(|file| file.flush())?;
+                }
+
                 flush_semaphore.signal();
                 log_semaphore_lite.wait();
             }
@@ -306,5 +336,69 @@ fn do_log(log: LogData, logger_thread: Arc<RwLock<LoggerThread>>) -> Result<()> 
     #[cfg(feature = "sinks")]
     sink_logger::do_log(&log, logger_thread)?;
 
+    #[cfg(feature = "tracing")]
+    tracing_logger::do_log(&log)?;
+
     Ok(())
+}
+
+/// Returns a panic handler, optionally with backtrace and spantrace capture.
+pub fn panic_hook(
+    backtrace: bool,
+    spantrace: bool,
+    logger_thread: Arc<RwLock<LoggerThread>>,
+) -> Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync + 'static> {
+    // Mostly taken from https://doc.rust-lang.org/src/std/panicking.rs.html
+    Box::new(move |info| {
+        let location = info.location().unwrap();
+        let msg = match info.payload().downcast_ref::<&'static str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<dyn Any>",
+            },
+        };
+
+        let _ = do_log(
+            LogData {
+                level: LogLevel::ERROR,
+                tag: Some("panic".to_string()),
+                message: format!("panicked at '{}', {}", msg, location),
+                timestamp: Instant::now(),
+                file: file!().to_string().into(),
+                line: line!(),
+            },
+            logger_thread.clone(),
+        );
+        if backtrace {
+            let _ = do_log(
+                LogData {
+                    level: LogLevel::ERROR,
+                    tag: Some("panic".to_string()),
+                    message: format!("{:?}", Backtrace::force_capture()),
+                    timestamp: Instant::now(),
+                    file: file!().to_string().into(),
+                    line: line!(),
+                },
+                logger_thread.clone(),
+            );
+        }
+
+        #[cfg(feature = "tracing")]
+        if spantrace {
+            use tracing_error::SpanTrace;
+
+            let _ = do_log(
+                LogData {
+                    level: LogLevel::ERROR,
+                    tag: Some("panic".to_string()),
+                    message: format!("{:?}", SpanTrace::capture()),
+                    timestamp: Instant::now(),
+                    file: file!().to_string().into(),
+                    line: line!(),
+                },
+                logger_thread.clone(),
+            );
+        }
+    })
 }

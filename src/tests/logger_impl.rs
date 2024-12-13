@@ -33,7 +33,7 @@ fn test_logger_thread_init() {
     let log_path = config.context_log_path.join("test_log.log");
 
     let logger_thread = LoggerThread::new(config, log_path).unwrap();
-    let thread_safe_logger = logger_thread.init().unwrap();
+    let thread_safe_logger = logger_thread.init(false).unwrap();
 
     let logger_thread = thread_safe_logger.read().unwrap();
     assert!(logger_thread.is_inited().load(Ordering::SeqCst));
@@ -65,7 +65,7 @@ fn test_queue_log() {
     }
 
     {
-        let thread_safe_logger = logger_thread.init().unwrap();
+        let thread_safe_logger = logger_thread.init(false).unwrap();
         thread::sleep(Duration::from_millis(500));
 
         thread_safe_logger.read().unwrap().wait_for_flush_timeout(Duration::from_millis(500));
@@ -108,7 +108,7 @@ fn test_log_thread() {
     let log_path = PathBuf::from("./logs/test_log.log");
 
     let logger_thread = LoggerThread::new(config, log_path).unwrap();
-    let thread_safe_logger = logger_thread.init().unwrap();
+    let thread_safe_logger = logger_thread.init(false).unwrap();
 
     let logger_thread_clone = Arc::clone(&thread_safe_logger);
 
