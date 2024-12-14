@@ -4,19 +4,63 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
-          "type": "lldb",
-          "request": "launch",
-          "name": "Debug",
-          "program": "${workspaceFolder}/build_desktop/paperlog_test",
-          "initCommands": [
-            "platform select remote-linux",
-            "platform connect connect://localhost:8555"
-          ],
-          "sourceMap": {
-            "/mnt/e/SSDUse/ProgrammingProjects/CLionProjects/paper": "${workspaceFolder}"
-          }
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'questloader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=questloader"
+                ],
+                "filter": {
+                    "name": "questloader",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'scotland2'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=scotland2"
+                ],
+                "filter": {
+                    "name": "scotland2",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'paper2'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=paper",
+                    "--features=tracing"
+                ],
+                "filter": {
+                    "name": "paper2",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
