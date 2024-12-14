@@ -1,9 +1,9 @@
 use crate::log_level::LogLevel;
+use crate::logger::LogData;
 use crate::{get_logger, init_logger, LoggerConfig};
 use std::ffi::{c_uchar, c_ulonglong, CStr};
 use std::os::raw::{c_char, c_int};
 use std::path::PathBuf;
-
 
 #[repr(C)]
 #[derive(Clone)]
@@ -19,7 +19,7 @@ pub extern "C" fn init_logger_ffi(config: *const LoggerConfigFfi, path: *const c
     if path.is_null() {
         return false;
     }
-    
+
     let c_str = unsafe { CStr::from_ptr(path) };
     let path_str = match c_str.to_str() {
         Ok(str) => str,
@@ -45,6 +45,8 @@ pub extern "C" fn queue_log_ffi(
     message: *const c_char,
     file: *const c_char,
     line: c_int,
+    column: c_int,
+    function_name: *const c_char,
 ) -> bool {
     if message.is_null() || file.is_null() {
         return false;
@@ -63,10 +65,23 @@ pub extern "C" fn queue_log_ffi(
     let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
     let file = unsafe { CStr::from_ptr(file).to_string_lossy().into_owned() };
 
-    logger
-        .read()
-        .unwrap()
-        .queue_log(level, tag, message, file, line as u32);
+    let log_data = LogData {
+        level,
+        tag,
+        message,
+        file,
+        line: line as u32,
+        column: column as u32,
+        function_name: unsafe {
+            function_name
+                .as_ref()
+                .map(|c_str| CStr::from_ptr(c_str))
+                .map(|c| c.to_string_lossy().into_owned())
+        },
+        ..Default::default()
+    };
+
+    logger.read().unwrap().queue_log(log_data);
 
     true
 }

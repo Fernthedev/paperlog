@@ -178,23 +178,7 @@ impl LoggerThread {
         &self.sinks
     }
 
-    pub fn queue_log(
-        &self,
-        level: LogLevel,
-        tag: Option<String>,
-        message: String,
-        file: String,
-        line: u32,
-    ) {
-        let log_data = LogData {
-            level,
-            tag,
-            message: message.to_string(),
-            timestamp: Instant::now(),
-            file: file.into(),
-            line,
-        };
-
+    pub fn queue_log(&self, log_data: LogData) {
         let (sempahore, queue) = self.log_queue.as_ref();
 
         queue.lock().unwrap().push(log_data);
@@ -209,13 +193,16 @@ impl LoggerThread {
         let backtrace = Backtrace::capture();
         let backtrace_str = format!("{:?}", backtrace);
 
-        self.queue_log(
-            LogLevel::Error,
-            None,
-            backtrace_str,
-            file!().into(),
-            line!(),
-        );
+        self.queue_log(LogData {
+            level: LogLevel::Error,
+            tag: None,
+            message: backtrace_str,
+            file: file!().into(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..LogData::default()
+        });
 
         Ok(())
     }
@@ -378,6 +365,8 @@ pub fn panic_hook(
                 timestamp: Instant::now(),
                 file: file!().to_string().into(),
                 line: line!(),
+                column: column!(),
+                function_name: None,
             },
             logger_thread.clone(),
         );
@@ -388,8 +377,10 @@ pub fn panic_hook(
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", Backtrace::force_capture()),
                     timestamp: Instant::now(),
-                    file: file!().to_string().into(),
+                    file: file!().to_string(),
                     line: line!(),
+                    column: column!(),
+                    function_name: None,
                 },
                 logger_thread.clone(),
             );
@@ -407,6 +398,8 @@ pub fn panic_hook(
                     timestamp: Instant::now(),
                     file: file!().to_string().into(),
                     line: line!(),
+                    column: column!(),
+                    function_name: None,
                 },
                 logger_thread.clone(),
             );

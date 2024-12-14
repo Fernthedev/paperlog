@@ -17,30 +17,32 @@ typedef enum paper2_LogLevel {
   Debug,
 } paper2_LogLevel;
 
-typedef struct paper2_ThreadSafeLoggerThreadFfi {
-  void *_0;
-} paper2_ThreadSafeLoggerThreadFfi;
+typedef struct paper2_LoggerConfigFfi {
+  unsigned long long max_string_len;
+  unsigned long long log_max_buffer_count;
+  unsigned char line_end;
+  const char *context_log_path;
+} paper2_LoggerConfigFfi;
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-struct paper2_ThreadSafeLoggerThreadFfi init_logger_ffi(const char *path);
+bool init_logger_ffi(const struct paper2_LoggerConfigFfi *config, const char *path);
 
-void queue_log_ffi(struct paper2_ThreadSafeLoggerThreadFfi logger_thread,
-                   enum paper2_LogLevel level,
+bool queue_log_ffi(enum paper2_LogLevel level,
                    const char *tag,
                    const char *message,
                    const char *file,
-                   int line);
+                   int line,
+                   int column,
+                   const char *function_name);
 
-bool wait_for_flush(struct paper2_ThreadSafeLoggerThreadFfi logger_thread);
+bool wait_for_flush(void);
 
-bool get_inited(struct paper2_ThreadSafeLoggerThreadFfi logger_thread);
+bool get_inited(void);
 
-bool wait_flush_timeout(struct paper2_ThreadSafeLoggerThreadFfi logger_thread, int timeout_ms);
-
-void free_logger_thread(struct paper2_ThreadSafeLoggerThreadFfi logger_thread);
+bool wait_flush_timeout(int timeout_ms);
 
 #ifdef __cplusplus
 }  // extern "C"

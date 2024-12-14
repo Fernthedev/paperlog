@@ -1,12 +1,15 @@
 use color_eyre::eyre::Result;
 
 use crate::log_level::LogLevel;
-use crate::logger::LoggerConfig;
+use crate::logger::{LogData, LoggerConfig};
 use crate::LoggerThread;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use std::thread;
+use std::time::{Duration, Instant};
+
+#[cfg(feature = "tracing")]
+use tracing_test::traced_test;
 
 // TODO: Make these tests work with stdout
 
@@ -72,15 +75,17 @@ fn test_log_output() -> Result<()> {
     let logger = LoggerThread::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
-    
     let output = {
-        logger.read().unwrap().queue_log(
-            LogLevel::Info,
-            None,
-            "hi! 5".to_owned(),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Info,
+            tag: None,
+            message: "hi! 5".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
         wait_for_complete_flush(&logger.read().unwrap());
     };
 
@@ -104,22 +109,29 @@ fn test_single_thread_log_spam() -> Result<()> {
 
     let output = {
         let start = Instant::now();
-        logger.read().unwrap().queue_log(
-            LogLevel::Debug,
-            None,
-            "Spam logging now!".to_owned(),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Debug,
+            tag: None,
+            message: "Spam logging now!".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+
+            ..Default::default()
+        });
 
         for i in 0..100000 {
-            logger.read().unwrap().queue_log(
-                LogLevel::Debug,
-                None,
-                format!("log i {i}"),
-                file!().to_string(),
-                line!(),
-            );
+            logger.read().unwrap().queue_log(LogData {
+                level: LogLevel::Debug,
+                tag: None,
+                message: format!("log i {i}"),
+                file: file!().to_string(),
+                line: line!(),
+                column: column!(),
+                function_name: None,
+                ..Default::default()
+            });
         }
         wait_for_complete_flush(&logger.read().unwrap());
         start.elapsed()
@@ -145,25 +157,31 @@ fn test_multithread_log_spam() -> Result<()> {
 
     let output = {
         let start = Instant::now();
-        logger.read().unwrap().queue_log(
-            LogLevel::Debug,
-            None,
-            format!("Spam logging now!"),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Debug,
+            tag: None,
+            message: "Spam logging now!".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
         let mut handles = vec![];
         for _ in 0..4 {
             let logger = Arc::clone(&logger);
             handles.push(thread::spawn(move || {
                 for i in 0..100000 {
-                    logger.read().unwrap().queue_log(
-                        LogLevel::Debug,
-                        None,
-                        format!("log i {i}"),
-                        file!().to_string(),
-                        line!(),
-                    );
+                    logger.read().unwrap().queue_log(LogData {
+                        level: LogLevel::Debug,
+                        tag: None,
+                        message: format!("log i {i}"),
+                        file: file!().to_string(),
+                        line: line!(),
+                        column: column!(),
+                        function_name: None,
+                        ..Default::default()
+                    });
                 }
             }));
         }
@@ -194,13 +212,16 @@ fn test_log_context_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     let output = {
-        logger.read().unwrap().queue_log(
-            LogLevel::Info,
-            Some("context".to_owned()),
-            "context hi! 6".to_owned(),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Info,
+            tag: Some("Context".to_string()),
+            message: "context hi! 6".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
         wait_for_complete_flush(&logger.read().unwrap());
     };
 
@@ -225,13 +246,16 @@ fn test_log_context_tag_output() -> Result<()> {
 
     let context = "Context";
     let output = {
-        logger.read().unwrap().queue_log(
-            LogLevel::Info,
-            Some(context.to_string()),
-            format!("hi this is a context log! 5"),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Info,
+            tag: Some(context.to_string()),
+            message: "hi this is a context log! 5".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
         wait_for_complete_flush(&logger.read().unwrap());
         thread::sleep(Duration::from_millis(2));
     };
@@ -256,13 +280,16 @@ fn test_utf8() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     let output = {
-        logger.read().unwrap().queue_log(
-            LogLevel::Info,
-            None,
-            "£ ह € 한".to_string(),
-            file!().to_string(),
-            line!(),
-        );
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Info,
+            tag: None,
+            message: "£ ह € 한".to_owned(),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
         wait_for_complete_flush(&logger.read().unwrap());
     };
 
