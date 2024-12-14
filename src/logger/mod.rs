@@ -129,9 +129,12 @@ impl LoggerThread {
         let thread_safe_self_clone = Arc::clone(&thread_safe_self);
 
         #[cfg(feature = "tracing")]
-        cfg_if! {
-            if #[cfg(all(target_os = "android"))] {
-                paranoid_android::init("paper");
+        {
+            use cfg_if::cfg_if;
+            cfg_if! {
+                if #[cfg(all(target_os = "android"))] {
+                    paranoid_android::init("paper");
+                }
             }
         }
 
