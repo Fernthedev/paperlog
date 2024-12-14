@@ -9,7 +9,7 @@ pub(crate) fn do_log(
     let sinks = &logger_thread.read().unwrap().sinks;
 
     for sink in sinks {
-        sink(&log)?;
+        sink(log)?;
     }
 
     Ok(())

@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
+// TODO: Make these tests work with stdout
+
 fn wait_for_complete_flush(logger: &LoggerThread) {
     thread::sleep(Duration::from_millis(2));
     // logger.wait_for_flush();

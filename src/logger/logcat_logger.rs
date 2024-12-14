@@ -2,8 +2,10 @@
 
 use crate::{log_level::LogLevel, Result};
 
+use std::ffi::CString;
+
 // assert tracing is not enabled
-#[cfg(not(feature = "tracing"))]
+#[cfg(feature = "tracing")]
 compile_error!("The 'tracing' feature must be enabled to use this logger.");
 
 use std::{mem::size_of, ptr::null};
@@ -53,9 +55,10 @@ pub enum Buffer {
 impl From<LogLevel> for Priority {
     fn from(level: LogLevel) -> Self {
         match level {
-            LogLevel::INFO => Priority::Info,
-            LogLevel::WARN => Priority::Warn,
-            LogLevel::ERROR => Priority::Error,
+            LogLevel::Info => Priority::Info,
+            LogLevel::Warn => Priority::Warn,
+            LogLevel::Error => Priority::Error,
+            LogLevel::Debug => Priority::Debug,
         }
     }
 }
@@ -63,21 +66,24 @@ impl From<LogLevel> for Priority {
 pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     // #[cfg(feature = "api-30")]
 
-    let priority: Priority = log.level.into();
-    let tag = log.tag.as_deref().unwrap_or("default");
+    let priority: Priority = log.level.clone().into();
+    let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
+    let file = CString::new(log.file.to_string_lossy().to_string())?;
+    let message = CString::new(log.message.clone())?;
 
-    if unsafe { __android_log_is_loggable(priority, tag.as_ptr(), priority) } == 0 {
+    if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
         return Ok(());
     }
 
+
     let mut message = __android_log_message {
         struct_size: size_of::<__android_log_message>(),
-        buffer_id: Buffer::Main,
-        priority,
-        tag,
-        log.file,
-        log.line,
-        log.message,
+        buffer_id: Buffer::Main as i32,
+        priority: priority as i32,
+        tag: tag.as_ptr(),
+        file: file.as_ptr(),
+        line: log.line,
+        message: message.as_ptr(),
     };
 
     unsafe { __android_log_write_log_message(&mut message) };

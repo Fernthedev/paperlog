@@ -51,7 +51,7 @@ fn test_queue_log() {
 
     let logger_thread = LoggerThread::new(config, log_path).unwrap();
     logger_thread.queue_log(
-        LogLevel::INFO,
+        LogLevel::Info,
         Some("test".to_string()),
         "This is a test log".to_string(),
         line!().to_string(),
@@ -115,7 +115,7 @@ fn test_log_thread() {
     thread::spawn(move || {
         let logger_thread = logger_thread_clone.read().unwrap();
         logger_thread.queue_log(
-            LogLevel::INFO,
+            LogLevel::Info,
             Some("test".to_string()),
             "This is a test log".to_string(),
             file!().to_string(),

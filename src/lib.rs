@@ -4,6 +4,9 @@ mod log_level;
 mod logger;
 mod semaphore_lite;
 
+#[cfg(feature = "ffi")]
+mod ffi;
+
 #[cfg(test)]
 mod tests;
 

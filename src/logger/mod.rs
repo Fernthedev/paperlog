@@ -1,10 +1,9 @@
 use std::{
     backtrace::Backtrace,
-    cell::OnceCell,
     collections::HashMap,
-    fs::{self, File, OpenOptions},
+    fs::{self, File},
     io::{BufWriter, Write},
-    panic::{PanicHookInfo, PanicInfo},
+    panic::PanicHookInfo,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -15,11 +14,7 @@ use std::{
 };
 
 use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, Result};
-use cfg_if::cfg_if;
-use color_eyre::{
-    eyre::{bail, eyre, Context},
-    owo_colors::colors::css::Gold,
-};
+use color_eyre::eyre::{bail, eyre, Context};
 use itertools::Itertools;
 
 #[cfg(all(target_os = "android", feature = "logcat"))]
@@ -199,7 +194,7 @@ impl LoggerThread {
         let backtrace_str = format!("{:?}", backtrace);
 
         self.queue_log(
-            LogLevel::ERROR,
+            LogLevel::Error,
             None,
             backtrace_str,
             file!().into(),
@@ -331,7 +326,7 @@ fn do_log(log: LogData, logger_thread: Arc<RwLock<LoggerThread>>) -> Result<()> 
     stdout_logger::do_log(&log);
 
     #[cfg(all(target_os = "android", feature = "logcat"))]
-    logcat_logger::do_log(&log);
+    logcat_logger::do_log(&log)?;
 
     #[cfg(feature = "sinks")]
     sink_logger::do_log(&log, logger_thread)?;
@@ -361,7 +356,7 @@ pub fn panic_hook(
 
         let _ = do_log(
             LogData {
-                level: LogLevel::ERROR,
+                level: LogLevel::Error,
                 tag: Some("panic".to_string()),
                 message: format!("panicked at '{}', {}", msg, location),
                 timestamp: Instant::now(),
@@ -373,7 +368,7 @@ pub fn panic_hook(
         if backtrace {
             let _ = do_log(
                 LogData {
-                    level: LogLevel::ERROR,
+                    level: LogLevel::Error,
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", Backtrace::force_capture()),
                     timestamp: Instant::now(),
@@ -390,7 +385,7 @@ pub fn panic_hook(
 
             let _ = do_log(
                 LogData {
-                    level: LogLevel::ERROR,
+                    level: LogLevel::Error,
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", SpanTrace::capture()),
                     timestamp: Instant::now(),

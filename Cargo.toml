@@ -18,8 +18,10 @@ tracing-error = { version = "0.2", default-features = false, optional = true }
 paranoid-android = { version = "0.2", optional = true }
 
 [dev-dependencies]
-cbindgen = "0.27"
 tracing-test = "0.2.5"
+
+[build-dependencies]
+cbindgen = "0.27"
 
 [workspace]
 members = ["questloader", "scotland2"]
