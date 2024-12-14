@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6"
 ctor = "0.2"
-paper2 = { path = "../" }
+paper2 = { path = "../", features = ["logcat", "ffi"] }
 
 [lib]
 crate-type = ["cdylib"]
