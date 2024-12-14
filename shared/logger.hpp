@@ -5,6 +5,7 @@
 /// DEFINE NO_SL2_FORMAT to disable scotland2 include and fmt struct
 
 #include "_config.h"
+#include "bindings.h"
 #include <chrono>
 #include <fmt/base.h>
 #include <fmt/xchar.h>
@@ -145,15 +146,18 @@ struct PAPER_EXPORT LoggerConfig {
 };
 
 namespace Logger {
-inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& sourceLoc, std::string_view const tag,
-                    fmt::format_args&& args) noexcept {
-#ifdef PAPER_INLINE_QUEUE
-  Internal::logQueue.enqueue(Paper::ThreadData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc,
-                                               level, std::chrono::system_clock::now()));
-#else
+inline void vfmtLog(fmt::string_view const str, LogLevel level,
+                    sl const &sourceLoc, std::string_view const tag,
+                    fmt::format_args &&args) noexcept {
+  auto message = fmt::vformat(str, args);
+
+  Paper::ffi::queue_log_ffi(struct paper2_ThreadSafeLoggerThreadFfi logger_thread, enum paper2_LogLevel level, const char *tag, const char *message, const char *file, int line)
+  Paper::Internal::Queue(
+      Paper::LogData(, std::this_thread::get_id(), tag, sourceLoc, level,
+                     std::chrono::system_clock::now()));
   ::Paper::Internal::Queue(Paper::LogData(fmt::vformat(str, args), std::this_thread::get_id(), tag, sourceLoc, level,
                                           std::chrono::system_clock::now()));
-#endif
+
 }
 
 template <LogLevel lvl, typename... TArgs>
