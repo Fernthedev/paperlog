@@ -68,7 +68,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
 
     let priority: Priority = log.level.clone().into();
     let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
-    let file = CString::new(log.file.to_string_lossy().to_string())?;
+    let file = CString::new(log.file.to_string())?;
     let message = CString::new(log.message.clone())?;
 
     if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {

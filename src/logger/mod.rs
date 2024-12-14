@@ -321,7 +321,7 @@ fn split_str_into_chunks(queue: Vec<LogData>, max_str_len: usize) -> impl Iterat
     })
 }
 
-fn do_log(log: LogData, logger_thread: Arc<RwLock<LoggerThread>>) -> Result<()> {
+pub fn do_log(log: LogData, logger_thread: Arc<RwLock<LoggerThread>>) -> Result<()> {
     #[cfg(feature = "file")]
     file_logger::do_log(&log, logger_thread.clone())?;
 

@@ -12,7 +12,7 @@ mod ffi;
 #[cfg(test)]
 mod tests;
 
-pub use logger::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+pub use logger::{do_log, LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
 
 pub type Result<T> = color_eyre::Result<T>;
 
@@ -21,7 +21,6 @@ pub fn get_logger() -> Option<ThreadSafeLoggerThread> {
 }
 
 pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {
-
     let res = LOGGER
         .get_or_init(|| {
             let logger = LoggerThread::new(config, path).expect("Unable to create logger");

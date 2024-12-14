@@ -1,14 +1,19 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use std::ffi::CStr;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use ctor::ctor;
+use paper2::LoggerConfig;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+mod scotland2;
+
+#[ctor]
+fn dlopen_initialize() {
+    println!("DLOpen initializing");
+
+    let id = unsafe { CStr::from_ptr(scotland2::modloader_get_application_id()) }.to_string_lossy();
+    let path = format!("/sdcard/ModData/{id}/logs2",);
+
+    if let Err(e) = paper2::init_logger(LoggerConfig::default(), path.into()) {
+        eprintln!("Error occurred in logging thread: {}", e);
+        panic!("Error occurred in logging thread: {}", e);
     }
 }

@@ -1,12 +1,12 @@
 [package]
-name = "paper"
+name = "paper2"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 cfg-if = "1"
-color-eyre = "0.6.3"
-itertools = "0.13.0"
+color-eyre = "0.6"
+itertools = "0.13"
 
 tracing = { version = "0.1", features = [
     "std",

@@ -1,6 +1,16 @@
 [package]
-name = "scotland2"
+name = "paper2_scotland2"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+color-eyre = "0.6"
+ctor = "0.2"
+paper2 = { path = "../" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+bindgen = "0.71"
+color-eyre = "0.6"
