@@ -1,8 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 
 mod log_level;
 mod logger;
 mod semaphore_lite;
+
+static LOGGER: OnceLock<ThreadSafeLoggerThread> = OnceLock::new();
 
 #[cfg(feature = "ffi")]
 mod ffi;
@@ -14,16 +16,21 @@ pub use logger::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
 
 pub type Result<T> = color_eyre::Result<T>;
 
-pub fn init_logger(path: PathBuf) -> Result<ThreadSafeLoggerThread> {
-    let config = LoggerConfig {
-        max_string_len: 1024,
-        log_max_buffer_count: 50,
-        line_end: '\n',
-        context_log_path: path.clone(),
-    };
+pub fn get_logger() -> Option<ThreadSafeLoggerThread> {
+    LOGGER.get().cloned()
+}
 
-    let logger = LoggerThread::new(config, path)?;
-    let thread = logger.init(false)?;
+pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {
 
-    Ok(thread)
+    let res = LOGGER
+        .get_or_init(|| {
+            let logger = LoggerThread::new(config, path).expect("Unable to create logger");
+            let thread: std::sync::Arc<std::sync::RwLock<LoggerThread>> =
+                logger.init(false).expect("Unable to init logger");
+
+            thread
+        })
+        .clone();
+
+    Ok(res)
 }

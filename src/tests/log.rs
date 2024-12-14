@@ -1,14 +1,12 @@
 use color_eyre::eyre::Result;
-use tracing_test::traced_test;
 
 use crate::log_level::LogLevel;
 use crate::logger::LoggerConfig;
 use crate::LoggerThread;
 use std::path::PathBuf;
-use std::sync::mpsc::channel;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{io, thread};
+use std::thread;
 
 // TODO: Make these tests work with stdout
 

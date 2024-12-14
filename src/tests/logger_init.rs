@@ -1,6 +1,6 @@
-use std::{fs, path::PathBuf, time::Duration};
+use std::{fs, time::Duration};
 
-use crate::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+use crate::{LoggerConfig, LoggerThread};
 
 #[test]
 fn test_logger_initialization() {

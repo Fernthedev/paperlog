@@ -50,6 +50,19 @@ pub struct LoggerConfig {
     pub context_log_path: PathBuf,
 }
 
+impl Default for LoggerConfig {
+    fn default() -> Self {
+        LoggerConfig {
+            max_string_len: 1024,
+            log_max_buffer_count: 50,
+            line_end: '\n',
+
+            #[cfg(feature = "file")]
+            context_log_path: PathBuf::from("./logs"),
+        }
+    }
+}
+
 pub struct LoggerThread {
     pub config: LoggerConfig,
 

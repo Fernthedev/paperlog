@@ -4,9 +4,8 @@ use std::{
     thread, time::Duration,
 };
 
-use color_eyre::eyre::Result;
 
-use crate::{log_level::LogLevel, logger::LogData, LoggerConfig, LoggerThread};
+use crate::{log_level::LogLevel, LoggerConfig, LoggerThread};
 
 #[test]
 fn test_logger_thread_initialization() {
