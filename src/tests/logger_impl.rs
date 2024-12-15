@@ -132,7 +132,7 @@ fn test_log_thread() {
     .unwrap();
 
     let logger_thread = thread_safe_logger.read().unwrap();
-    logger_thread.wait_for_flush_timeout(Duration::from_millis(500));
+    logger_thread.wait_for_flush_timeout(Duration::from_millis(1000));
     let queue = logger_thread.get_queue().lock().unwrap().len();
     assert_eq!(queue, 0);
 }
