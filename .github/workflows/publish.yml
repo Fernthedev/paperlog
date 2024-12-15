@@ -1,7 +1,7 @@
 name: Publish QPM Package
 
 env:
-  qmodName: paper2_scotland2.qmod
+  qmodName: paper2_scotland2
   CARGO_TERM_COLOR: always
 on:
   push:

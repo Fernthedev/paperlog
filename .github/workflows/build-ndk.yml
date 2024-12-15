@@ -1,7 +1,7 @@
 name: NDK build
 
 env:
-  qmodName: paper2_scotland2.qmod
+  qmodName: paper2_scotland2
   CARGO_TERM_COLOR: always
 
 on:
