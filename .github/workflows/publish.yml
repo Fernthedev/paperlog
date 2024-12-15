@@ -118,7 +118,7 @@ jobs:
 
           # set to true if applicable, ASSUMES the file is already a release asset
           qpm_release_bin: true
-          qpm_debug_bin: true
+          qpm_debug_bin: false
 
           # Name of qmod in release asset. Assumes exists, same as prior
           qpm_qmod: ${{env.qmodName}}.qmod
