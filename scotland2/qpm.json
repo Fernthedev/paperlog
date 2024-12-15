@@ -6,7 +6,7 @@
     "name": "Paper2 Scotland2",
     "id": "paper2_scotland2",
     "version": "0.1.0",
-    "url": null,
+    "url": "https://github.com/Fernthedev/paperlog",
     "additionalData": {
       "overrideSoName": "libpaper2_scotland2.so",
       "cmake": false,
