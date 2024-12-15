@@ -1,7 +1,7 @@
 use std::env;
 
 fn main() -> color_eyre::Result<()> {
-    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" && env::var("BINDGEN").is_ok(){
         use bindgen::builder;
 
         let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();

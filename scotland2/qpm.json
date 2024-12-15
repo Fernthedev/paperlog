@@ -1,21 +1,43 @@
 {
+  "version": "0.1.0",
   "sharedDir": "shared",
   "dependenciesDir": "extern",
   "info": {
-    "name": "paperlog_scotland2",
-    "id": "paperlog_scotland2",
+    "name": "Paper2 Scotland2",
+    "id": "paper2_scotland2",
     "version": "0.1.0",
     "url": null,
     "additionalData": {
+      "overrideSoName": "libpaper2_scotland2.so",
       "cmake": false,
-      "overrideSoName": "libpaperlog_sl2.so"
+      "compileOptions": {
+        "systemIncludes": ["shared/utfcpp/source"]
+      },
+      "headersOnly": true
     }
   },
-  "workspace": null,
+  "workspace": {
+    "scripts": {
+      "build": ["cargo ndk --bindgen -t arm64-v8a build"],
+      "copy": ["pwsh ./scripts/copy.ps1"],
+      "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
+    },
+    "qmodIncludeDirs": ["./build/arm64-v8a"],
+    "qmodIncludeFiles": [],
+    "qmodOutput": "paper2_scotland2.qmod"
+  },
   "dependencies": [
     {
       "id": "scotland2",
       "versionRange": "^0.1.2",
+      "additionalData": {
+        "includeQmod": false,
+        "private": true
+      }
+    },
+    {
+      "id": "fmt",
+      "versionRange": "^11.0.2",
       "additionalData": {}
     }
   ]

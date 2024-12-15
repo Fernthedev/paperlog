@@ -4,6 +4,7 @@ env:
   module_id: paperlog
   qmodName: paperlog
   cache-name: paperlog_cache
+  CARGO_TERM_COLOR: always
 
 on:
   push:
@@ -11,8 +12,43 @@ on:
       - "v*"
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        targetOS: [ubuntu-latest, windows-latest, macOS-latest, aarch64-linux-android]
+        include:
+          - targetOS: ubuntu-latest
+            os: ubuntu-latest
+            cargo-arg: ""
+            file-name: "libsong_data_core_rust.so"
+            finalPrefix: ubuntu-latest
+            lib-name: ""
+            build-folder: "./target/release/"
+            
+          - targetOS: macOS-latest
+            os: macOS-latest
+            cargo-arg: ""
+            file-name: "libsong_data_core_rust.dylib"
+            finalPrefix: macOS-latest
+            lib-name: ""
+            build-folder: "./target/release/"
+            
+          - targetOS: windows-latest
+            os: windows-latest
+            cargo-arg: ""
+            file-name: "song_data_core_rust.dll"
+            lib-name: "song_data_core_rust.dll.lib"
+            finalPrefix: windows-latest
+            build-folder: "./target/release/"
+            
+          - targetOS:  aarch64-linux-android
+            os: ubuntu-latest
+            cargo-arg: "ndk -t arm64-v8a -o target/release"
+            file-name: "libsong_data_core_rust.so"
+            finalPrefix: "libandroid"
+            lib-name: ""
+            build-folder: "./target/release/arm64-v8a"
 
     steps:
       - uses: actions/checkout@v2

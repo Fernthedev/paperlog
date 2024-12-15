@@ -14,7 +14,8 @@
           "shared/utfcpp/source"
         ]
       },
-      "cmake": false
+      "cmake": false,
+      "headersOnly": true
     }
   },
   "workspace": {
