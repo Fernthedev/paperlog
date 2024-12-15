@@ -1,5 +1,7 @@
 name: Publish QPM Package
 
+permissions: write-all
+
 env:
   qmodName: paper2_scotland2
   CARGO_TERM_COLOR: always
