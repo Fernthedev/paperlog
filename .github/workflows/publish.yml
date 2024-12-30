@@ -132,7 +132,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./scotland2/${{env.qmodName}}.qmod
-            ./scotland2/build/arm64-v8a/libpaper2_scotland2.so
+            ./${{env.qmodName}}.qmod
+            ./build/arm64-v8a/libpaper2_scotland2.so
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
