@@ -82,6 +82,10 @@ jobs:
         continue-on-error: true
         run: |
           cargo install cargo-ndk
+          
+      - name: Install Android toolchain
+        continue-on-error: true
+        run: |
           rustup target add aarch64-linux-android
 
   
