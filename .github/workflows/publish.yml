@@ -125,7 +125,6 @@ jobs:
 
       - name: Make qmod paperlog
         run: |
-          cd ./scotland2
           qpm qmod zip
 
       - name: Upload to Release
