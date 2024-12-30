@@ -3,13 +3,11 @@ use std::{ffi::CStr, path::PathBuf};
 use ctor::ctor;
 use paper2::LoggerConfig;
 
-mod scotland2;
-
 #[ctor]
 fn dlopen_initialize() {
     println!("DLOpen initializing");
 
-    let id = unsafe { CStr::from_ptr(scotland2::modloader_get_application_id()) }.to_string_lossy();
+    let id = unsafe { CStr::from_ptr(scotland2_rs::scotland2_raw::modloader_get_application_id()) }.to_string_lossy();
     let path = PathBuf::from(format!("/sdcard/ModData/{id}/logs2",));
     let config = LoggerConfig {
         context_log_path: path.clone(),

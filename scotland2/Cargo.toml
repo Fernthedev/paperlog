@@ -7,6 +7,7 @@ edition = "2021"
 color-eyre = "0.6"
 ctor = "0.2"
 paper2 = { path = "../", features = ["logcat", "ffi"] }
+scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git" }
 
 [lib]
 crate-type = ["cdylib"]
