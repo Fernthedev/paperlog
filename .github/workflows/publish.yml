@@ -82,7 +82,7 @@ jobs:
         continue-on-error: true
         run: |
           cargo install cargo-ndk
-          
+
       - name: Install Android toolchain
         continue-on-error: true
         run: |
@@ -92,7 +92,7 @@ jobs:
       - name: Build
         run: |
           cd scotland2  
-          cargo ndk -o build -t arm64-v8a build --verbose
+          cargo ndk --bindings -o build -t arm64-v8a build --verbose
 
 
       # - name: Run tests
