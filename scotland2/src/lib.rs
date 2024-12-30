@@ -3,8 +3,6 @@ use std::{ffi::CStr, path::PathBuf};
 use ctor::ctor;
 use paper2::LoggerConfig;
 
-mod scotland2;
-
 #[ctor]
 fn dlopen_initialize() {
     println!("DLOpen initializing");

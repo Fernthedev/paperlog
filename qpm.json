@@ -3,41 +3,41 @@
   "sharedDir": "shared",
   "dependenciesDir": "extern",
   "info": {
-    "name": "Paper",
-    "id": "paper",
-    "version": "3.0.0",
+    "name": "Paper2 Scotland2",
+    "id": "paper2_scotland2",
+    "version": "0.1.0",
     "url": "https://github.com/Fernthedev/paperlog",
     "additionalData": {
-      "overrideSoName": "libpaperlog.so",
-      "compileOptions": {
-        "systemIncludes": [
-          "shared/utfcpp/source"
-        ]
-      },
+      "overrideSoName": "libpaper2_scotland2.so",
       "cmake": false,
+      "compileOptions": {
+        "systemIncludes": ["shared/utfcpp/source"]
+      },
       "headersOnly": true
     }
   },
   "workspace": {
     "scripts": {
-      "build": [
-        "pwsh ./scripts/build.ps1"
-      ],
-      "copy": [
-        "pwsh ./scripts/copy.ps1"
-      ],
-      "qmod": [
-        "pwsh ./scripts/createqmod.ps1 $0"
-      ]
+      "build": ["cargo ndk --bindgen -t arm64-v8a build"],
+      "copy": ["pwsh ./scripts/copy.ps1"],
+      "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
     },
-    "qmodIncludeDirs": [],
+    "qmodIncludeDirs": ["./build/arm64-v8a"],
     "qmodIncludeFiles": [],
-    "qmodOutput": null
+    "qmodOutput": "paper2_scotland2.qmod"
   },
   "dependencies": [
     {
+      "id": "scotland2",
+      "versionRange": "^0.1.2",
+      "additionalData": {
+        "includeQmod": false,
+        "private": true
+      }
+    },
+    {
       "id": "fmt",
-      "versionRange": "^11.0.0",
+      "versionRange": "^11.0.2",
       "additionalData": {}
     }
   ]

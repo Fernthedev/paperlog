@@ -95,7 +95,7 @@ jobs:
       - name: QPM Rust Action
         uses: Fernthedev/qpm-action@v1
         with:
-          package_path: './scotland2'
+          # package_path: './scotland2'
           #required
           workflow_token: ${{secrets.GITHUB_TOKEN}}
 

@@ -1,14 +1,15 @@
 {
-  "_QPVersion": "1.0.0",
-  "name": "${mod_name}",
-  "id": "${mod_id}",
+  "_QPVersion": "1.1.0",
+  "name": "Paperlog Scotland2",
+  "id": "paperlog_scotland2",
+  "modloader": "Scotland2",
   "author": "Fernthedev",
-  "version": "${version}",
-  "isLibrary": true,
-  "description": "Logging library for mods light as paper",
+  "version": "0.1.0",
+  "description": "Paperlog Bootstrapper for Scotland2 modloader",
   "dependencies": [],
   "modFiles": [],
-  "libraryFiles": [],
+  "lateModFiles": [],
+  "libraryFiles": ["libpaper2_scotland2.so"],
   "fileCopies": [],
   "copyExtensions": []
 }
