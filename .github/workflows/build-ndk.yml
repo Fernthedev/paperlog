@@ -91,7 +91,7 @@ jobs:
       - name: Build
         run: |
           cd scotland2  
-          cargo ndk --bindings -o build -t arm64-v8a build --verbose
+          cargo ndk --bindgen -o build -t arm64-v8a build --verbose
 
 
       # - name: Run tests
