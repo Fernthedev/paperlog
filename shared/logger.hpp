@@ -7,7 +7,6 @@
 
 #include "_config.h"
 #include "bindings.h"
-#include "internal_logger.hpp"
 #include "log_level.hpp"
 #include <chrono>
 #include <fmt/base.h>
@@ -29,10 +28,6 @@
 
 // TODO: Breaking change use std::source_location
 #include "source_location.hpp"
-
-#include "log_level.hpp"
-
-// #include <fmtlog/fmtlog.h>
 
 namespace Paper {
 #ifndef NOSTD_SOURCE_LOCATION_HPP
@@ -127,9 +122,9 @@ template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::ty
 /// newlines etc. Use this when you need the exact printed string for this sink
 /// call. Unformatted refers to no Paper prefixes. This does not give the
 /// origianl string without the initial fmt run
-using LogSink = std::function<void(LogData const&, std::string_view fmtMessage, std::string_view originalString)>;
+// using LogSink = std::function<void(LogData const&, std::string_view fmtMessage, std::string_view originalString)>;
 
-struct PAPER_EXPORT LoggerConfig {
+struct LoggerConfig {
   LoggerConfig() = default;
 
   char lineEnd = '\n';
@@ -155,8 +150,8 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
 
-  Paper::ffi::queue_log_ffi(level, tag, message.c_str(), sourceLoc.file_name(), sourceLoc.line(), sourceLoc.column(),
-                            sourceLoc.function_name());
+  Paper::ffi::queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data(),
+                            sourceLoc.line(), sourceLoc.column(), sourceLoc.function_name().data());
 }
 
 template <LogLevel lvl, typename... TArgs>
@@ -182,37 +177,37 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, std::string_view
   throw Exception(fmt::format("{} {}", tag, exceptionMsg));
 }
 
-PAPER_EXPORT void Backtrace(std::string_view tag, uint16_t frameCount);
 
-inline auto Backtrace(uint16_t frameCount) {
-  return Backtrace(GLOBAL_TAG, frameCount);
+std::filesystem::path getLogDirectoryPathGlobal() {
+  return Paper::ffi::get_log_directory();
 }
 
-PAPER_EXPORT std::filesystem::path getLogDirectoryPathGlobal();
-
-PAPER_EXPORT void Init(std::string_view logPath);
-PAPER_EXPORT void Init(std::string_view logPath, LoggerConfig const& config);
-PAPER_EXPORT bool IsInited();
-
-PAPER_EXPORT void RegisterFileContextId(std::string_view contextId, std::string_view logPath);
-
-inline auto RegisterFileContextId(std::string_view contextId) {
-  return Logger::RegisterFileContextId(contextId, contextId);
+inline void Init(std::string_view logPath) {
+  Paper::ffi::init_logger_ffi(nullptr, logPath.data());
+}
+inline void Init(std::string_view logPath, LoggerConfig const& config) {
+  ffi::paper2_LoggerConfigFfi configFfi = { config.MaxStringLen, config.LogMaxBufferCount, config.lineEnd, nullptr };
+  Paper::ffi::init_logger_ffi(&configFfi, logPath.data());
+}
+inline bool IsInited() {
+  return Paper::ffi::get_inited();
 }
 
-PAPER_EXPORT void UnregisterFileContextId(std::string_view contextId);
+inline void RegisterFileContextId(std::string_view contextId) {
+  Paper::ffi::register_context_id(contextId.data());
+}
 
-PAPER_EXPORT void WaitForFlush();
-/**
- * @brief Returns a mutable reference to the global configuration.
- * NOTE THAT MODIFYING THIS MAY NOT BE UPDATED ON THE CURRENT FLUSH DUE TO RACE
- *CONDITIONS!
- *
- * @return LoggerConfig& The mutable reference to the global configuration.
- **/
-PAPER_EXPORT LoggerConfig& GlobalConfig();
 
-PAPER_EXPORT void AddLogSink(LogSink const& sink);
+inline void UnregisterFileContextId(std::string_view) {
+  Paper::ffi::unregister_context_id(contextId.data());
+}
+
+inline void WaitForFlush() {
+  Paper::ffi::wait_for_flush();
+}
+
+// TODO: Sinks
+// inline void AddLogSink(LogSink const& sink);
 }; // namespace Logger
 
 namespace Logger {

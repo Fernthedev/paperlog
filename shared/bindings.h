@@ -30,6 +30,10 @@ extern "C" {
 
 bool init_logger_ffi(const struct paper2_LoggerConfigFfi *config, const char *path);
 
+void register_context_id(const char *tag);
+
+void unregister_context_id(const char *tag);
+
 bool queue_log_ffi(enum paper2_LogLevel level,
                    const char *tag,
                    const char *message,
@@ -39,6 +43,8 @@ bool queue_log_ffi(enum paper2_LogLevel level,
                    const char *function_name);
 
 bool wait_for_flush(void);
+
+const char *get_log_directory(void);
 
 bool get_inited(void);
 

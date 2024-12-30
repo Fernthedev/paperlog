@@ -221,6 +221,12 @@ impl LoggerThread {
 
         Ok(())
     }
+    pub fn remove_context(&mut self, tag: &str) {
+        #[cfg(feature = "file")]
+        {
+            self.context_map.remove(tag);
+        }
+    }
 
     pub fn add_sink<F>(&mut self, sink: F)
     where

@@ -2,6 +2,7 @@ use crate::log_level::LogLevel;
 use crate::logger::LogData;
 use crate::{get_logger, init_logger, LoggerConfig};
 use std::ffi::{c_uchar, c_ulonglong, CStr};
+use std::fmt::format;
 use std::os::raw::{c_char, c_int};
 use std::path::PathBuf;
 
@@ -36,6 +37,49 @@ pub extern "C" fn init_logger_ffi(config: *const LoggerConfigFfi, path: *const c
     };
 
     init_logger(converted_config, path_buf).is_ok()
+}
+
+#[no_mangle]
+pub extern "C" fn register_context_id(tag: *const c_char) {
+    if tag.is_null() {
+        return;
+    }
+
+    let Some(logger) = get_logger() else {
+        return;
+    };
+
+    let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
+
+    let result = logger.write().unwrap().add_context(&tag);
+
+    if let Err(report) = result {
+        logger.read().unwrap().queue_log(LogData {
+            level: LogLevel::Info,
+            tag: None,
+            message: format!("Error creating context {tag}:\n{}", report),
+            file: file!().to_string(),
+            line: line!(),
+            column: column!(),
+            function_name: None,
+            ..Default::default()
+        });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn unregister_context_id(tag: *const c_char) {
+    if tag.is_null() {
+        return;
+    }
+
+    let Some(logger) = get_logger() else {
+        return;
+    };
+
+    let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
+
+    logger.write().unwrap().remove_context(&tag);
 }
 
 #[no_mangle]
@@ -95,6 +139,24 @@ pub extern "C" fn wait_for_flush() -> bool {
     logger.read().unwrap().wait_for_flush();
 
     true
+}
+
+#[no_mangle]
+pub extern "C" fn get_log_directory() -> *const c_char {
+    let Some(logger) = get_logger() else {
+        return std::ptr::null();
+    };
+
+    let log_directory = logger
+        .read()
+        .unwrap()
+        .config
+        .context_log_path
+        .to_string_lossy()
+        .into_owned();
+
+    let c_str = std::ffi::CString::new(log_directory).unwrap();
+    c_str.into_raw()
 }
 
 #[no_mangle]
