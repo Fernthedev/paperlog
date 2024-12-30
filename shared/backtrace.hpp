@@ -1,14 +1,17 @@
 #pragma once
-#include <string_view>
 #include <optional>
+#include <string_view>
 
 #include "logger.hpp"
 
 #if __has_include(<unwind.h>)
 #include <cxxabi.h>
 #include <dlfcn.h>
+#include <elf.h>
+#include <link.h>
 #include <unistd.h>
 #include <unwind.h>
+#include <map>
 
 #define HAS_UNWIND
 #else
@@ -16,6 +19,7 @@
 #endif
 
 namespace Paper {
+namespace Logger {
 #ifdef HAS_UNWIND
 // Backtrace stuff largely written by StackDoubleFlow
 // https://github.com/sc2ad/beatsaber-hook/blob/138101a5a2b494911583b62140af6acf6e955e72/src/utils/logging.cpp#L211-L289
@@ -140,16 +144,14 @@ inline void Backtrace(std::string_view const tag, uint16_t frameCount) {
   }
 }
 
-
 #else
 
-inline void Backtrace(std::string_view, uint16_t) {
-}
+inline void Backtrace(std::string_view, uint16_t) {}
 
 #endif
-
 
 inline auto Backtrace(uint16_t frameCount) {
   return Backtrace(GLOBAL_TAG, frameCount);
 }
+} // namespace Logger
 } // namespace Paper

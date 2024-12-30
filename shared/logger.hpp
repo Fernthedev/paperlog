@@ -178,7 +178,7 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, std::string_view
 }
 
 
-std::filesystem::path getLogDirectoryPathGlobal() {
+inline std::filesystem::path getLogDirectoryPathGlobal() {
   return Paper::ffi::get_log_directory();
 }
 
@@ -197,14 +197,16 @@ inline void RegisterFileContextId(std::string_view contextId) {
   Paper::ffi::register_context_id(contextId.data());
 }
 
-
-inline void UnregisterFileContextId(std::string_view) {
-  Paper::ffi::unregister_context_id(contextId.data());
+inline void UnregisterFileContextId(std::string_view contextId) {
+    Paper::ffi::unregister_context_id(contextId.data());
 }
 
 inline void WaitForFlush() {
   Paper::ffi::wait_for_flush();
 }
+
+// defined in backtrace.hpp
+void Backtrace(std::string_view const tag, uint16_t frameCount);
 
 // TODO: Sinks
 // inline void AddLogSink(LogSink const& sink);
@@ -288,16 +290,16 @@ struct LoggerContext : public BaseLoggerContext<std::string> {
 
 namespace Logger {
 template <ConstLoggerContext ctx, bool registerFile = true>
-inline auto WithContext(std::string_view const logFile = ctx.tag) {
+inline auto WithContext() {
   if constexpr (registerFile) {
-    RegisterFileContextId(ctx.tag, logFile);
+    RegisterFileContextId(ctx.tag);
   }
   return ctx;
 }
 template <bool registerFile = true>
-inline auto WithContextRuntime(std::string_view const tag, std::optional<std::string_view> logFile = {}) {
+inline auto WithContextRuntime(std::string_view const tag) {
   if constexpr (registerFile) {
-    RegisterFileContextId(tag, logFile.value_or(tag));
+    RegisterFileContextId(tag);
   }
   return LoggerContext(tag);
 }
