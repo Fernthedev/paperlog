@@ -15,3 +15,8 @@ crate-type = ["cdylib"]
 [build-dependencies]
 bindgen = "0.71"
 color-eyre = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = "symbols"
