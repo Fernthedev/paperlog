@@ -4,7 +4,7 @@
   "id": "paper2_scotland2",
   "modloader": "Scotland2",
   "author": "Fernthedev",
-  "version": "0.1.0",
+  "version": "${version}",
   "description": "Paperlog Bootstrapper for Scotland2 modloader",
   "dependencies": [],
   "modFiles": [],
