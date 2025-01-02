@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Instant};
+use std::time::Instant;
 
 use crate::log_level::LogLevel;
 

@@ -369,7 +369,7 @@ pub fn panic_hook(
                 tag: Some("panic".to_string()),
                 message: format!("panicked at '{}', {}", msg, location),
                 timestamp: Instant::now(),
-                file: file!().to_string().into(),
+                file: file!().to_string(),
                 line: line!(),
                 column: column!(),
                 function_name: None,

@@ -2,7 +2,6 @@ use crate::log_level::LogLevel;
 use crate::logger::LogData;
 use crate::{get_logger, init_logger, LoggerConfig};
 use std::ffi::{c_uchar, c_ulonglong, CStr};
-use std::fmt::format;
 use std::os::raw::{c_char, c_int};
 use std::path::PathBuf;
 

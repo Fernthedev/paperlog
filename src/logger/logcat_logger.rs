@@ -8,7 +8,7 @@ use std::ffi::CString;
 #[cfg(feature = "tracing")]
 compile_error!("The 'tracing' feature must be enabled to use this logger.");
 
-use std::{mem::size_of, ptr::null};
+use std::mem::size_of;
 
 use ndk_sys::{__android_log_is_loggable, __android_log_message, __android_log_write_log_message};
 use ndk_sys::{android_LogPriority, log_id};
@@ -66,19 +66,19 @@ impl From<LogLevel> for Priority {
 pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     // #[cfg(feature = "api-30")]
 
-    let priority: Priority = log.level.clone().into();
-    let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
-    let file = CString::new(log.file.to_string())?;
-    let message = CString::new(log.message.clone())?;
-    // tag, priority, and time are provided by android's logcat
-
-    let formatted_message = format!(
+    let message_str = format!(
         "{}:{}: {}",
         // really ugly way of getting last 50 chars
         &log.file[(log.file.len() - 50).max(0)..],
         log.line,
         log.message.clone()
     );
+
+    let priority: Priority = log.level.clone().into();
+    let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
+    let file = CString::new(log.file.to_string())?;
+    let message = CString::new(message_str)?;
+    // tag, priority, and time are provided by android's logcat
 
     if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
         return Ok(());
