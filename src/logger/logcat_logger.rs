@@ -70,11 +70,19 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
     let file = CString::new(log.file.to_string())?;
     let message = CString::new(log.message.clone())?;
+    // tag, priority, and time are provided by android's logcat
+
+    let formatted_message = format!(
+        "{}:{}: {}",
+        // really ugly way of getting last 50 chars
+        &log.file[(log.file.len() - 50).max(0)..],
+        log.line,
+        log.message.clone()
+    );
 
     if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
         return Ok(());
     }
-
 
     let mut message = __android_log_message {
         struct_size: size_of::<__android_log_message>(),
