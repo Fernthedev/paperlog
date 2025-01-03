@@ -41,6 +41,12 @@ enum class LogLevel : uint8_t;
 
 using TimePoint = std::chrono::system_clock::time_point;
 
+#ifdef PAPER_ROOT_FOLDER_LENGTH
+inline constexpr size_t SOURCE_OFFSET = PAPER_ROOT_FOLDER_LENGTH;
+#else
+inline constexpr size_t SOURCE_OFFSET = 0;
+#endif
+
 static constexpr std::string_view const GLOBAL_TAG = "GLOBAL";
 //
 //    template <typename... TArgs>
@@ -150,7 +156,7 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
 
-  Paper::ffi::queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data(),
+  Paper::ffi::queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data() + SOURCE_OFFSET,
                             sourceLoc.line(), sourceLoc.column(), sourceLoc.function_name().data());
 }
 
