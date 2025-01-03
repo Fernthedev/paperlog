@@ -67,10 +67,12 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     // #[cfg(feature = "api-30")]
 
     let message_str = format!(
-        "{}:{}: {}",
+        "{}:{}:{} @ {} {}",
         // really ugly way of getting last 50 chars
         log.file,
         log.line,
+        log.column,
+        log.function_name.as_deref().unwrap_or(""),
         log.message.clone()
     );
 
