@@ -69,7 +69,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let message_str = format!(
         "{}:{}: {}",
         // really ugly way of getting last 50 chars
-        &log.file[(log.file.len() - 50).max(0)..],
+        log.file,
         log.line,
         log.message.clone()
     );
