@@ -4,12 +4,12 @@
     "sharedDir": "shared",
     "dependenciesDir": "extern",
     "info": {
-      "name": "Paper",
-      "id": "paper",
-      "version": "3.0.0",
+      "name": "Paper2 Scotland2",
+      "id": "paper2_scotland2",
+      "version": "0.1.0",
       "url": "https://github.com/Fernthedev/paperlog",
       "additionalData": {
-        "overrideSoName": "libpaperlog.so",
+        "overrideSoName": "libpaper2_scotland2.so",
         "compileOptions": {
           "systemIncludes": [
             "shared/utfcpp/source"
@@ -21,7 +21,7 @@
     "workspace": {
       "scripts": {
         "build": [
-          "pwsh ./scripts/build.ps1"
+          "cargo ndk --bindgen -t arm64-v8a -o build build"
         ],
         "copy": [
           "pwsh ./scripts/copy.ps1"
@@ -30,14 +30,24 @@
           "pwsh ./scripts/createqmod.ps1 $0"
         ]
       },
-      "qmodIncludeDirs": [],
+      "qmodIncludeDirs": [
+        "./build/arm64-v8a"
+      ],
       "qmodIncludeFiles": [],
-      "qmodOutput": null
+      "qmodOutput": "paper2_scotland2.qmod"
     },
     "dependencies": [
       {
+        "id": "scotland2",
+        "versionRange": "^0.1.2",
+        "additionalData": {
+          "includeQmod": false,
+          "private": true
+        }
+      },
+      {
         "id": "fmt",
-        "versionRange": "^11.0.0",
+        "versionRange": "^11.0.2",
         "additionalData": {}
       }
     ]
@@ -61,6 +71,19 @@
         }
       },
       "version": "11.0.2"
+    },
+    {
+      "dependency": {
+        "id": "scotland2",
+        "versionRange": "=0.1.6",
+        "additionalData": {
+          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.6/libsl2.so",
+          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.6/debug_libsl2.so",
+          "overrideSoName": "libsl2.so",
+          "branchName": "version/v0_1_6"
+        }
+      },
+      "version": "0.1.6"
     }
   ]
 }

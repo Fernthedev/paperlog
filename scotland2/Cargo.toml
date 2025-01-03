@@ -1,0 +1,22 @@
+[package]
+name = "paper2_scotland2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6"
+ctor = "0.2"
+paper2 = { path = "../", features = ["logcat", "ffi"] }
+scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.1.6" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+bindgen = "0.71"
+color-eyre = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = "symbols"

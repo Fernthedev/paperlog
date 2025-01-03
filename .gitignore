@@ -71,3 +71,7 @@ build_desktop/
 CMakeUserPresets.json
 
 binary_cache/
+
+# Added by cargo
+
+/target
