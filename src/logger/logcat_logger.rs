@@ -8,9 +8,7 @@ use std::ffi::CString;
 #[cfg(feature = "tracing")]
 compile_error!("The 'tracing' feature must be enabled to use this logger.");
 
-use std::mem::size_of;
-
-use ndk_sys::{__android_log_is_loggable, __android_log_message, __android_log_write_log_message};
+use ndk_sys::__android_log_is_loggable;
 use ndk_sys::{android_LogPriority, log_id};
 
 #[repr(u32)]
@@ -86,17 +84,30 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
         return Ok(());
     }
 
-    let mut message = __android_log_message {
-        struct_size: size_of::<__android_log_message>(),
-        buffer_id: Buffer::Main as i32,
-        priority: priority as i32,
-        tag: tag.as_ptr(),
-        file: file.as_ptr(),
-        line: log.line,
-        message: message.as_ptr(),
-    };
+    #[cfg(feature = "android-api-30")]
+    {
+        use ndk_sys::{__android_log_message, __android_log_write_log_message};
 
-    unsafe { __android_log_write_log_message(&mut message) };
+        let mut message = __android_log_message {
+            struct_size: size_of::<__android_log_message>(),
+            buffer_id: Buffer::Default as i32,
+            priority: priority as i32,
+            tag: tag.as_ptr(),
+            file: file.as_ptr(),
+            line: log.line,
+            message: message.as_ptr(),
+        };
+
+        unsafe { __android_log_write_log_message(&mut message) };
+    }
+
+    #[cfg(not(feature = "android-api-30"))]
+    {
+        use ndk_sys::__android_log_buf_write;
+
+        unsafe { __android_log_buf_write(Buffer::Default as i32, priority as i32, tag.as_ptr(), message.as_ptr()) };
+    }
+
     Ok(())
 
     // #[cfg(not(feature = "api-30"))]

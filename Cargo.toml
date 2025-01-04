@@ -39,6 +39,7 @@ default = [
     "sinks",
     "logcat",
 ]
+android-api-30 = []
 global_log = []
 context_log = []
 ffi = []
