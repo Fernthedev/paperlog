@@ -54,7 +54,7 @@ impl Default for LoggerConfig {
     fn default() -> Self {
         LoggerConfig {
             max_string_len: 1024,
-            log_max_buffer_count: 50,
+            log_max_buffer_count: 100,
             line_end: '\n',
 
             #[cfg(feature = "file")]
@@ -82,7 +82,7 @@ pub struct LoggerThread {
 
 impl LoggerThread {
     pub fn new(config: LoggerConfig, log_path: PathBuf) -> Result<Self> {
-        let log_queue = Arc::new((SemaphoreLite::new(), Mutex::new(Vec::new())));
+        let log_queue = Arc::new((SemaphoreLite::new(), Mutex::new(Vec::with_capacity(config.log_max_buffer_count))));
         let flush_semaphore = Arc::new(SemaphoreLite::new());
 
         #[cfg(feature = "file")]
