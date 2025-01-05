@@ -11,5 +11,6 @@
   "lateModFiles": [],
   "libraryFiles": ["libpaper2_scotland2.so"],
   "fileCopies": [],
-  "copyExtensions": []
+  "copyExtensions": [],
+  "isLibrary": true
 }
