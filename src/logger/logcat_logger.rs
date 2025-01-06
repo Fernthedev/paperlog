@@ -62,8 +62,6 @@ impl From<LogLevel> for Priority {
 }
 
 pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
-    // #[cfg(feature = "api-30")]
-
     let message_str = format!(
         "{}:{}:{} @ {} {}",
         // really ugly way of getting last 50 chars
@@ -80,13 +78,14 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let message = CString::new(message_str)?;
     // tag, priority, and time are provided by android's logcat
 
-    if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
-        return Ok(());
-    }
 
     #[cfg(feature = "android-api-30")]
     {
         use ndk_sys::{__android_log_message, __android_log_write_log_message};
+
+        if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
+            return Ok(());
+        }
 
         let mut message = __android_log_message {
             struct_size: size_of::<__android_log_message>(),
