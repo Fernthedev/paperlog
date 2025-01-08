@@ -28,27 +28,27 @@ typedef struct paper2_LoggerConfigFfi {
 extern "C" {
 #endif // __cplusplus
 
-bool init_logger_ffi(const struct paper2_LoggerConfigFfi *config, const char *path);
+bool paper2_init_logger_ffi(const struct paper2_LoggerConfigFfi *config, const char *path);
 
-void register_context_id(const char *tag);
+void paper2_register_context_id(const char *tag);
 
-void unregister_context_id(const char *tag);
+void paper2_unregister_context_id(const char *tag);
 
-bool queue_log_ffi(enum paper2_LogLevel level,
-                   const char *tag,
-                   const char *message,
-                   const char *file,
-                   int line,
-                   int column,
-                   const char *function_name);
+bool paper2_queue_log_ffi(enum paper2_LogLevel level,
+                          const char *tag,
+                          const char *message,
+                          const char *file,
+                          int line,
+                          int column,
+                          const char *function_name);
 
-bool wait_for_flush(void);
+bool paper2_wait_for_flush(void);
 
-const char *get_log_directory(void);
+const char *paper2_get_log_directory(void);
 
-bool get_inited(void);
+bool paper2_get_inited(void);
 
-bool wait_flush_timeout(int timeout_ms);
+bool paper2_wait_flush_timeout(int timeout_ms);
 
 #ifdef __cplusplus
 }  // extern "C"

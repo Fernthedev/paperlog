@@ -156,7 +156,7 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
 
-  Paper::ffi::queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data() + SOURCE_OFFSET,
+  Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data() + SOURCE_OFFSET,
                             sourceLoc.line(), sourceLoc.column(), sourceLoc.function_name().data());
 }
 
@@ -185,30 +185,30 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, std::string_view
 
 
 inline std::filesystem::path getLogDirectoryPathGlobal() {
-  return Paper::ffi::get_log_directory();
+  return Paper::ffi::paper2_get_log_directory();
 }
 
 inline void Init(std::string_view logPath) {
-  Paper::ffi::init_logger_ffi(nullptr, logPath.data());
+  Paper::ffi::paper2_init_logger_ffi(nullptr, logPath.data());
 }
 inline void Init(std::string_view logPath, LoggerConfig const& config) {
   ffi::paper2_LoggerConfigFfi configFfi = { config.MaxStringLen, config.LogMaxBufferCount, config.lineEnd, nullptr };
-  Paper::ffi::init_logger_ffi(&configFfi, logPath.data());
+  Paper::ffi::paper2_init_logger_ffi(&configFfi, logPath.data());
 }
 inline bool IsInited() {
-  return Paper::ffi::get_inited();
+  return Paper::ffi::paper2_get_inited();
 }
 
 inline void RegisterFileContextId(std::string_view contextId) {
-  Paper::ffi::register_context_id(contextId.data());
+  Paper::ffi::paper2_register_context_id(contextId.data());
 }
 
 inline void UnregisterFileContextId(std::string_view contextId) {
-    Paper::ffi::unregister_context_id(contextId.data());
+    Paper::ffi::paper2_unregister_context_id(contextId.data());
 }
 
 inline void WaitForFlush() {
-  Paper::ffi::wait_for_flush();
+  Paper::ffi::paper2_wait_for_flush();
 }
 
 // defined in backtrace.hpp

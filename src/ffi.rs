@@ -15,7 +15,7 @@ pub struct LoggerConfigFfi {
 }
 
 #[no_mangle]
-pub extern "C" fn init_logger_ffi(config: *const LoggerConfigFfi, path: *const c_char) -> bool {
+pub extern "C" fn paper2_init_logger_ffi(config: *const LoggerConfigFfi, path: *const c_char) -> bool {
     if path.is_null() {
         return false;
     }
@@ -39,7 +39,7 @@ pub extern "C" fn init_logger_ffi(config: *const LoggerConfigFfi, path: *const c
 }
 
 #[no_mangle]
-pub extern "C" fn register_context_id(tag: *const c_char) {
+pub extern "C" fn paper2_register_context_id(tag: *const c_char) {
     if tag.is_null() {
         return;
     }
@@ -67,7 +67,7 @@ pub extern "C" fn register_context_id(tag: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn unregister_context_id(tag: *const c_char) {
+pub extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
     if tag.is_null() {
         return;
     }
@@ -82,7 +82,7 @@ pub extern "C" fn unregister_context_id(tag: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn queue_log_ffi(
+pub extern "C" fn paper2_queue_log_ffi(
     level: LogLevel,
     tag: *const c_char,
     message: *const c_char,
@@ -130,7 +130,7 @@ pub extern "C" fn queue_log_ffi(
 }
 
 #[no_mangle]
-pub extern "C" fn wait_for_flush() -> bool {
+pub extern "C" fn paper2_wait_for_flush() -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };
@@ -141,7 +141,7 @@ pub extern "C" fn wait_for_flush() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn get_log_directory() -> *const c_char {
+pub extern "C" fn paper2_get_log_directory() -> *const c_char {
     let Some(logger) = get_logger() else {
         return std::ptr::null();
     };
@@ -159,7 +159,7 @@ pub extern "C" fn get_log_directory() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn get_inited() -> bool {
+pub extern "C" fn paper2_get_inited() -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };
@@ -174,7 +174,7 @@ pub extern "C" fn get_inited() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn wait_flush_timeout(timeout_ms: c_int) -> bool {
+pub extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_int) -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };
