@@ -156,8 +156,9 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
 
-  Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(), sourceLoc.file_name().data() + SOURCE_OFFSET,
-                            sourceLoc.line(), sourceLoc.column(), sourceLoc.function_name().data());
+  Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(),
+                                   sourceLoc.file_name().data() + SOURCE_OFFSET, sourceLoc.line(), sourceLoc.column(),
+                                   sourceLoc.function_name().data());
 }
 
 template <LogLevel lvl, typename... TArgs>
@@ -170,19 +171,18 @@ template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TA
 }
 
 template <typename Exception = std::runtime_error, typename... TArgs>
-inline void fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) {
-  Logger::fmtLog<LogLevel::ERR, TArgs...>(str, std::forward<TArgs>(args)...);
-  throw Exception(fmt::format<TArgs...>(str, std::forward<TArgs>(args)...));
+inline void fmtThrowError(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
+  Logger::fmtLog<LogLevel::ERR, TArgs...>(std::forward(str), std::forward<TArgs>(args)...);
+  throw Exception(fmt::vformat(str, fmt::make_format_args(args...)));
 }
 
 template <typename Exception = std::runtime_error, typename... TArgs>
-inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> const& str, std::string_view const tag, TArgs&&... args) {
+inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag, TArgs&&... args) {
   Logger::fmtLogTag<LogLevel::ERR, TArgs...>(str, tag, std::forward<TArgs>(args)...);
 
-  auto exceptionMsg = fmt::format<TArgs...>(str, std::forward<TArgs>(args)...);
-  throw Exception(fmt::format("{} {}", tag, exceptionMsg));
+  auto message = fmt::vformat(str, fmt::make_format_args(args...));
+  throw Exception(fmt::format("{} {}", tag, message));
 }
-
 
 inline std::filesystem::path getLogDirectoryPathGlobal() {
   return Paper::ffi::paper2_get_log_directory();
@@ -204,7 +204,7 @@ inline void RegisterFileContextId(std::string_view contextId) {
 }
 
 inline void UnregisterFileContextId(std::string_view contextId) {
-    Paper::ffi::paper2_unregister_context_id(contextId.data());
+  Paper::ffi::paper2_unregister_context_id(contextId.data());
 }
 
 inline void WaitForFlush() {
@@ -248,13 +248,12 @@ template <typename Str> struct BaseLoggerContext {
   BaseLoggerContext& operator=(BaseLoggerContext&& o) noexcept = default;
   BaseLoggerContext& operator=(BaseLoggerContext const& o) noexcept = default;
 
-  template <LogLevel lvl, typename... TArgs>
-  constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
+  template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) const {
     return Logger::fmtLogTag<lvl, TArgs...>(str, tag, std::forward<TArgs>(args)...);
   }
 
   template <typename Exception = std::runtime_error, typename... TArgs>
-  inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> const& str, TArgs&&... args) const {
+  inline auto fmtThrowError(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) const {
     return Logger::fmtThrowErrorTag<Exception, TArgs...>(str, tag, std::forward<TArgs>(args)...);
   }
 
@@ -295,15 +294,13 @@ struct LoggerContext : public BaseLoggerContext<std::string> {
 };
 
 namespace Logger {
-template <ConstLoggerContext ctx, bool registerFile = true>
-inline auto WithContext() {
+template <ConstLoggerContext ctx, bool registerFile = true> inline auto WithContext() {
   if constexpr (registerFile) {
     RegisterFileContextId(ctx.tag);
   }
   return ctx;
 }
-template <bool registerFile = true>
-inline auto WithContextRuntime(std::string_view const tag) {
+template <bool registerFile = true> inline auto WithContextRuntime(std::string_view const tag) {
   if constexpr (registerFile) {
     RegisterFileContextId(tag);
   }
