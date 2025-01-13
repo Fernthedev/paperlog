@@ -13,8 +13,7 @@ scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-bindgen = "0.71"
-color-eyre = "0.6"
+cdylib-link-lines = "0.1"
 
 [profile.release]
 opt-level = 3

@@ -289,6 +289,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cdylib-link-lines"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d98eabef08bbdf5afd0b9c0cabb1ac335f7c70447ef095eed85dffd9628b20bc"
+
+[[package]]
 name = "cexpr"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1351,7 +1357,7 @@ dependencies = [
 name = "paper2_scotland2"
 version = "0.1.0"
 dependencies = [
- "bindgen",
+ "cdylib-link-lines",
  "color-eyre",
  "ctor",
  "paper2",
