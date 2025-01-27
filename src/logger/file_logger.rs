@@ -9,7 +9,7 @@ pub(crate) fn do_log(
     log: &super::LogData,
     logger_thread_lock: Arc<RwLock<LoggerThread>>,
 ) -> std::io::Result<()> {
-    let log_line = format!("{}\n", log.format());
+    let log_line = format!("{}", log.format());
 
     let mut logger_thread = logger_thread_lock.write().unwrap();
 
