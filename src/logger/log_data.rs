@@ -41,7 +41,7 @@ impl LogData {
 
     pub fn format(&self) -> String {
         format!(
-            "{} [{:?}] [{}] {file}:{line}:{column}@{function_name} {}\n",
+            "{} [{:?}] [{}] {file}:{line}:{column} @ {function_name} {}\n",
             self.level,
             self.timestamp,
             self.tag.as_deref().unwrap_or(DEFAULT_TAG),
