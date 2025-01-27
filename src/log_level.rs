@@ -9,6 +9,17 @@ pub enum LogLevel {
     Debug,
 }
 
+impl LogLevel {
+    pub fn short(&self) -> &str {
+        match self {
+            LogLevel::Info => "I",
+            LogLevel::Warn => "W",
+            LogLevel::Error => "E",
+            LogLevel::Debug => "D",
+        }
+    }
+}
+
 impl Display for LogLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

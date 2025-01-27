@@ -270,7 +270,11 @@ impl LoggerThread {
 
             // if queue is not empty, write the logs
             if !queue.is_empty() {
-                let max_str_len = logger_thread.read().expect("max_str_len").config.max_string_len;
+                let max_str_len = logger_thread
+                    .read()
+                    .expect("max_str_len")
+                    .config
+                    .max_string_len;
                 let split_logs = split_str_into_chunks(queue, max_str_len);
 
                 for log in split_logs {
@@ -279,9 +283,13 @@ impl LoggerThread {
             }
 
             // if no more logs in the pipeline, flush it
-            let is_empty = log_mutex.lock().expect("is_empty").is_empty();
-            if is_empty {
-                Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
+            {
+                let locked_list = log_mutex.lock().expect("is_empty");
+
+                let is_empty = locked_list.is_empty();
+                if is_empty {
+                    Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
+                }
             }
 
             // wait for more logs

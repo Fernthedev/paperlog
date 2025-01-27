@@ -41,11 +41,39 @@ impl LogData {
 
     pub fn format(&self) -> String {
         format!(
-            "{} [{:?}] [{}] {file}:{line}:{column} @ {function_name} {}\n",
-            self.level,
-            self.timestamp,
-            self.tag.as_deref().unwrap_or(DEFAULT_TAG),
-            self.message,
+            "{level} {time:?} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
+            level = self.level,
+            time = self.timestamp,
+            tag = self.tag.as_deref().unwrap_or(DEFAULT_TAG),
+            message = self.message,
+            line = self.line,
+            column = self.column,
+            file = self.file,
+            function_name = self.function_name.as_deref().unwrap_or("default")
+        )
+    }
+
+    pub fn write_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+        writeln!(
+            writer,
+            "{level} {time:?} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
+            level = self.level.short(),
+            time = self.timestamp,
+            tag = self.tag.as_deref().unwrap_or(DEFAULT_TAG),
+            message = self.message,
+            line = self.line,
+            column = self.column,
+            file = self.file,
+            function_name = self.function_name.as_deref().unwrap_or("default")
+        )
+    }
+    pub fn write_compact_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+        writeln!(
+            writer,
+            "{level} {time:?} [{file}:{line}:{column} @ {function_name}] {message}",
+            level = self.level.short(),
+            time = self.timestamp,
+            message = self.message,
             line = self.line,
             column = self.column,
             file = self.file,
