@@ -82,7 +82,10 @@ pub struct LoggerThread {
 
 impl LoggerThread {
     pub fn new(config: LoggerConfig, log_path: PathBuf) -> Result<Self> {
-        let log_queue = Arc::new((SemaphoreLite::new(), Mutex::new(Vec::with_capacity(config.log_max_buffer_count))));
+        let log_queue = Arc::new((
+            SemaphoreLite::new(),
+            Mutex::new(Vec::with_capacity(config.log_max_buffer_count)),
+        ));
         let flush_semaphore = Arc::new(SemaphoreLite::new());
 
         #[cfg(feature = "file")]
@@ -156,11 +159,30 @@ impl LoggerThread {
         }
 
         thread::spawn(move || {
-            Self::log_thread(
+            let result = Self::log_thread(
                 log_queue_clone,
-                flush_semaphore_clone,
-                thread_safe_self_clone,
-            )
+                flush_semaphore_clone.clone(),
+                thread_safe_self_clone.clone(),
+            );
+
+            // handle log thread dying
+            if let Err(e) = result {
+                let _ = Self::flush(&thread_safe_self_clone, &flush_semaphore_clone);
+
+                let _ = do_log(
+                    LogData {
+                        level: LogLevel::Error,
+                        message: format!("Error occurred in logging thread: {e}"),
+                        tag: Some("Paper2".to_string()),
+                        timestamp: Instant::now(),
+                        file: file!().to_string(),
+                        line: line!(),
+                        column: column!(),
+                        function_name: None,
+                    },
+                    thread_safe_self_clone.clone(),
+                );
+            }
         });
 
         Ok(thread_safe_self)
@@ -240,56 +262,50 @@ impl LoggerThread {
         flush_semaphore: Arc<SemaphoreLite>,
         logger_thread: Arc<RwLock<LoggerThread>>,
     ) -> Result<()> {
-        let mut logs_since_last_flush: usize = 0;
-        let mut last_log_time = Instant::now();
-
-        let log_mutex = &log_queue.1;
-        let log_semaphore_lite = &log_queue.0;
+        let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
 
         loop {
-            let max_str_len = logger_thread.read().unwrap().config.max_string_len;
-
-            let mut queue_locked = log_mutex.lock().unwrap();
-
             // move items from queue to local variable
-            let queue = Vec::from_iter(queue_locked.drain(..));
-            drop(queue_locked);
+            let queue = Vec::from_iter(log_mutex.lock().expect("queue").drain(..));
 
+            // if queue is not empty, write the logs
             if !queue.is_empty() {
-                let len = queue.len();
+                let max_str_len = logger_thread.read().expect("max_str_len").config.max_string_len;
                 let split_logs = split_str_into_chunks(queue, max_str_len);
 
                 for log in split_logs {
                     do_log(log, logger_thread.clone())?;
                 }
-                logs_since_last_flush += len;
             }
 
-            let elapsed_time = last_log_time.elapsed() > Duration::from_secs(1);
-            let exceeded_log_buffer = logs_since_last_flush > 50;
-
-            if exceeded_log_buffer || elapsed_time {
-                logs_since_last_flush = 0;
-                last_log_time = Instant::now();
+            // if no more logs in the pipeline, flush it
+            let is_empty = log_mutex.lock().expect("is_empty").is_empty();
+            if is_empty {
+                Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
             }
 
-            // wait for further logs if nothing left
-            if log_mutex.lock().unwrap().is_empty() {
-                #[cfg(feature = "file")]
-                {
-                    // flush file
-                    let mut logger_thread = logger_thread.write().unwrap();
-                    logger_thread.global_file.flush()?;
-                    logger_thread
-                        .context_map
-                        .values_mut()
-                        .try_for_each(|file| file.flush())?;
-                }
-
-                flush_semaphore.signal();
-                log_semaphore_lite.wait();
-            }
+            // wait for more logs
+            log_semaphore_lite.wait();
         }
+    }
+
+    fn flush(
+        logger_thread: &Arc<RwLock<LoggerThread>>,
+        flush_semaphore: &Arc<SemaphoreLite>,
+    ) -> Result<()> {
+        // flush file
+        #[cfg(feature = "file")]
+        {
+            let mut logger_thread = logger_thread.write().unwrap();
+            logger_thread.global_file.flush()?;
+            logger_thread
+                .context_map
+                .values_mut()
+                .try_for_each(|file| file.flush())?;
+        }
+
+        flush_semaphore.signal();
+        Ok(())
     }
 
     ///
