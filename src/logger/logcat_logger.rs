@@ -63,8 +63,7 @@ impl From<LogLevel> for Priority {
 
 pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let message_str = format!(
-        "{}:{}:{} @ {} {}",
-        // really ugly way of getting last 50 chars
+        "[{}:{}:{} @ {}] {}",
         log.file,
         log.line,
         log.column,
