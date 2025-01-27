@@ -58,7 +58,7 @@ impl LogData {
     pub fn write_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
-            "{level} {time:?} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
+            "{level} {time} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
             level = self.level.short(),
             time = self.timestamp.format("%Y-%m-%d %H:%M:%S"),
             tag = self.tag.as_deref().unwrap_or(DEFAULT_TAG),
@@ -72,7 +72,7 @@ impl LogData {
     pub fn write_compact_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
-            "{level} {time:?} [{file}:{line}:{column} @ {function_name}] {message}",
+            "{level} {time} [{file}:{line}:{column} @ {function_name}] {message}",
             level = self.level.short(),
             time = self.timestamp.format("%Y-%m-%d %H:%M:%S"),
             message = self.message,
