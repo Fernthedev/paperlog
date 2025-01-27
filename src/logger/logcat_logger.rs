@@ -2,7 +2,8 @@
 
 use crate::{log_level::LogLevel, Result};
 
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
+
 
 // assert tracing is not enabled
 #[cfg(feature = "tracing")]
@@ -61,6 +62,10 @@ impl From<LogLevel> for Priority {
     }
 }
 
+thread_local! {
+    static CSTRING_BUFFER: std::cell::RefCell<Vec<u8>> = std::cell::RefCell::new(Vec::with_capacity(8092));
+}
+
 pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let message_str = format!(
         "{}:{}:{} @ {} {}",
@@ -73,39 +78,63 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     );
 
     let priority: Priority = log.level.clone().into();
-    let tag = CString::new(log.tag.as_deref().unwrap_or("default"))?;
-    let file = CString::new(log.file.to_string())?;
-    let message = CString::new(message_str)?;
+    CSTRING_BUFFER.with(|buf| unsafe {
+        let mut buffer = buf.borrow_mut();
+        
+        let tag = log.tag.as_deref().unwrap_or("default");
+        
+        let sizes = tag.len() + log.file.len() + message_str.len() + 3;
+        if buffer.capacity() < sizes {
+            let capacity = buffer.capacity();
+            buffer.reserve(sizes - capacity);
+        }
+
+        // tag, file, and message are null-terminated
+        buffer.extend(tag.bytes().chain(std::iter::once(b'\0')));
+        buffer.extend(log.file.bytes().chain(std::iter::once(b'\0')));
+        buffer.extend(message_str.bytes().chain(std::iter::once(b'\0')));
+
+        let tag_len = tag.len() + 1;
+        let file_len = tag_len + log.file.len() + 1;
+        let message_len = message_str.len() + 1;
+
+        let tag = CStr::from_bytes_with_nul_unchecked(&buffer[0..tag_len]);
+        let file = CStr::from_bytes_with_nul_unchecked(&buffer[tag_len..file_len]);
+        let message = CStr::from_bytes_with_nul_unchecked(&buffer[file_len..message_len]);
+
+        #[cfg(feature = "android-api-30")]
+        {
+            use ndk_sys::{__android_log_message, __android_log_write_log_message};
+    
+            if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
+                return Ok(());
+            }
+    
+            let mut message = __android_log_message {
+                struct_size: size_of::<__android_log_message>(),
+                buffer_id: Buffer::Default as i32,
+                priority: priority as i32,
+                tag: tag.as_ptr(),
+                file: file.as_ptr(),
+                line: log.line,
+                message: message.as_ptr(),
+            };
+    
+            unsafe { __android_log_write_log_message(&mut message) };
+        }
+    
+        #[cfg(not(feature = "android-api-30"))]
+        {
+            use ndk_sys::__android_log_buf_write;
+    
+            unsafe { __android_log_buf_write(Buffer::Default as i32, priority as i32, tag.as_ptr(), message.as_ptr()) };
+        }
+
+        buffer.clear();
+    });
     // tag, priority, and time are provided by android's logcat
 
 
-    #[cfg(feature = "android-api-30")]
-    {
-        use ndk_sys::{__android_log_message, __android_log_write_log_message};
-
-        if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
-            return Ok(());
-        }
-
-        let mut message = __android_log_message {
-            struct_size: size_of::<__android_log_message>(),
-            buffer_id: Buffer::Default as i32,
-            priority: priority as i32,
-            tag: tag.as_ptr(),
-            file: file.as_ptr(),
-            line: log.line,
-            message: message.as_ptr(),
-        };
-
-        unsafe { __android_log_write_log_message(&mut message) };
-    }
-
-    #[cfg(not(feature = "android-api-30"))]
-    {
-        use ndk_sys::__android_log_buf_write;
-
-        unsafe { __android_log_buf_write(Buffer::Default as i32, priority as i32, tag.as_ptr(), message.as_ptr()) };
-    }
 
     Ok(())
 
