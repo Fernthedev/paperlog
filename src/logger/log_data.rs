@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use chrono::{DateTime, Local, Utc};
+
 use crate::log_level::LogLevel;
 
 pub const DEFAULT_TAG: &str = "GLOBAL";
@@ -9,7 +11,7 @@ pub struct LogData {
     pub level: LogLevel,
     pub tag: Option<String>,
     pub message: String,
-    pub timestamp: Instant,
+    pub timestamp: DateTime<Local>,
 
     pub file: String,
     pub line: u32,
@@ -31,7 +33,7 @@ impl LogData {
             level,
             tag,
             message,
-            timestamp: Instant::now(),
+            timestamp: Local::now(),
             file,
             line,
             column,
@@ -41,9 +43,9 @@ impl LogData {
 
     pub fn format(&self) -> String {
         format!(
-            "{level} {time:?} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
+            "{level} {time} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
             level = self.level,
-            time = self.timestamp,
+            time = self.timestamp.format("%Y-%m-%d %H:%M:%S"),
             tag = self.tag.as_deref().unwrap_or(DEFAULT_TAG),
             message = self.message,
             line = self.line,
@@ -53,12 +55,12 @@ impl LogData {
         )
     }
 
-    pub fn write_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn write_to_io(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
-            "{level} {time:?} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
+            "{level} {time} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
             level = self.level.short(),
-            time = self.timestamp,
+            time = self.timestamp.format("%Y-%m-%d %H:%M:%S"),
             tag = self.tag.as_deref().unwrap_or(DEFAULT_TAG),
             message = self.message,
             line = self.line,
@@ -67,12 +69,12 @@ impl LogData {
             function_name = self.function_name.as_deref().unwrap_or("default")
         )
     }
-    pub fn write_compact_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn write_compact_to_io(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
-            "{level} {time:?} [{file}:{line}:{column} @ {function_name}] {message}",
+            "{level} {time} [{file}:{line}:{column} @ {function_name}] {message}",
             level = self.level.short(),
-            time = self.timestamp,
+            time = self.timestamp.format("%Y-%m-%d %H:%M:%S"),
             message = self.message,
             line = self.line,
             column = self.column,
@@ -87,7 +89,7 @@ impl Default for LogData {
             level: LogLevel::Info,
             tag: None,
             message: String::new(),
-            timestamp: Instant::now(),
+            timestamp: Local::now(),
             file: String::new(),
             line: 0,
             column: 0,

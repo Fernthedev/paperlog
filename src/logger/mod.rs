@@ -14,6 +14,7 @@ use std::{
 };
 
 use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, Result};
+use chrono::{Local, Utc};
 use color_eyre::eyre::{bail, eyre, Context};
 use itertools::Itertools;
 
@@ -174,7 +175,7 @@ impl LoggerThread {
                         level: LogLevel::Error,
                         message: format!("Error occurred in logging thread: {e}"),
                         tag: Some("Paper2".to_string()),
-                        timestamp: Instant::now(),
+                        timestamp: Local::now(),
                         file: file!().to_string(),
                         line: line!(),
                         column: column!(),
@@ -284,9 +285,8 @@ impl LoggerThread {
 
             // if no more logs in the pipeline, flush it
             {
-                let locked_list = log_mutex.lock().expect("is_empty");
+                let is_empty = log_mutex.lock().expect("is_empty").is_empty();
 
-                let is_empty = locked_list.is_empty();
                 if is_empty {
                     Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
                 }
@@ -392,7 +392,7 @@ pub fn panic_hook(
                 level: LogLevel::Error,
                 tag: Some("panic".to_string()),
                 message: format!("panicked at '{}', {}", msg, location),
-                timestamp: Instant::now(),
+                timestamp: Local::now(),
                 file: file!().to_string(),
                 line: line!(),
                 column: column!(),
@@ -406,7 +406,7 @@ pub fn panic_hook(
                     level: LogLevel::Error,
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", Backtrace::force_capture()),
-                    timestamp: Instant::now(),
+                    timestamp: Local::now(),
                     file: file!().to_string(),
                     line: line!(),
                     column: column!(),
@@ -425,7 +425,7 @@ pub fn panic_hook(
                     level: LogLevel::Error,
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", SpanTrace::capture()),
-                    timestamp: Instant::now(),
+                    timestamp: Local::now(),
                     file: file!().to_string().into(),
                     line: line!(),
                     column: column!(),
