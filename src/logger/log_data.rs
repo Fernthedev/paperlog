@@ -55,7 +55,7 @@ impl LogData {
         )
     }
 
-    pub fn write_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn write_to_io(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
             "{level} {time} [{tag}] [{file}:{line}:{column} @ {function_name}] {message}",
@@ -69,7 +69,7 @@ impl LogData {
             function_name = self.function_name.as_deref().unwrap_or("default")
         )
     }
-    pub fn write_compact_to_io(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn write_compact_to_io(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         writeln!(
             writer,
             "{level} {time} [{file}:{line}:{column} @ {function_name}] {message}",
