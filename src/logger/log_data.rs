@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 
 use crate::log_level::LogLevel;
 
@@ -11,7 +11,7 @@ pub struct LogData {
     pub level: LogLevel,
     pub tag: Option<String>,
     pub message: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: DateTime<Local>,
 
     pub file: String,
     pub line: u32,
@@ -33,7 +33,7 @@ impl LogData {
             level,
             tag,
             message,
-            timestamp: Utc::now(),
+            timestamp: Local::now(),
             file,
             line,
             column,
@@ -89,7 +89,7 @@ impl Default for LogData {
             level: LogLevel::Info,
             tag: None,
             message: String::new(),
-            timestamp: Utc::now(),
+            timestamp: Local::now(),
             file: String::new(),
             line: 0,
             column: 0,
