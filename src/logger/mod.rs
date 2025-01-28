@@ -285,9 +285,8 @@ impl LoggerThread {
 
             // if no more logs in the pipeline, flush it
             {
-                let locked_list = log_mutex.lock().expect("is_empty");
+                let is_empty = log_mutex.lock().expect("is_empty").is_empty();
 
-                let is_empty = locked_list.is_empty();
                 if is_empty {
                     Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
                 }
