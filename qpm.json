@@ -17,7 +17,8 @@
   },
   "workspace": {
     "scripts": {
-      "build": ["cargo ndk --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"],
+      "build": ["cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"],
+      "debug": ["cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"],
       "copy": ["pwsh ./scripts/copy.ps1"],
       "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
     },

@@ -68,4 +68,5 @@ ndk-sys = "0.6"
 [profile.release]
 opt-level = 3
 lto = true
-strip = "symbols"
+strip = "none"
+# strip = "symbols"
