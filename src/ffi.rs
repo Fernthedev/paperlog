@@ -1,6 +1,9 @@
+use crate::get_logger;
+use crate::init_logger;
 use crate::log_level::LogLevel;
 use crate::logger::LogData;
-use crate::{get_logger, init_logger, LoggerConfig};
+use crate::logger::LoggerConfig;
+use std::ffi::c_uint;
 use std::ffi::{c_uchar, c_ulonglong, CStr};
 use std::os::raw::{c_char, c_int};
 use std::path::PathBuf;
@@ -15,7 +18,7 @@ pub struct LoggerConfigFfi {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_init_logger_ffi(
+pub unsafe extern "C" fn paper2_init_logger_ffi(
     config: *const LoggerConfigFfi,
     path: *const c_char,
 ) -> bool {
@@ -42,7 +45,7 @@ pub extern "C" fn paper2_init_logger_ffi(
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_register_context_id(tag: *const c_char) {
+pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
     if tag.is_null() {
         return;
     }
@@ -70,7 +73,7 @@ pub extern "C" fn paper2_register_context_id(tag: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
+pub unsafe extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
     if tag.is_null() {
         return;
     }
@@ -85,7 +88,7 @@ pub extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_queue_log_ffi(
+pub unsafe extern "C" fn paper2_queue_log_ffi(
     level: LogLevel,
     tag: *const c_char,
     message: *const c_char,
@@ -133,7 +136,7 @@ pub extern "C" fn paper2_queue_log_ffi(
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_wait_for_flush() -> bool {
+pub unsafe extern "C" fn paper2_wait_for_flush() -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };
@@ -144,7 +147,7 @@ pub extern "C" fn paper2_wait_for_flush() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_get_log_directory() -> *const c_char {
+pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
     let Some(logger) = get_logger() else {
         return std::ptr::null();
     };
@@ -162,7 +165,7 @@ pub extern "C" fn paper2_get_log_directory() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_get_inited() -> bool {
+pub unsafe extern "C" fn paper2_get_inited() -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };
@@ -177,7 +180,7 @@ pub extern "C" fn paper2_get_inited() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_int) -> bool {
+pub unsafe extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_uint) -> bool {
     let Some(logger) = get_logger() else {
         return false;
     };

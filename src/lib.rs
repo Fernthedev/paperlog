@@ -3,18 +3,18 @@
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 
 mod log_level;
-mod logger;
+pub mod logger;
 mod semaphore_lite;
 
 static LOGGER: OnceLock<ThreadSafeLoggerThread> = OnceLock::new();
 
 #[cfg(feature = "ffi")]
-mod ffi;
+pub mod ffi;
 
 #[cfg(test)]
 mod tests;
 
-pub use logger::{do_log, LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+use logger::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, LoggerError>;

@@ -145,3 +145,33 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     //     }
     // }
 }
+
+pub fn log_error(message_str: String) {
+    use ndk_sys::{__android_log_write, android_LogPriority};
+
+    let priority = android_LogPriority::ANDROID_LOG_ERROR.0;
+    let tag = CString::from(c"E");
+    let msg = match CString::new(message_str) {
+        Ok(s) => s,
+        Err(_e) => {
+            return;
+        }
+    };
+
+    unsafe { __android_log_write(priority as i32, tag.as_ptr(), msg.as_ptr()) };
+}
+
+pub fn log_info(message_str: String) {
+    use ndk_sys::{__android_log_write, android_LogPriority};
+
+    let priority = android_LogPriority::ANDROID_LOG_INFO.0;
+    let tag = CString::from(c"I");
+    let msg = match CString::new(message_str) {
+        Ok(s) => s,
+        Err(_e) => {
+            return;
+        }
+    };
+
+    unsafe { __android_log_write(priority as i32, tag.as_ptr(), msg.as_ptr()) };
+}

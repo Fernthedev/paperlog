@@ -1,5 +1,5 @@
 use ctor::ctor;
-use paper2::LoggerConfig;
+use paper2::logger::LoggerConfig;
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
 use std::{ffi::CStr, ffi::CString, path::PathBuf};
@@ -9,6 +9,15 @@ use mimalloc::MiMalloc;
 // using mimalloc for android
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
+
+fn log_info(message_str: String) {
+    #[cfg(target_os = "android")]
+    paper2::logger::logcat_logger::log_info(message_str);
+}
+fn log_error(message_str: String) {
+    #[cfg(target_os = "android")]
+    paper2::logger::logcat_logger::log_error(message_str);
+}
 
 #[ctor]
 fn dlopen_initialize() {
@@ -31,36 +40,6 @@ fn dlopen_initialize() {
         )));
         panic!("Error occurred in logging thread: {}", e);
     }
-}
-
-fn log_error(message_str: String) {
-    use ndk_sys::{__android_log_write, android_LogPriority};
-
-    let priority = android_LogPriority::ANDROID_LOG_ERROR.0;
-    let tag = CString::from(c"E");
-    let msg = match CString::new(message_str) {
-        Ok(s) => s,
-        Err(_e) => {
-            return;
-        }
-    };
-
-    unsafe { __android_log_write(priority as i32, tag.as_ptr(), msg.as_ptr()) };
-}
-
-fn log_info(message_str: String) {
-    use ndk_sys::{__android_log_write, android_LogPriority};
-
-    let priority = android_LogPriority::ANDROID_LOG_INFO.0;
-    let tag = CString::from(c"I");
-    let msg = match CString::new(message_str) {
-        Ok(s) => s,
-        Err(_e) => {
-            return;
-        }
-    };
-
-    unsafe { __android_log_write(priority as i32, tag.as_ptr(), msg.as_ptr()) };
 }
 
 pub fn panic_hook(backtrace: bool) -> Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync + 'static> {

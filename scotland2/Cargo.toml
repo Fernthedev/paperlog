@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 ctor = "0.3"
 mimalloc = "0.1"
-ndk-sys = "0.6"
+
 paper2 = { path = "../", features = ["logcat", "ffi"] }
 scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.1.6" }
 
