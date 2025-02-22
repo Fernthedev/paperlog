@@ -3,6 +3,12 @@ use std::{ffi::CStr, path::PathBuf};
 use ctor::ctor;
 use paper2::LoggerConfig;
 
+use mimalloc::MiMalloc;
+
+// using mimalloc for android
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[ctor]
 fn dlopen_initialize() {
     println!("DLOpen initializing");

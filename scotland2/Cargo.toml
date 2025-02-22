@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-color-eyre = "0.6"
 ctor = "0.3"
+mimalloc = "0.1"
 paper2 = { path = "../", features = ["logcat", "ffi"] }
 scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.1.6" }
 
@@ -14,8 +14,3 @@ crate-type = ["cdylib"]
 
 [build-dependencies]
 cdylib-link-lines = "0.1"
-
-[profile.release]
-opt-level = 3
-lto = true
-strip = "symbols"
