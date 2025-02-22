@@ -111,7 +111,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     
             let mut message = __android_log_message {
                 struct_size: size_of::<__android_log_message>(),
-                buffer_id: Buffer::Default as i32,
+                buffer_id: Buffer::Main as i32,
                 priority: priority as i32,
                 tag: tag.as_ptr(),
                 file: file.as_ptr(),
