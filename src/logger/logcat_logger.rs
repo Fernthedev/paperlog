@@ -124,9 +124,9 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     
         #[cfg(not(feature = "android-api-30"))]
         {
-            use ndk_sys::__android_log_buf_write;
+            use ndk_sys::__android_log_write;
     
-            unsafe { __android_log_buf_write(Buffer::Default as i32, priority as i32, tag.as_ptr(), message.as_ptr()) };
+            unsafe { __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr()) };
         }
 
         buffer.clear();

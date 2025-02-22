@@ -1472,6 +1472,7 @@ dependencies = [
  "cdylib-link-lines",
  "ctor",
  "mimalloc",
+ "ndk-sys 0.6.0+11769913",
  "paper2",
  "scotland2_rs",
 ]
