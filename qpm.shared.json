@@ -21,7 +21,7 @@
     "workspace": {
       "scripts": {
         "build": [
-          "cargo ndk --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release"
+          "cargo ndk --bindgen -t arm64-v8a -o build build --release"
         ],
         "copy": [
           "pwsh ./scripts/copy.ps1"
