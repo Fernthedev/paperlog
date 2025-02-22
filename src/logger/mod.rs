@@ -13,9 +13,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, Result};
+use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, LoggerError, Result};
 use chrono::{Local, Utc};
-use color_eyre::eyre::{bail, eyre, Context};
 use itertools::Itertools;
 
 #[cfg(all(target_os = "android", feature = "logcat"))]
@@ -35,6 +34,7 @@ pub mod tracing_logger;
 
 mod log_data;
 pub use log_data::LogData;
+use thiserror::Error;
 
 pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
 
@@ -91,27 +91,29 @@ impl LoggerThread {
 
         #[cfg(feature = "file")]
         let global_file = {
-            fs::create_dir_all(&config.context_log_path).with_context(|| {
-                format!(
-                    "Unable to make logging directory for contexts {}",
-                    config.context_log_path.display()
+            fs::create_dir_all(&config.context_log_path).map_err(|e| {
+                LoggerError::IoSpecificError(
+                    e,
+                    Some("Unable to make logging directory for contexts".to_string()),
+                    config.context_log_path.clone(),
                 )
             })?;
 
             if let Some(parent) = log_path.parent() {
-                fs::create_dir_all(parent).with_context(|| {
-                    format!(
-                        "Unable to make logging directory for global file {}",
-                        config.context_log_path.display()
+                fs::create_dir_all(&parent).map_err(|e| {
+                    LoggerError::IoSpecificError(
+                        e,
+                        Some("Unable to make logging directory for global".to_string()),
+                        parent.to_path_buf(),
                     )
                 })?;
             }
 
             let inner = File::create(&log_path).map_err(|e| {
-                eyre!(
-                    "Unable to create global file at {}: {}",
-                    log_path.display(),
-                    e.to_string()
+                LoggerError::IoSpecificError(
+                    e,
+                    Some("Unable to create global file".to_string()),
+                    log_path,
                 )
             })?;
             BufWriter::new(inner)
@@ -135,7 +137,7 @@ impl LoggerThread {
 
     pub fn init(self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
         if self.inited.load(Ordering::SeqCst) {
-            bail!("LoggerThread already initialized");
+            return Err(LoggerError::AlreadyInitialized);
         }
 
         self.inited.store(true, Ordering::SeqCst);
@@ -234,10 +236,13 @@ impl LoggerThread {
         #[cfg(feature = "file")]
         {
             let log_path = self.config.context_log_path.join(tag).with_extension("log");
-            let file = BufWriter::new(
-                File::create(&log_path)
-                    .map_err(|e| eyre!("Unable to create context file at {}", e.to_string()))?,
-            );
+            let file = BufWriter::new(File::create(&log_path).map_err(|e| {
+                LoggerError::IoSpecificError(
+                    e,
+                    Some("Unable to create context file".to_string()),
+                    log_path,
+                )
+            })?);
 
             self.context_map.insert(tag.to_string(), file);
         }
@@ -288,7 +293,8 @@ impl LoggerThread {
                 let is_empty = log_mutex.lock().expect("is_empty").is_empty();
 
                 if is_empty {
-                    Self::flush(&logger_thread, &flush_semaphore).context("flush")?;
+                    Self::flush(&logger_thread, &flush_semaphore)
+                        .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
                 }
             }
 
@@ -300,7 +306,7 @@ impl LoggerThread {
     fn flush(
         logger_thread: &Arc<RwLock<LoggerThread>>,
         flush_semaphore: &Arc<SemaphoreLite>,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), std::io::Error> {
         // flush file
         #[cfg(feature = "file")]
         {

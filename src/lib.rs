@@ -1,4 +1,6 @@
-use std::{path::PathBuf, sync::OnceLock};
+#![feature(error_generic_member_access)]
+
+use std::{backtrace, path::PathBuf, sync::OnceLock};
 
 mod log_level;
 mod logger;
@@ -13,8 +15,41 @@ mod ffi;
 mod tests;
 
 pub use logger::{do_log, LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+use thiserror::Error;
 
-pub type Result<T> = color_eyre::Result<T>;
+pub type Result<T> = std::result::Result<T, LoggerError>;
+
+#[derive(Error, Debug)]
+pub enum LoggerError {
+    #[error("Unknown Error occurred in logging thread: {0}")]
+    LogError(String, backtrace::Backtrace),
+
+    #[error("Error occurred during flush in logging thread: {0}")]
+    FlushError(
+        #[backtrace]
+        #[source]
+        Box<dyn std::error::Error + Sync + Send>,
+    ),
+
+    #[error("IO Error occurred in logging thread: {0}")]
+    IoError(
+        #[from]
+        #[backtrace]
+        std::io::Error,
+    ),
+
+    #[error("IO Error at {2} occurred in logging thread: Context {1:?} {0}")]
+    IoSpecificError(
+        #[backtrace]
+        #[source]
+        std::io::Error,
+        Option<String>,
+        PathBuf,
+    ),
+
+    #[error("Logger already initialized")]
+    AlreadyInitialized,
+}
 
 pub fn get_logger() -> Option<ThreadSafeLoggerThread> {
     LOGGER.get().cloned()
