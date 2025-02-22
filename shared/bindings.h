@@ -48,7 +48,7 @@ const char *paper2_get_log_directory(void);
 
 bool paper2_get_inited(void);
 
-bool paper2_wait_flush_timeout(int timeout_ms);
+bool paper2_wait_flush_timeout(unsigned int timeout_ms);
 
 #ifdef __cplusplus
 }  // extern "C"

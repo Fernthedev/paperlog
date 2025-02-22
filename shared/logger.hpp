@@ -9,6 +9,7 @@
 #include "bindings.h"
 #include "log_level.hpp"
 #include <chrono>
+#include <cstdint>
 #include <fmt/base.h>
 #include <fmt/xchar.h>
 #include <thread>
@@ -207,8 +208,12 @@ inline void UnregisterFileContextId(std::string_view contextId) {
   Paper::ffi::paper2_unregister_context_id(contextId.data());
 }
 
+// blocks indefinitely until a log gets flushed
 inline void WaitForFlush() {
   Paper::ffi::paper2_wait_for_flush();
+}
+inline void WaitForFlushTimeout(uint32_t timeout) {
+  Paper::ffi::paper2_wait_flush_timeout(timeout);
 }
 
 // defined in backtrace.hpp
