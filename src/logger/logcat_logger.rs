@@ -76,9 +76,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     );
 
     let priority: Priority = log.level.clone().into();
-    CSTRING_BUFFER.with(|buf| unsafe {
-        let mut buffer = buf.borrow_mut();
-
+    CSTRING_BUFFER.with_borrow_mut(|buffer| unsafe {
         let tag = log.tag.as_deref().unwrap_or("default");
 
         let sizes = tag.len() + log.file.len() + message_str.len() + 3;
