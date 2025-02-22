@@ -270,10 +270,14 @@ impl LoggerThread {
     ) -> Result<()> {
         let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
 
+        let mut vec = Vec::with_capacity(100);
 
         loop {
             // move items from queue to local variable
-            let queue = Vec::from_iter(log_mutex.lock().expect("queue").drain(..));
+            // then resize the vec to 100
+            // preventing an infinite growing log buffer
+            let queue = log_mutex.replace(vec).expect("queue");
+            vec = Vec::with_capacity(100);
 
             // if queue is not empty, write the logs
             if !queue.is_empty() {
