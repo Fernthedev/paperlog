@@ -1,4 +1,4 @@
 # https://vr-compare.com/headset/oculusquest2 
 # Quest 2/3 is kryo, minimum supported device
 [build]
-rustflags = ["-C", "target-cpu=kryo", "-C", "target-feature=+v8,v8a,v8r,+neon"]
+rustflags = ["-C", "target-cpu=kryo", "-C", "target-feature=+v7,+v8a,+v8r,+neon"]
