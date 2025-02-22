@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
 use super::LoggerThread;
 
@@ -15,7 +15,7 @@ pub(crate) fn do_log(
         .tag
         .as_ref()
         .and_then(|tag| logger_thread.context_map.get_mut(tag));
-    
+
     if let Some(context_file) = context_file {
         log.write_compact_to_io(context_file)?;
     }
