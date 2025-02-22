@@ -89,8 +89,7 @@ jobs:
           rustup target add aarch64-linux-android
 
   
-      - name: Build
-        run: qpm s build
+
 
 
       # - name: Run tests
@@ -125,6 +124,9 @@ jobs:
 
           # Name of qmod in release asset. Assumes exists, same as prior
           qpm_qmod: ${{env.qmodName}}.qmod
+
+      - name: Build
+        run: qpm s build
 
       - name: Make qmod paperlog
         run: |
