@@ -17,7 +17,7 @@
   },
   "workspace": {
     "scripts": {
-      "build": ["cargo ndk --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release"],
+      "build": ["cargo ndk --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --config ./scotland2/.cargo/config.toml --release"],
       "copy": ["pwsh ./scripts/copy.ps1"],
       "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
     },
