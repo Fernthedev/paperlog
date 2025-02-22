@@ -104,7 +104,7 @@ jobs:
           qpm_qmod: ${{env.qmodName}}.qmod
 
       - name: Build
-        run: qpm s build
+        run: qpm s build -- --verbose
 
 
       - name: Make qmod paperlog
