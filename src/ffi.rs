@@ -15,7 +15,10 @@ pub struct LoggerConfigFfi {
 }
 
 #[no_mangle]
-pub extern "C" fn paper2_init_logger_ffi(config: *const LoggerConfigFfi, path: *const c_char) -> bool {
+pub extern "C" fn paper2_init_logger_ffi(
+    config: *const LoggerConfigFfi,
+    path: *const c_char,
+) -> bool {
     if path.is_null() {
         return false;
     }

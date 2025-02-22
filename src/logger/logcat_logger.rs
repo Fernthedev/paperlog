@@ -4,7 +4,6 @@ use crate::{log_level::LogLevel, Result};
 
 use std::ffi::{CStr, CString};
 
-
 // assert tracing is not enabled
 #[cfg(feature = "tracing")]
 compile_error!("The 'tracing' feature must be enabled to use this logger.");
@@ -79,9 +78,9 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
     let priority: Priority = log.level.clone().into();
     CSTRING_BUFFER.with(|buf| unsafe {
         let mut buffer = buf.borrow_mut();
-        
+
         let tag = log.tag.as_deref().unwrap_or("default");
-        
+
         let sizes = tag.len() + log.file.len() + message_str.len() + 3;
         if buffer.capacity() < sizes {
             let capacity = buffer.capacity();
@@ -104,11 +103,13 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
         #[cfg(feature = "android-api-30")]
         {
             use ndk_sys::{__android_log_message, __android_log_write_log_message};
-    
-            if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) } == 0 {
+
+            if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) }
+                == 0
+            {
                 return Ok(());
             }
-    
+
             let mut message = __android_log_message {
                 struct_size: size_of::<__android_log_message>(),
                 buffer_id: Buffer::Main as i32,
@@ -118,22 +119,20 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
                 line: log.line,
                 message: message.as_ptr(),
             };
-    
+
             unsafe { __android_log_write_log_message(&mut message) };
         }
-    
+
         #[cfg(not(feature = "android-api-30"))]
         {
             use ndk_sys::__android_log_write;
-    
+
             unsafe { __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr()) };
         }
 
         buffer.clear();
     });
     // tag, priority, and time are provided by android's logcat
-
-
 
     Ok(())
 

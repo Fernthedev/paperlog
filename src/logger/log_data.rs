@@ -1,6 +1,4 @@
-use std::time::Instant;
-
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local};
 
 use crate::log_level::LogLevel;
 

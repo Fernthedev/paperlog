@@ -10,11 +10,11 @@ use std::{
         Arc, Mutex, RwLock,
     },
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crate::{log_level::LogLevel, semaphore_lite::SemaphoreLite, LoggerError, Result};
-use chrono::{Local, Utc};
+use chrono::Local;
 use itertools::Itertools;
 
 #[cfg(all(target_os = "android", feature = "logcat"))]
@@ -34,7 +34,6 @@ pub mod tracing_logger;
 
 mod log_data;
 pub use log_data::LogData;
-use thiserror::Error;
 
 pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
 
