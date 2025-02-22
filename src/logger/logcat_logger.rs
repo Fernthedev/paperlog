@@ -150,7 +150,7 @@ pub fn log_error(message_str: String) {
     use ndk_sys::{__android_log_write, android_LogPriority};
 
     let priority = android_LogPriority::ANDROID_LOG_ERROR.0;
-    let tag = CString::from(c"E");
+    let tag = CString::from(c"Paper2");
     let msg = match CString::new(message_str) {
         Ok(s) => s,
         Err(_e) => {
@@ -165,7 +165,7 @@ pub fn log_info(message_str: String) {
     use ndk_sys::{__android_log_write, android_LogPriority};
 
     let priority = android_LogPriority::ANDROID_LOG_INFO.0;
-    let tag = CString::from(c"I");
+    let tag = CString::from(c"Paper2");
     let msg = match CString::new(message_str) {
         Ok(s) => s,
         Err(_e) => {
