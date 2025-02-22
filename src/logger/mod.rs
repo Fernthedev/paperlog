@@ -295,16 +295,18 @@ impl LoggerThread {
 
             // if no more logs in the pipeline, flush it
             {
-                let is_empty = log_mutex.lock().expect("is_empty").is_empty();
+                let locked_list = log_mutex.lock().expect("is_empty");
+                let is_empty = locked_list.is_empty();
 
                 if is_empty {
                     Self::flush(&logger_thread, &flush_semaphore)
                         .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
+
+                    // wait for more logs
+                    drop(locked_list);
+                    log_semaphore_lite.wait();
                 }
             }
-
-            // wait for more logs
-            log_semaphore_lite.wait();
         }
     }
 
