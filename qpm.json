@@ -17,9 +17,20 @@
   },
   "workspace": {
     "scripts": {
-      "build": ["cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"],
-      "debug": ["cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"],
-      "copy": ["pwsh ./scripts/copy.ps1"],
+      "build": [
+        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"
+      ],
+      "debug": [
+        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --config ./scotland2/.cargo/config.toml $0?"
+      ],
+      "copy": [
+        "qpm s debug",
+        "adb push ./build/arm64-v8a/libpaper2_scotland2.so /sdcard/ModData/com.beatgames.beatsaber/Modloader/libs/libpaper2_scotland2.so",
+        "adb shell am force-stop com.beatgames.beatsaber",
+        "adb shell am start com.beatgames.beatsaber/com.unity3d.player.UnityPlayerActivity",
+        "adb logcat -c",
+        "adb logcat"
+      ],
       "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
     },
     "qmodIncludeDirs": ["./build/arm64-v8a"],
