@@ -2,8 +2,8 @@
 # Quest 2/3 is kryo, minimum supported device
 [build]
 rustflags = [
-    "-Z",
-    "sanitizer=address",
+    # "-Z",
+    # "sanitizer=address",
     "-C",
     "target-cpu=kryo",
     "-C",
