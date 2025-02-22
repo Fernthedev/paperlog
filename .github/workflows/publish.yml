@@ -92,7 +92,7 @@ jobs:
       - name: Build
         run: |
           cd scotland2  
-          cargo ndk --bindgen -o build -t arm64-v8a build --verbose
+          cargo ndk --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --verbose
 
 
       # - name: Run tests
