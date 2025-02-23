@@ -1,6 +1,5 @@
 use std::{
     backtrace::Backtrace,
-    collections::HashMap,
     fs::{self, File},
     io::{BufWriter, Write},
     panic::PanicHookInfo,
@@ -34,6 +33,7 @@ pub mod tracing_logger;
 
 mod log_data;
 pub use log_data::LogData;
+use rustc_hash::FxHashMap;
 
 pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
 
@@ -75,7 +75,7 @@ pub struct LoggerThread {
     global_file: BufWriter<File>,
 
     #[cfg(feature = "file")]
-    context_map: HashMap<String, BufWriter<File>>,
+    context_map: FxHashMap<String, BufWriter<File>>,
 
     sinks: Vec<Box<dyn LogCallback>>,
 }
@@ -128,7 +128,7 @@ impl LoggerThread {
             global_file,
 
             #[cfg(feature = "file")]
-            context_map: HashMap::new(),
+            context_map: Default::default(),
 
             sinks: Vec::new(),
         })
