@@ -1,4 +1,5 @@
 #![feature(error_generic_member_access)]
+#![feature(lock_value_accessors)]
 
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 

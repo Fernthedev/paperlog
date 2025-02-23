@@ -1,6 +1,5 @@
 use std::{
     backtrace::Backtrace,
-    collections::HashMap,
     fs::{self, File},
     io::{BufWriter, Write},
     panic::PanicHookInfo,
@@ -34,6 +33,7 @@ pub mod tracing_logger;
 
 mod log_data;
 pub use log_data::LogData;
+use rustc_hash::FxHashMap;
 
 pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
 
@@ -75,7 +75,7 @@ pub struct LoggerThread {
     global_file: BufWriter<File>,
 
     #[cfg(feature = "file")]
-    context_map: HashMap<String, BufWriter<File>>,
+    context_map: FxHashMap<String, BufWriter<File>>,
 
     sinks: Vec<Box<dyn LogCallback>>,
 }
@@ -99,7 +99,7 @@ impl LoggerThread {
             })?;
 
             if let Some(parent) = log_path.parent() {
-                fs::create_dir_all(&parent).map_err(|e| {
+                fs::create_dir_all(parent).map_err(|e| {
                     LoggerError::IoSpecificError(
                         e,
                         Some("Unable to make logging directory for global".to_string()),
@@ -128,7 +128,7 @@ impl LoggerThread {
             global_file,
 
             #[cfg(feature = "file")]
-            context_map: HashMap::new(),
+            context_map: Default::default(),
 
             sinks: Vec::new(),
         })
@@ -182,7 +182,7 @@ impl LoggerThread {
                         column: column!(),
                         function_name: None,
                     },
-                    thread_safe_self_clone.clone(),
+                    &thread_safe_self_clone,
                 );
             }
         });
@@ -235,13 +235,14 @@ impl LoggerThread {
         #[cfg(feature = "file")]
         {
             let log_path = self.config.context_log_path.join(tag).with_extension("log");
-            let file = BufWriter::new(File::create(&log_path).map_err(|e| {
+            let file = File::create(&log_path).map_err(|e| {
                 LoggerError::IoSpecificError(
                     e,
                     Some("Unable to create context file".to_string()),
                     log_path,
                 )
-            })?);
+            })?;
+            let file = BufWriter::new(file);
 
             self.context_map.insert(tag.to_string(), file);
         }
@@ -269,9 +270,14 @@ impl LoggerThread {
     ) -> Result<()> {
         let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
 
+        let mut vec = Vec::with_capacity(100);
+
         loop {
             // move items from queue to local variable
-            let queue = Vec::from_iter(log_mutex.lock().expect("queue").drain(..));
+            // then resize the vec to 100
+            // preventing an infinite growing log buffer
+            let queue = log_mutex.replace(vec).expect("queue");
+            vec = Vec::with_capacity(100);
 
             // if queue is not empty, write the logs
             if !queue.is_empty() {
@@ -283,7 +289,7 @@ impl LoggerThread {
                 let split_logs = split_str_into_chunks(queue, max_str_len);
 
                 for log in split_logs {
-                    do_log(log, logger_thread.clone())?;
+                    do_log(log, &logger_thread)?;
                 }
             }
 
@@ -296,8 +302,6 @@ impl LoggerThread {
                         .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
                 }
             }
-
-            // wait for more logs
             log_semaphore_lite.wait();
         }
     }
@@ -356,15 +360,15 @@ fn split_str_into_chunks(queue: Vec<LogData>, max_str_len: usize) -> impl Iterat
     })
 }
 
-pub fn do_log(log: LogData, logger_thread: Arc<RwLock<LoggerThread>>) -> Result<()> {
+pub fn do_log(log: LogData, logger_thread: &RwLock<LoggerThread>) -> Result<()> {
+    #[cfg(all(target_os = "android", feature = "logcat"))]
+    logcat_logger::do_log(&log)?;
+
     #[cfg(feature = "file")]
-    file_logger::do_log(&log, logger_thread.clone())?;
+    file_logger::do_log(&log, logger_thread)?;
 
     #[cfg(feature = "stdout")]
     stdout_logger::do_log(&log);
-
-    #[cfg(all(target_os = "android", feature = "logcat"))]
-    logcat_logger::do_log(&log)?;
 
     #[cfg(feature = "sinks")]
     sink_logger::do_log(&log, logger_thread)?;
@@ -403,7 +407,7 @@ pub fn panic_hook(
                 column: column!(),
                 function_name: None,
             },
-            logger_thread.clone(),
+            &logger_thread,
         );
         if backtrace {
             let _ = do_log(
@@ -417,7 +421,7 @@ pub fn panic_hook(
                     column: column!(),
                     function_name: None,
                 },
-                logger_thread.clone(),
+                &logger_thread,
             );
         }
 

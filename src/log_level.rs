@@ -10,12 +10,12 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
-    pub fn short(&self) -> &str {
+    pub fn short(&self) -> char {
         match self {
-            LogLevel::Info => "I",
-            LogLevel::Warn => "W",
-            LogLevel::Error => "E",
-            LogLevel::Debug => "D",
+            LogLevel::Info => 'I',
+            LogLevel::Warn => 'W',
+            LogLevel::Error => 'E',
+            LogLevel::Debug => 'D',
         }
     }
 }
