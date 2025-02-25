@@ -7,5 +7,5 @@ rustflags = [
     "-C",
     "target-cpu=kryo",
     "-C",
-    "target-feature=+v8a,+v8r,+neon,+tagged-globals",
+    "target-feature=+v8a,+neon,+tagged-globals,-rcpc",
 ]
