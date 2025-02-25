@@ -5,7 +5,7 @@ rustflags = [
     # "-Z",
     # "sanitizer=address",
     "-C",
-    "target-cpu=kryo",
+    "target-cpu=generic",
     "-C",
     "target-feature=+v8a,+neon,+tagged-globals,-rcpc",
 ]
