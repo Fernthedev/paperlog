@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ctor = "0.3"
+ctor = "0.4"
 mimalloc = "0.1"
 
 paper2 = { path = "../", features = ["logcat", "ffi"] }
-scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.1.6" }
+scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.2.2" }
 
 [lib]
 crate-type = ["cdylib"]
