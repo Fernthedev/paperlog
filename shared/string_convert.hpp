@@ -35,9 +35,13 @@ inline std::size_t convstr(char16_t const* inp, char* outp, int isz, int osz) {
   char16_t const* from_next;
   char* to_next;
   auto convOut = conv.out(state, inp, inp + isz, from_next, outp, outp + osz, to_next);
+
+#ifdef __EXCEPTIONS
   if (convOut != std::codecvt_base::ok) {
     throw std::runtime_error("Failed to convert " + std::to_string(convOut));
   }
+#endif
+
   return (std::size_t)(to_next - outp);
 }
 } // namespace detail

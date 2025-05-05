@@ -171,6 +171,7 @@ template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TA
   return fmtLogTag<lvl, TArgs...>(str, nullptr, std::forward<TArgs>(args)...);
 }
 
+#ifdef __EXCEPTIONS
 template <typename Exception = std::runtime_error, typename... TArgs>
 inline void fmtThrowError(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
   Logger::fmtLog<LogLevel::ERR, TArgs...>(std::forward(str), std::forward<TArgs>(args)...);
@@ -184,6 +185,7 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> str, std::string_view const 
   auto message = fmt::vformat(str, fmt::make_format_args(args...));
   throw Exception(fmt::format("{} {}", tag, message));
 }
+#endif
 
 inline std::filesystem::path getLogDirectoryPathGlobal() {
   return Paper::ffi::paper2_get_log_directory();
