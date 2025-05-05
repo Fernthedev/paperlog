@@ -1991,7 +1991,7 @@ dependencies = [
 [[package]]
 name = "scotland2_rs"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/scotland2_rs.git?tag=v0.2.2#ee5ca56cd7c15f32106b5432b04bb2621a2f7637"
+source = "git+https://github.com/QuestPackageManager/scotland2_rs.git?tag=v0.2.3#c2dc21423b2b5043526560b1a4736167db141932"
 dependencies = [
  "bindgen",
  "qpm_cli",
