@@ -8,7 +8,7 @@ ctor = "0.4"
 mimalloc = "0.1"
 
 paper2 = { path = "../", features = ["logcat", "ffi"] }
-scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.2.3" }
+scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.2.4" }
 
 [lib]
 crate-type = ["cdylib"]
