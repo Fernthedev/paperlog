@@ -6,7 +6,7 @@ use std::ffi::{CStr, CString};
 
 // assert tracing is not enabled
 #[cfg(feature = "tracing")]
-compile_error!("The 'tracing' feature must be enabled to use this logger.");
+compile_error!("The 'tracing' feature must not be enabled to use this logger.");
 
 use ndk_sys::__android_log_is_loggable;
 use ndk_sys::{android_LogPriority, log_id};
@@ -108,7 +108,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
             if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) }
                 == 0
             {
-                return Ok(());
+                return;
             }
 
             let mut message = __android_log_message {

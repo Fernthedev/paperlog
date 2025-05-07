@@ -75,7 +75,7 @@ fn test_log_output() -> Result<()> {
     let logger = LoggerThread::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
-    let output = {
+    {
         logger.read().unwrap().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
@@ -211,7 +211,7 @@ fn test_log_context_output() -> Result<()> {
     let logger = LoggerThread::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
-    let output = {
+    {
         logger.read().unwrap().queue_log(LogData {
             level: LogLevel::Info,
             tag: Some("Context".to_string()),
@@ -245,7 +245,7 @@ fn test_log_context_tag_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     let context = "Context";
-    let output = {
+    {
         logger.read().unwrap().queue_log(LogData {
             level: LogLevel::Info,
             tag: Some(context.to_string()),
@@ -279,7 +279,7 @@ fn test_utf8() -> Result<()> {
     let logger = LoggerThread::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
-    let output = {
+    {
         logger.read().unwrap().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,

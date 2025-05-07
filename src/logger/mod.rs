@@ -435,12 +435,12 @@ pub fn panic_hook(
                     tag: Some("panic".to_string()),
                     message: format!("{:?}", SpanTrace::capture()),
                     timestamp: Local::now(),
-                    file: file!().to_string().into(),
+                    file: file!().to_string(),
                     line: line!(),
                     column: column!(),
                     function_name: None,
                 },
-                logger_thread.clone(),
+                &logger_thread,
             );
         }
     })
