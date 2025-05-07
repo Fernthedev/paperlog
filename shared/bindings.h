@@ -15,6 +15,8 @@ typedef enum paper2_LogLevel {
   Warn,
   Error,
   Debug,
+  Crit,
+  Off,
 } paper2_LogLevel;
 
 typedef struct paper2_LoggerConfigFfi {

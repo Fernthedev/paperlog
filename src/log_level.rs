@@ -7,6 +7,8 @@ pub enum LogLevel {
     Warn,
     Error,
     Debug,
+    Crit,
+    Off
 }
 
 impl LogLevel {
@@ -16,6 +18,8 @@ impl LogLevel {
             LogLevel::Warn => 'W',
             LogLevel::Error => 'E',
             LogLevel::Debug => 'D',
+            LogLevel::Crit => 'C',
+            LogLevel::Off => 'O',
         }
     }
 }
@@ -27,6 +31,9 @@ impl Display for LogLevel {
             LogLevel::Warn => write!(f, "WARN"),
             LogLevel::Error => write!(f, "ERROR"),
             LogLevel::Debug => write!(f, "DEBUG"),
+            LogLevel::Crit => write!(f, "CRIT"),
+            LogLevel::Off => write!(f, "OFF"),
+
         }
     }
 }

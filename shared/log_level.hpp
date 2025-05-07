@@ -3,8 +3,17 @@
 #include <fmt/base.h>
 #include <string_view>
 
+#include "bindings.h"
+
 namespace Paper {
-enum class LogLevel : uint8_t { DBG = 3, INF = 4, WRN = 5, ERR = 6, CRIT = 7, OFF = 0 };
+enum class LogLevel : uint8_t {
+  DBG = Paper::ffi::paper2_LogLevel::Debug,
+  INF = Paper::ffi::paper2_LogLevel::Info,
+  WRN = Paper::ffi::paper2_LogLevel::Warn,
+  ERR = Paper::ffi::paper2_LogLevel::Error,
+  CRIT = Paper::ffi::paper2_LogLevel::Crit,
+  OFF = Paper::ffi::paper2_LogLevel::Off
+};
 
 constexpr auto format_as(LogLevel level) {
   switch (level) {

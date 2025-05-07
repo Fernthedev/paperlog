@@ -20,6 +20,7 @@ pub enum Priority {
     Warn = android_LogPriority::ANDROID_LOG_WARN.0,
     Error = android_LogPriority::ANDROID_LOG_ERROR.0,
     Fatal = android_LogPriority::ANDROID_LOG_FATAL.0,
+    Silent = android_LogPriority::ANDROID_LOG_SILENT.0,
 }
 
 /// An [Android log buffer](https://developer.android.com/ndk/reference/group/logging#log_id).
@@ -53,6 +54,8 @@ pub enum Buffer {
 impl From<LogLevel> for Priority {
     fn from(level: LogLevel) -> Self {
         match level {
+            LogLevel::Crit => Priority::Fatal,
+            LogLevel::Off => Priority::Silent,
             LogLevel::Info => Priority::Info,
             LogLevel::Warn => Priority::Warn,
             LogLevel::Error => Priority::Error,
