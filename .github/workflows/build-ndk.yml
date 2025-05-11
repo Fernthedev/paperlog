@@ -8,6 +8,7 @@ on:
   push:
   pull_request:
     branches: [master]
+  workflow_call:    
 
 jobs:
   build:
@@ -23,9 +24,6 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-
-      - name: Create Cargo LockFile
-        run: cargo update
 
       - uses: actions/cache@v4
         with:
@@ -64,9 +62,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Create Cargo LockFile
-        run: cargo update
-
       - uses: actions/cache@v4
         with:
           path: |
@@ -87,6 +82,14 @@ jobs:
         run: |
           rustup target add aarch64-linux-android
 
+      - name: Install LLVM and Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm llvm-dev libclang-dev clang
+          echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
+          echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
+  
+          
       # - name: Run tests
       #   run: cargo test --verbose
 
