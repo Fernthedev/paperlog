@@ -168,7 +168,7 @@ constexpr auto fmtLogTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag,
 }
 
 template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
-  return fmtLogTag<lvl, TArgs...>(str, nullptr, std::forward<TArgs>(args)...);
+  return fmtLogTag<lvl, TArgs...>(str, {}, std::forward<TArgs>(args)...);
 }
 
 #ifdef __EXCEPTIONS
