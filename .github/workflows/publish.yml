@@ -8,13 +8,22 @@ env:
 
 
 on:
-  workflow_run:
-    workflows: ["build-ndk"]
-    types: [completed]
+  # workflow_run:
+  #   workflows: ["build-ndk"]
+  #   types: [completed]
+  push:
+    tags:
+      - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v1.2.3)'
+        required: true
+        type: string
 
 jobs:
   publish_qpm:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
