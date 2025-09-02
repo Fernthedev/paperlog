@@ -124,12 +124,35 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
 //    fmt::type_identity_t<Args>...>;
 template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::type_identity_t<Args>...>;
 
+struct LogData {
+  LogLevel level;
+  std::optional<std::string_view> tag;
+  std::string_view message;
+  std::string_view file;
+  uint32_t line;
+  uint32_t column;
+  std::optional<std::string_view> function_name;
+  int64_t time;
+
+  LogData(Paper::ffi::paper2_LogDataC const& data)
+      : level((LogLevel)data.level), message(data.message._0, data.message._1), file(data.file._0, data.file._1),
+        line(data.line), column(data.column), time(data.timestamp) {
+    if (data.tag._0 != nullptr && data.tag._1 > 0) {
+      tag = std::string_view(data.tag._0, data.tag._1);
+    }
+
+    if (data.function_name._0 != nullptr && data.function_name._1 > 0) {
+      function_name = std::string_view(data.function_name._0, data.function_name._1);
+    }
+  }
+};
+
 ///
 /// @param originalString This param exists since strings can be splitted due to
 /// newlines etc. Use this when you need the exact printed string for this sink
 /// call. Unformatted refers to no Paper prefixes. This does not give the
 /// origianl string without the initial fmt run
-using LogSink = std::function<void(Paper::ffi::paper2_LogDataC const& logData)>;
+using LogSink = std::function<void(Paper::Logger::LogData const& logData)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;
@@ -223,9 +246,7 @@ void Backtrace(std::string_view const tag, uint16_t frameCount);
 
 // TODO: Sinks
 inline void AddLogSink(LogSink sink) {
-  Paper::ffi::paper2_add_log_sink(+[sink](Paper::ffi::paper2_LogDataC logData) {
-    sink(logData);
-  }, nullptr)
+  Paper::ffi::paper2_add_log_sink(+[sink](Paper::ffi::paper2_LogDataC logData) { sink(Paper::LogData(logData)); }, nullptr)
 }
 }; // namespace Logger
 
