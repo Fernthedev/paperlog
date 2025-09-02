@@ -1,10 +1,11 @@
 #!/bin/bash
-cargo build --manifest-path ../Cargo.toml
+cargo build --manifest-path ../Cargo.toml --features stdout,tracing
 
 clang++ -c ./test.cpp -o test.o -std=c++20 \
   -isystem ../shared \
   -isystem ../shared/utfcpp/source \
-  -isystem ../extern/includes/fmt/fmt/include/ 
+  -isystem ../extern/includes/fmt/fmt/include/ \
+  -DFMT_HEADER_ONLY=true
 
 
 clang++ test.o -o test   -L ../target/debug/ -l paper2

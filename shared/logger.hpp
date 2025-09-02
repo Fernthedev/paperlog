@@ -176,8 +176,8 @@ inline std::filesystem::path getLogDirectoryPathGlobal() {
   return Paper::ffi::paper2_get_log_directory();
 }
 
-inline void Init(std::string_view logPath) {
-  Paper::ffi::paper2_init_logger_ffi(nullptr, logPath.data());
+inline void Init(std::string_view globalLogFile) {
+  Paper::ffi::paper2_init_logger_ffi(nullptr, globalLogFile.data());
 }
 inline void Init(std::string_view logPath, LoggerConfig const& config) {
   ffi::paper2_LoggerConfigFfi configFfi = { config.MaxStringLen, config.LogMaxBufferCount, config.lineEnd, nullptr };
