@@ -53,10 +53,10 @@ jobs:
 
       - uses: seanmiddleditch/gha-setup-ninja@v3
 
-      - name: Create ndkpath.txt
-        run: |
-          echo "$ANDROID_NDK_LATEST_HOME" > ${GITHUB_WORKSPACE}/ndkpath.txt
-          cat ${GITHUB_WORKSPACE}/ndkpath.txt
+      # - name: Create ndkpath.txt
+      #   run: |
+      #     echo "$ANDROID_NDK_LATEST_HOME" > ${GITHUB_WORKSPACE}/ndkpath.txt
+      #     cat ${GITHUB_WORKSPACE}/ndkpath.txt
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -102,6 +102,7 @@ jobs:
 
           restore: true # will run restore on download
           cache: true #will cache dependencies
+          resolve_ndk: true
 
           # Name of qmod in release asset. Assumes exists, same as prior
           qpm_qmod: ${{env.qmodName}}.qmod
