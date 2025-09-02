@@ -1,0 +1,69 @@
+{
+  "id": "paper2_scotland2",
+  "version": "4.0.0",
+  "dependenciesDirectory": "extern",
+  "sharedDirectory": "shared",
+  "workspace": {
+    "scripts": {
+      "build": [
+        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"
+      ],
+      "debug": [
+        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --config ./scotland2/.cargo/config.toml $0?"
+      ],
+      "copy": [
+        "qpm s debug",
+        "adb push ./build/arm64-v8a/libpaper2_scotland2.so /sdcard/ModData/com.beatgames.beatsaber/Modloader/libs/libpaper2_scotland2.so",
+        "adb shell am force-stop com.beatgames.beatsaber",
+        "adb shell am start com.beatgames.beatsaber/com.unity3d.player.UnityPlayerActivity",
+        "adb logcat -c",
+        "adb logcat"
+      ],
+      "qmod": [
+        "pwsh ./scripts/createqmod.ps1 $0"
+      ]
+    },
+    "qmodIncludeDirs": [
+      "./build/arm64-v8a"
+    ],
+    "qmodIncludeFiles": []
+  },
+  "additionalData": {
+    "description": "",
+    "license": ""
+  },
+  "triplets": {
+    "default": "shared",
+    "shared": {
+      "dependencies": {
+        "fmt": {
+          "versionRange": "^11.0.2",
+          "triplet": "default",
+          "qmodExport": false,
+          "qmodRequired": false
+        }
+      },
+      "devDependencies": {
+        "scotland2": {
+          "versionRange": "^0.1.2",
+          "triplet": "default",
+          "qmodExport": false,
+          "qmodRequired": false
+        }
+      },
+      "compileOptions": {
+        "systemIncludes": [
+          "shared/utfcpp/source"
+        ]
+      },
+      "outBinaries": [
+        "libpaper2_scotland2.so"
+      ],
+      "qmodId": "paper2_scotland2",
+      "qmodTemplate": "mod.template.json",
+      "env": {}
+    }
+  },
+  "configVersion": "2.0.0",
+  "toolchainOut": "toolchain.json"
+}
