@@ -8,7 +8,6 @@ use std::ffi::{CStr, CString};
 #[cfg(feature = "tracing")]
 compile_error!("The 'tracing' feature must not be enabled to use this logger.");
 
-use ndk_sys::__android_log_is_loggable;
 use ndk_sys::{android_LogPriority, log_id};
 
 #[repr(u32)]
@@ -78,7 +77,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
         log.message.clone()
     );
 
-    let priority: Priority = log.level.clone().into();
+    let priority: Priority = log.level.into();
     CSTRING_BUFFER.with_borrow_mut(|buffer| unsafe {
         let tag = log.tag.as_deref().unwrap_or("default");
 
@@ -128,7 +127,7 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
         {
             use ndk_sys::__android_log_write;
 
-            unsafe { __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr()) };
+            __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr()) ;
         }
 
         buffer.clear();
