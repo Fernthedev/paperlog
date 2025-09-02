@@ -129,7 +129,7 @@ template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::ty
 /// newlines etc. Use this when you need the exact printed string for this sink
 /// call. Unformatted refers to no Paper prefixes. This does not give the
 /// origianl string without the initial fmt run
-// using LogSink = std::function<void(LogData const&, std::string_view fmtMessage, std::string_view originalString)>;
+using LogSink = std::function<void(Paper::ffi::paper2_LogDataC const& logData)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;
@@ -222,7 +222,11 @@ inline void WaitForFlushTimeout(uint32_t timeout) {
 void Backtrace(std::string_view const tag, uint16_t frameCount);
 
 // TODO: Sinks
-// inline void AddLogSink(LogSink const& sink);
+inline void AddLogSink(LogSink sink) {
+  Paper::ffi::paper2_add_log_sink(+[sink](Paper::ffi::paper2_LogDataC logData) {
+    sink(logData);
+  }, nullptr)
+}
 }; // namespace Logger
 
 namespace Logger {

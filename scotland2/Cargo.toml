@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ctor = "0.4"
+ctor = "0.5"
 mimalloc = "0.1"
 
 paper2 = { path = "../", features = ["logcat", "ffi"] }

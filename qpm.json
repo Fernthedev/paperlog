@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.schema.json",
   "version": "0.1.0",
   "sharedDir": "shared",
   "dependenciesDir": "extern",
@@ -9,19 +10,16 @@
     "url": "https://github.com/Fernthedev/paperlog",
     "additionalData": {
       "overrideSoName": "libpaper2_scotland2.so",
-      "cmake": false,
       "compileOptions": {
         "systemIncludes": ["shared/utfcpp/source"]
-      }
+      },
+      "cmake": false
     }
   },
   "workspace": {
     "scripts": {
       "build": [
-        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"
-      ],
-      "debug": [
-        "cargo ndk --no-strip --manifest-path ./scotland2/Cargo.toml --bindgen -t arm64-v8a -o build build --config ./scotland2/.cargo/config.toml $0?"
+        "cargo ndk --manifest-path ./scotland2/Cargo.toml -t arm64-v8a -o build build --release --config ./scotland2/.cargo/config.toml $0?"
       ],
       "copy": [
         "qpm s debug",
@@ -31,8 +29,12 @@
         "adb logcat -c",
         "adb logcat"
       ],
+      "debug": [
+        "cargo ndk --manifest-path ./scotland2/Cargo.toml -t arm64-v8a -o build build --config ./scotland2/.cargo/config.toml $0?"
+      ],
       "qmod": ["pwsh ./scripts/createqmod.ps1 $0"]
     },
+    "ndk": "^27.3.13750724",
     "qmodIncludeDirs": ["./build/arm64-v8a"],
     "qmodIncludeFiles": [],
     "qmodOutput": "paper2_scotland2.qmod"

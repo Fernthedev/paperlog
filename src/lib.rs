@@ -1,5 +1,6 @@
 #![feature(error_generic_member_access)]
 #![feature(lock_value_accessors)]
+#![feature(trait_alias)]
 
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 

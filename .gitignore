@@ -1,4 +1,5 @@
 .cache
+toolchain.json
 
 # Prerequisites
 *.d

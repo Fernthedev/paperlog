@@ -2,7 +2,7 @@ use ctor::ctor;
 use paper2::logger::LoggerConfig;
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
-use std::{ffi::CStr, ffi::CString, path::PathBuf};
+use std::{ffi::CStr, path::PathBuf};
 
 use mimalloc::MiMalloc;
 

@@ -35,7 +35,7 @@ mod log_data;
 pub use log_data::LogData;
 use rustc_hash::FxHashMap;
 
-pub trait LogCallback: Fn(&LogData) -> Result<()> + Send + Sync {}
+pub trait LogCallback = Fn(&LogData) -> Result<()> + Send + Sync;
 
 pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThread>>;
 
