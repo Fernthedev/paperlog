@@ -41,50 +41,7 @@ using sl = nostd::source_location;
 enum class LogLevel : uint8_t;
 
 using TimePoint = std::chrono::system_clock::time_point;
-
-#ifdef PAPER_ROOT_FOLDER_LENGTH
-inline constexpr size_t SOURCE_OFFSET = PAPER_ROOT_FOLDER_LENGTH;
-#else
-inline constexpr size_t SOURCE_OFFSET = 0;
-#endif
-
 static constexpr std::string_view const GLOBAL_TAG = "GLOBAL";
-//
-//    template <typename... TArgs>
-//    struct FmtStringHackTArgs {
-//        fmt::format_string<TArgs...> str;
-//        sl loc;
-//
-//        constexpr FmtStringHackTArgs(fmt::format_string<TArgs...> const& str,
-//        const sl& loc = sl::current()) : str(str), loc(loc) {}
-//    };
-//
-//    struct FmtStringHack {
-//        fmt::string_view str;
-//        sl loc;
-//
-//        template <typename... TArgs>
-//        constexpr FmtStringHack(FmtStringHackTArgs<TArgs...> const& str) :
-//        FmtStringHack(str.str, str.loc) {}
-//
-//        constexpr FmtStringHack(const char* str, const sl& loc =
-//        sl::current())
-//                : str(str), loc(loc) {}
-//
-//        constexpr FmtStringHack(std::string_view str, const sl& loc =
-//        sl::current())
-//                : str(str), loc(loc) {}
-//    };
-
-//    template<class... TArgs>
-//    struct BasicFmtStrSrcLoc : fmt::format_string<TArgs...> {
-//        sl sourceLocation;
-//        template <typename S>
-//        requires (std::is_convertible_v<const S&,
-//        fmt::basic_string_view<char>>) consteval inline
-//        BasicFmtStrSrcLoc(const S& s, sl sourceL = sl::current()) :
-//        fmt::format_string<TArgs...>(s), sourceLocation(sourceL) {}
-//    };
 
 // TODO: Inherit when NDK fixes bug
 // https://github.com/android/ndk/issues/1677
@@ -119,9 +76,7 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
       : parentType(r), sourceLocation(sourceL) {}
 };
 
-//    template <typename... Args>
-//    using FmtStrSrcLoc = BasicFmtStrSrcLoc<char,
-//    fmt::type_identity_t<Args>...>;
+
 template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::type_identity_t<Args>...>;
 
 struct LogData {
@@ -181,8 +136,8 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
   auto message = fmt::vformat(str, args);
 
   Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(),
-                                   sourceLoc.file_name().data() + SOURCE_OFFSET, sourceLoc.line(), sourceLoc.column(),
-                                   sourceLoc.function_name().data());
+                                   sourceLoc.file_name().data() + size_t(PAPER_ROOT_FOLDER_LENGTH), sourceLoc.line(),
+                                   sourceLoc.column(), sourceLoc.function_name().data());
 }
 
 template <LogLevel lvl, typename... TArgs>
