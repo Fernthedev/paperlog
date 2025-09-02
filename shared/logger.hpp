@@ -114,7 +114,7 @@ struct LogData {
 /// newlines etc. Use this when you need the exact printed string for this sink
 /// call. Unformatted refers to no Paper prefixes. This does not give the
 /// origianl string without the initial fmt run
-using LogSink = std::function<int(Paper::LogData const& logData)>;
+using LogSink = std::function<void(Paper::LogData const& logData)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;

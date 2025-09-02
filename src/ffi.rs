@@ -21,10 +21,8 @@ mod c_str_helper;
 /// The callback receives a pointer to LogData and a user-provided context pointer.
 /// Returns 0 for success, nonzero for error.
 pub type LogCallbackC =
-    unsafe extern "C" fn(log_data: *const LogDataC, user_data: *mut std::ffi::c_void) -> i32;
+    unsafe extern "C" fn(log_data: *const LogDataC, user_data: *mut std::ffi::c_void);
 
-
-    
 #[repr(C)]
 pub struct LogDataC<'a> {
     pub level: LogLevel,
@@ -279,20 +277,15 @@ pub unsafe extern "C" fn paper2_add_log_sink(
     // Wrap the user_data pointer in an Arc<AtomicPtr<c_void>> to make it Send + Sync
     let user_data_ptr = Arc::new(AtomicPtr::new(user_data));
 
-    logger.write().unwrap().add_sink(
-        move |data: &LogData| -> Result<()> {
+    logger
+        .write()
+        .unwrap()
+        .add_sink(move |data: &LogData| -> Result<()> {
             let c_data: LogDataC = data.into();
             let user_data = user_data_ptr.load(Ordering::SeqCst);
-            let res = callback(&c_data, user_data);
-            if res != 0 {
-                return Err(LoggerError::LogError(
-                    format!("Log callback returned error code {}", res),
-                    Backtrace::capture(),
-                ));
-            }
+            callback(&c_data, user_data);
             Ok(())
-        }
-    );
+        });
 
     true
 }

@@ -58,7 +58,7 @@ typedef struct paper2_LogDataC {
  * The callback receives a pointer to LogData and a user-provided context pointer.
  * Returns 0 for success, nonzero for error.
  */
-typedef int32_t (*paper2_LogCallbackC)(const struct paper2_LogDataC *log_data, void *user_data);
+typedef void (*paper2_LogCallbackC)(const struct paper2_LogDataC *log_data, void *user_data);
 
 #ifdef __cplusplus
 extern "C" {
