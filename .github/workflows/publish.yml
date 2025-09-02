@@ -11,13 +11,10 @@ on:
   workflow_run:
     workflows: ["build-ndk"]
     types: [completed]
-    branches:
-      - master
-      - main
 
 jobs:
   publish_qpm:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
