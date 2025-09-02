@@ -43,6 +43,7 @@ jobs:
 
       - name: Run C++ Test
         run: |
+          sudo apt install libfmt-dev
           cd cpp
           ./test.sh
           ./test
@@ -99,7 +100,7 @@ jobs:
       # - name: Run tests
       #   run: cargo test --verbose
 
-      - name: QPM Rust Action
+      - name: QPM Action
         uses: Fernthedev/qpm-action@v1
         with:
           # package_path: './scotland2'
