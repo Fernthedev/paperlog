@@ -2,39 +2,20 @@ use std::ffi::{c_char, CString};
 
 /// Helper struct to manage ownership of C strings across FFI boundaries.
 /// I'm not sure if I can pass a struct using CString directly, so this is a workaround.
-#[repr(transparent)]
-pub struct OwnedCStr(*const c_char);
+#[repr(C)]
+pub struct StringRef<'a>(*const u8, usize, std::marker::PhantomData<&'a str>);
 
-impl From<&str> for OwnedCStr {
-    fn from(s: &str) -> Self {
-        let c_string = CString::new(s).expect("CString::new failed");
-        let ptr = c_string.into_raw();
-        Self (ptr)
-    }
-}
-impl From<String> for OwnedCStr {
-    fn from(s: String) -> Self {
-        let c_string = CString::new(s).expect("CString::new failed");
-        let ptr = c_string.into_raw();
-        Self (ptr)
+impl<'a> From<&'a str> for StringRef<'a> {
+    fn from(s: &'a str) -> Self {
+        Self(s.as_ptr(), s.len(), std::marker::PhantomData::default())
     }
 }
 
-impl<T> From<Option<T>> for OwnedCStr where T: AsRef<str> {
-    fn from(s: Option<T>) -> Self {
+impl<'a> From<Option<&'a str>> for StringRef<'a> {
+    fn from(s: Option<&'a str>) -> Self {
         match s {
-            Some(str) => str.as_ref().into(),
-            None => Self(std::ptr::null()),
-        }
-    }
-}
-
-impl Drop for OwnedCStr {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                drop(CString::from_raw(self.0 as *mut c_char));
-            }
+            Some(str) => StringRef(str.as_ptr(), str.len(), std::marker::PhantomData::default()),
+            None => StringRef(std::ptr::null(), 0, std::marker::PhantomData::default()),
         }
     }
 }

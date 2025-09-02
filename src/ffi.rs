@@ -1,4 +1,4 @@
-use crate::ffi::c_str_helper::OwnedCStr;
+use crate::ffi::c_str_helper::StringRef;
 use crate::get_logger;
 use crate::init_logger;
 use crate::log_level::LogLevel;
@@ -23,17 +23,19 @@ mod c_str_helper;
 pub type LogCallbackC =
     unsafe extern "C" fn(log_data: *const LogDataC, user_data: *mut std::ffi::c_void) -> i32;
 
+
+    
 #[repr(C)]
-pub struct LogDataC {
+pub struct LogDataC<'a> {
     pub level: LogLevel,
-    pub tag: OwnedCStr,
-    pub message: OwnedCStr,
+    pub tag: StringRef<'a>,
+    pub message: StringRef<'a>,
     pub timestamp: i64, // Unix timestamp in seconds
 
-    pub file: OwnedCStr,
+    pub file: StringRef<'a>,
     pub line: u32,
     pub column: u32,
-    pub function_name: OwnedCStr,
+    pub function_name: StringRef<'a>,
 }
 
 #[repr(C)]
@@ -279,7 +281,7 @@ pub unsafe extern "C" fn paper2_add_log_sink(
 
     logger.write().unwrap().add_sink(
         move |data: &LogData| -> Result<()> {
-            let c_data: LogDataC = data.clone().into();
+            let c_data: LogDataC = data.into();
             let user_data = user_data_ptr.load(Ordering::SeqCst);
             let res = callback(&c_data, user_data);
             if res != 0 {
@@ -330,18 +332,18 @@ impl From<LoggerConfigFfi> for LoggerConfig {
 /// Converts internal LogData to FFI-compatible LogDataC.
 /// # Safety
 /// - All string fields are converted to C strings. Caller must ensure proper memory management.
-impl From<LogData> for LogDataC {
-    fn from(data: LogData) -> Self {
+impl<'a> From<&'a LogData> for LogDataC<'a> {
+    fn from(data: &'a LogData) -> Self {
         Self {
             level: data.level,
-            tag: data.tag.into(),
-            message: data.message.into(),
+            tag: data.tag.as_deref().into(),
+            message: data.message.as_str().into(),
             timestamp: data.timestamp.timestamp(),
 
-            file: data.file.into(),
+            file: data.file.as_str().into(),
             line: data.line,
             column: data.column,
-            function_name: data.function_name.into(),
+            function_name: data.function_name.as_deref().into(),
         }
     }
 }

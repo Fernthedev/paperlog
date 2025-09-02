@@ -37,17 +37,20 @@ typedef struct paper2_LoggerConfigFfi {
  * Helper struct to manage ownership of C strings across FFI boundaries.
  * I'm not sure if I can pass a struct using CString directly, so this is a workaround.
  */
-typedef const char *paper2_OwnedCStr;
+typedef struct paper2_StringRef {
+  const uint8_t *_0;
+  uintptr_t _1;
+} paper2_StringRef;
 
 typedef struct paper2_LogDataC {
   enum paper2_LogLevel level;
-  paper2_OwnedCStr tag;
-  paper2_OwnedCStr message;
+  struct paper2_StringRef tag;
+  struct paper2_StringRef message;
   int64_t timestamp;
-  paper2_OwnedCStr file;
+  struct paper2_StringRef file;
   uint32_t line;
   uint32_t column;
-  paper2_OwnedCStr function_name;
+  struct paper2_StringRef function_name;
 } paper2_LogDataC;
 
 /**
