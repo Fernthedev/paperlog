@@ -43,6 +43,12 @@ enum class LogLevel : uint8_t;
 using TimePoint = std::chrono::system_clock::time_point;
 static constexpr std::string_view const GLOBAL_TAG = "GLOBAL";
 
+#ifdef PAPER_ROOT_FOLDER_LENGTH
+inline constexpr size_t SOURCE_OFFSET = PAPER_ROOT_FOLDER_LENGTH;
+#else
+inline constexpr size_t SOURCE_OFFSET = 0;
+#endif
+
 // TODO: Inherit when NDK fixes bug
 // https://github.com/android/ndk/issues/1677
 template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
@@ -76,7 +82,6 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
       : parentType(r), sourceLocation(sourceL) {}
 };
 
-
 template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::type_identity_t<Args>...>;
 
 struct LogData {
@@ -90,14 +95,16 @@ struct LogData {
   int64_t time;
 
   LogData(Paper::ffi::paper2_LogDataC const& data)
-      : level((LogLevel)data.level), message(data.message._0, data.message._1), file(data.file._0, data.file._1),
-        line(data.line), column(data.column), time(data.timestamp) {
+      : level((LogLevel)data.level), line(data.line), column(data.column), time(data.timestamp) {
+    message = std::string_view((char const*)data.message._0, data.message._1);
+    file = std::string_view((char const*)data.file._0, data.file._1);
+
     if (data.tag._0 != nullptr && data.tag._1 > 0) {
-      tag = std::string_view(data.tag._0, data.tag._1);
+      tag = std::string_view((char const*)data.tag._0, data.tag._1);
     }
 
     if (data.function_name._0 != nullptr && data.function_name._1 > 0) {
-      function_name = std::string_view(data.function_name._0, data.function_name._1);
+      function_name = std::string_view((char const*)data.function_name._0, data.function_name._1);
     }
   }
 };
@@ -107,7 +114,7 @@ struct LogData {
 /// newlines etc. Use this when you need the exact printed string for this sink
 /// call. Unformatted refers to no Paper prefixes. This does not give the
 /// origianl string without the initial fmt run
-using LogSink = std::function<void(Paper::Logger::LogData const& logData)>;
+using LogSink = std::function<int(Paper::LogData const& logData)>;
 
 struct LoggerConfig {
   LoggerConfig() = default;
@@ -136,7 +143,7 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
   auto message = fmt::vformat(str, args);
 
   Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(),
-                                   sourceLoc.file_name().data() + size_t(PAPER_ROOT_FOLDER_LENGTH), sourceLoc.line(),
+                                   sourceLoc.file_name().data() + size_t(SOURCE_OFFSET), sourceLoc.line(),
                                    sourceLoc.column(), sourceLoc.function_name().data());
 }
 
@@ -200,8 +207,14 @@ inline void WaitForFlushTimeout(uint32_t timeout) {
 void Backtrace(std::string_view const tag, uint16_t frameCount);
 
 // TODO: Sinks
-inline void AddLogSink(LogSink sink) {
-  Paper::ffi::paper2_add_log_sink(+[sink](Paper::ffi::paper2_LogDataC logData) { sink(Paper::LogData(logData)); }, nullptr)
+inline void AddLogSink(LogSink tempSink) {
+
+  Paper::ffi::paper2_add_log_sink(
+      +[](Paper::ffi::paper2_LogDataC const* logData, void* userData) {
+        LogSink& sink = *reinterpret_cast<LogSink*>(userData);
+        return sink(Paper::LogData(*logData));
+      },
+      new LogSink(tempSink));
 }
 }; // namespace Logger
 
