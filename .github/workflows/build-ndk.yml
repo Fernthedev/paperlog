@@ -8,7 +8,7 @@ on:
   push:
   pull_request:
     branches: [master]
-  workflow_call:    
+  workflow_call:
 
 jobs:
   build:
@@ -41,9 +41,17 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
+      - name: QPM Action
+        uses: Fernthedev/qpm-action@v1
+        with:
+          #required
+          workflow_token: ${{secrets.GITHUB_TOKEN}}
+
+          restore: true # will run restore on download
+          cache: true #will cache dependencies
+
       - name: Run C++ Test
         run: |
-          sudo apt install libfmt-dev
           cd cpp
           ./test.sh
           ./test
@@ -83,7 +91,7 @@ jobs:
         continue-on-error: true
         run: |
           cargo install cargo-ndk
-          
+
       - name: Install Android toolchain
         continue-on-error: true
         run: |
@@ -95,8 +103,7 @@ jobs:
           sudo apt-get install -y llvm llvm-dev libclang-dev clang
           echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
           echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
-  
-          
+
       # - name: Run tests
       #   run: cargo test --verbose
 
@@ -116,7 +123,6 @@ jobs:
 
       - name: Build
         run: qpm s build -- --verbose
-
 
       - name: Make qmod paperlog
         run: |
