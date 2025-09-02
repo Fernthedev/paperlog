@@ -12,6 +12,7 @@ on:
     workflows: ["build-ndk"]
     types: [completed]
     branches:
+      - master
       - main
 
 jobs:
