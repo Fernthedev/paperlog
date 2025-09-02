@@ -54,6 +54,7 @@ jobs:
         run: |
           cd cpp
           ./test.sh
+          export LD_LIBRARY_PATH="../target/debug:$LD_LIBRARY_PATH"
           ./test
 
   build_android:
