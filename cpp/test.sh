@@ -10,3 +10,5 @@ clang++ -c ./test.cpp -o test.o -std=c++20 \
 
 
 clang++ test.o -o test -L ../target/debug/ -l paper2
+export LD_LIBRARY_PATH="../target/debug:$LD_LIBRARY_PATH"
+./test
