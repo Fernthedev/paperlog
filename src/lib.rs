@@ -16,8 +16,10 @@ pub mod ffi;
 #[cfg(test)]
 mod tests;
 
-use logger::{LoggerConfig, LoggerThread, ThreadSafeLoggerThread};
+use logger::LoggerConfig;
 use thiserror::Error;
+
+use crate::logger::logger_thread_ctx::{LoggerThreadCtx, ThreadSafeLoggerThread};
 
 pub type Result<T> = std::result::Result<T, LoggerError>;
 
@@ -60,11 +62,9 @@ pub fn get_logger() -> Option<ThreadSafeLoggerThread> {
 pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {
     let res = LOGGER
         .get_or_init(|| {
-            let logger = LoggerThread::new(config, path).expect("Unable to create logger");
-            let thread: std::sync::Arc<std::sync::RwLock<LoggerThread>> =
-                logger.init(false).expect("Unable to init logger");
+            let logger = LoggerThreadCtx::new(config, path).expect("Unable to create logger");
 
-            thread
+            logger.init(false).expect("Unable to init logger")
         })
         .clone();
 

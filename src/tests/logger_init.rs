@@ -1,6 +1,6 @@
 use std::{fs, time::Duration};
 
-use crate::{LoggerConfig, LoggerThread};
+use crate::{LoggerConfig, LoggerThreadCtx};
 
 #[test]
 fn test_logger_initialization() {
@@ -12,7 +12,7 @@ fn test_logger_initialization() {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path.clone()).unwrap();
+    let logger = LoggerThreadCtx::new(config, log_path.clone()).unwrap();
     let thread = logger.init(false).unwrap();
 
     std::thread::sleep(Duration::from_millis(500));
@@ -48,7 +48,7 @@ fn test_logger_thread_safe() {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path.clone()).unwrap();
+    let logger = LoggerThreadCtx::new(config, log_path.clone()).unwrap();
     let thread = logger.init(false);
 
     assert!(thread.is_ok());

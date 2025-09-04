@@ -4,9 +4,7 @@ use crate::init_logger;
 use crate::log_level::LogLevel;
 use crate::logger::LogData;
 use crate::logger::LoggerConfig;
-use crate::LoggerError;
 use crate::Result;
-use std::backtrace::Backtrace;
 use std::ffi::c_uint;
 use std::ffi::{c_uchar, c_ulonglong, CStr};
 use std::os::raw::{c_char, c_int};
@@ -105,7 +103,7 @@ pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
         logger.read().unwrap().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
-            message: format!("Error creating context {tag}:\n{}", report),
+            message: format!("Error creating context {tag}:\n{report}"),
             file: file!().to_string(),
             line: line!(),
             column: column!(),

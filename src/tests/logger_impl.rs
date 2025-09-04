@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{log_level::LogLevel, logger::LogData, LoggerConfig, LoggerThread};
+use crate::{log_level::LogLevel, logger::LogData, LoggerConfig, LoggerThreadCtx};
 
 #[test]
 fn test_logger_thread_initialization() {
@@ -17,7 +17,7 @@ fn test_logger_thread_initialization() {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger_thread = LoggerThread::new(config, log_path).unwrap();
+    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     assert!(!logger_thread.is_inited().load(Ordering::SeqCst));
 }
 
@@ -31,7 +31,7 @@ fn test_logger_thread_init() {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger_thread = LoggerThread::new(config, log_path).unwrap();
+    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     let thread_safe_logger = logger_thread.init(false).unwrap();
 
     let logger_thread = thread_safe_logger.read().unwrap();
@@ -48,7 +48,7 @@ fn test_queue_log() {
     };
     let log_path = PathBuf::from("./logs/test_log.log");
 
-    let logger_thread = LoggerThread::new(config, log_path).unwrap();
+    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     logger_thread.queue_log(LogData {
         level: LogLevel::Info,
         tag: Some("test".to_string()),
@@ -111,7 +111,7 @@ fn test_log_thread() {
     };
     let log_path = PathBuf::from("./logs/test_log.log");
 
-    let logger_thread = LoggerThread::new(config, log_path).unwrap();
+    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     let thread_safe_logger = logger_thread.init(false).unwrap();
 
     let logger_thread_clone = Arc::clone(&thread_safe_logger);

@@ -1,10 +1,11 @@
 use std::sync::RwLock;
 
-use super::LoggerThread;
+use crate::logger::logger_thread_ctx::LoggerThreadCtx;
+
 
 pub(crate) fn do_log(
     log: &super::LogData,
-    logger_thread_lock: &RwLock<LoggerThread>,
+    logger_thread_lock: &RwLock<LoggerThreadCtx>,
 ) -> std::io::Result<()> {
     let mut logger_thread = logger_thread_lock.write().unwrap();
 

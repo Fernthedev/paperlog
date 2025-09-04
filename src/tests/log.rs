@@ -2,7 +2,7 @@ use color_eyre::eyre::Result;
 
 use crate::log_level::LogLevel;
 use crate::logger::{LogData, LoggerConfig};
-use crate::LoggerThread;
+use crate::LoggerThreadCtx;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -13,7 +13,7 @@ use tracing_test::traced_test;
 
 // TODO: Make these tests work with stdout
 
-fn wait_for_complete_flush(logger: &LoggerThread) {
+fn wait_for_complete_flush(logger: &LoggerThreadCtx) {
     thread::sleep(Duration::from_millis(2));
     // logger.wait_for_flush();
     logger.wait_for_flush_timeout(Duration::from_millis(500));
@@ -46,7 +46,7 @@ fn test_log_init() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path).unwrap();
+    let logger = LoggerThreadCtx::new(config, log_path).unwrap();
     assert!(!logger.is_inited().load(std::sync::atomic::Ordering::SeqCst));
 
     let logger = logger.init(false)?;
@@ -72,7 +72,7 @@ fn test_log_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     {
@@ -104,7 +104,7 @@ fn test_single_thread_log_spam() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     let output = {
@@ -152,7 +152,7 @@ fn test_multithread_log_spam() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     let output = {
@@ -208,7 +208,7 @@ fn test_log_context_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     {
@@ -241,7 +241,7 @@ fn test_log_context_tag_output() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     let context = "Context";
@@ -276,7 +276,7 @@ fn test_utf8() -> Result<()> {
     };
     let log_path = config.context_log_path.join("test_log.log");
 
-    let logger = LoggerThread::new(config, log_path)?.init(false)?;
+    let logger = LoggerThreadCtx::new(config, log_path)?.init(false)?;
     thread::sleep(Duration::from_millis(2));
 
     {
