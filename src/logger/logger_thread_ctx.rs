@@ -181,6 +181,20 @@ impl LoggerThreadCtx {
         sempahore.signal();
     }
 
+    /// Queues a log entry to be written by the logging thread.
+    /// This is thread-safe.
+    pub fn queue_logs(&self, log_data: impl Iterator<Item = LogData>) {
+        let (sempahore, queue) = self.log_queue.as_ref();
+
+        {
+            let mut locked_queue = queue.lock().unwrap();
+            for log_data in log_data {
+                locked_queue.push(log_data);
+            }
+        }
+        sempahore.signal();
+    }
+
     #[cfg(feature = "backtrace")]
     #[inline(always)]
     pub fn backtrace(&self) -> Result<()> {
@@ -282,7 +296,10 @@ impl LoggerThreadCtx {
                     logged = 0;
                 }
             }
-            log_semaphore_lite.wait();
+            // only lock if the queue is empty
+            if log_mutex.lock().expect("is_empty").is_empty() {
+                log_semaphore_lite.wait();
+            }
         }
     }
 
