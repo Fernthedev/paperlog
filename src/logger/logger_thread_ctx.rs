@@ -329,10 +329,10 @@ impl LoggerThreadCtx {
     ///
     /// Waits indefinitely until the next queue is flushed
     /// May block until a log is called forth
-    pub(crate) fn wait_for_flush(&self) {
+    pub fn wait_for_flush(&self) {
         self.log_queue.0.wait();
     }
-    pub(crate) fn wait_for_flush_timeout(&self, duration: Duration) {
+    pub fn wait_for_flush_timeout(&self, duration: Duration) {
         self.log_queue.0.wait_timeout(duration);
     }
 }

@@ -4,7 +4,7 @@
 
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 
-mod log_level;
+pub mod log_level;
 pub mod logger;
 mod semaphore_lite;
 
