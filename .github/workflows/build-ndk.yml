@@ -135,3 +135,86 @@ jobs:
           name: ${{env.qmodName}}.qmod
           path: ${{env.qmodName}}.qmod
           if-no-files-found: error
+
+  build_android2:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          submodules: true
+          lfs: true
+
+      - uses: seanmiddleditch/gha-setup-ninja@v3
+
+      # - name: Create ndkpath.txt
+      #   run: |
+      #     echo "$ANDROID_NDK_LATEST_HOME" > ${GITHUB_WORKSPACE}/ndkpath.txt
+      #     cat ${GITHUB_WORKSPACE}/ndkpath.txt
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo ndk
+        continue-on-error: true
+        run: |
+          cargo install cargo-ndk
+
+      - name: Install Android toolchain
+        continue-on-error: true
+        run: |
+          rustup target add aarch64-linux-android
+
+      - name: Install LLVM and Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm llvm-dev libclang-dev clang
+          echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
+          echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
+
+      # - name: Run tests
+      #   run: cargo test --verbose
+
+      - name: QPM Action
+        uses: Fernthedev/qpm-action@v2
+        with:
+          # package_path: './scotland2'
+          #required
+          workflow_token: ${{secrets.GITHUB_TOKEN}}
+
+          restore: true # will run restore on download
+          cache: true #will cache dependencies
+          resolve_ndk: true
+
+          cache_lockfile: true
+          upload_qmod: true
+
+
+      - name: Build
+        run: qpm2 build
+
+      - name: Make qmod paperlog
+        run: |
+          qpm2 qmod zip
+      - name: Make qpkg paperlog
+        run: |
+          qpm2 qpkg
+
+      - name: Upload Scotland2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{env.qmodName}}.qmod
+          path: ${{env.qmodName}}.qmod
+          if-no-files-found: error
