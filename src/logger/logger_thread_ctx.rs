@@ -294,7 +294,7 @@ impl LoggerThreadCtx {
                 // require per-log handling).
                 for log in &logs_vec {
                     #[cfg(all(target_os = "android", feature = "logcat"))]
-                    logcat_logger::do_log(log)?;
+                    super::logcat_logger::do_log(log)?;
 
                     #[cfg(feature = "stdout")]
                     stdout_logger::do_log(log);
