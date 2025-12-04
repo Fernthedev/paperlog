@@ -6,6 +6,7 @@ use std::{backtrace, path::PathBuf, sync::OnceLock};
 
 pub mod log_level;
 pub mod logger;
+pub mod vec_pool;
 mod semaphore_lite;
 
 static LOGGER: OnceLock<ThreadSafeLoggerThread> = OnceLock::new();

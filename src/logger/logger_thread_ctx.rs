@@ -16,6 +16,7 @@ use crate::{
     log_level::LogLevel,
     logger::{LogCallback, LogData, LoggerConfig},
     semaphore_lite::SemaphoreLite,
+    vec_pool::VecPool,
     LoggerError, Result,
 };
 use chrono::Local;
@@ -258,20 +259,22 @@ impl LoggerThreadCtx {
         flush_semaphore: Arc<SemaphoreLite>,
         logger_thread: Arc<RwLock<LoggerThreadCtx>>,
     ) -> Result<()> {
+        //TODO: Use config max buffer count to limit log batch size
+        let mut log_pool: VecPool<LogData> = VecPool::with_initial_amount(2, 1024);
+
         let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
 
-        let mut vec = Vec::with_capacity(100);
         let mut logged = 0;
-
+        
         loop {
+            let vec = log_pool.take_vec();
             // move items from queue to local variable
             // then resize the vec to 100
             // preventing an infinite growing log buffer
             let queue = {
                 let mut locked = log_mutex.lock();
-                std::mem::replace(&mut *locked, vec)
+                std::mem::replace(&mut *locked, vec.to_vec())
             };
-            vec = Vec::with_capacity(100);
             logged += queue.len();
 
             // if queue is not empty, write the logs
