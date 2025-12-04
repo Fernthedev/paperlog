@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, ops::{Deref, DerefMut}};
+use std::{
+    collections::VecDeque,
+    ops::{Deref, DerefMut},
+};
 
 /// A pool of reusable Vec<T> instances to minimize allocations.
 /// When a Vec<T> is taken from the pool, it is wrapped in a VecPoolGuard,
@@ -7,6 +10,13 @@ use std::{collections::VecDeque, ops::{Deref, DerefMut}};
 pub struct VecPool<T> {
     pool: VecDeque<Vec<T>>,
     inner_capacity: usize,
+}
+
+impl<T> VecPool<T> {
+    /// Returns number of Vecs currently in the pool (test/inspection helper).
+    pub(crate) fn pool_len(&self) -> usize {
+        self.pool.len()
+    }
 }
 
 /// A guard that returns the Vec<T> to the pool when dropped.
