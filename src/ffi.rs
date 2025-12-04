@@ -207,19 +207,28 @@ pub unsafe extern "C" fn paper2_wait_for_flush() -> bool {
 /// - Returns a pointer to a heap-allocated C string. Caller must eventually free it.
 /// - Safe to call if logger is initialized.
 pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
-    let Some(logger) = get_logger() else {
+    // If the `file` feature is disabled, there is no context log path.
+    #[cfg(not(feature = "file"))]
+    {
         return std::ptr::null();
-    };
+    }
 
-    let log_directory = logger
-        .read()
-        .config
-        .context_log_path
-        .to_string_lossy()
-        .into_owned();
+    #[cfg(feature = "file")]
+    {
+        let Some(logger) = get_logger() else {
+            return std::ptr::null();
+        };
 
-    let c_str = std::ffi::CString::new(log_directory).unwrap();
-    c_str.into_raw()
+        let log_directory = logger
+            .read()
+            .config
+            .context_log_path
+            .to_string_lossy()
+            .into_owned();
+
+        let c_str = std::ffi::CString::new(log_directory).unwrap();
+        c_str.into_raw()
+    }
 }
 
 #[no_mangle]
@@ -302,16 +311,28 @@ pub unsafe extern "C" fn paper2_free_c_string(s: *mut c_char) {
 /// - `context_log_path` must be a valid, null-terminated C string.
 impl From<LoggerConfigFfi> for LoggerConfig {
     fn from(ffi: LoggerConfigFfi) -> Self {
-        Self {
-            max_string_len: ffi.max_string_len as usize,
-            log_max_buffer_count: ffi.log_max_buffer_count as usize,
-            line_end: ffi.line_end as char,
-            context_log_path: unsafe {
-                CStr::from_ptr(ffi.context_log_path)
-                    .to_string_lossy()
-                    .into_owned()
-                    .into()
-            },
+        #[cfg(feature = "file")]
+        {
+            Self {
+                max_string_len: ffi.max_string_len as usize,
+                log_max_buffer_count: ffi.log_max_buffer_count as usize,
+                line_end: ffi.line_end as char,
+                context_log_path: unsafe {
+                    CStr::from_ptr(ffi.context_log_path)
+                        .to_string_lossy()
+                        .into_owned()
+                        .into()
+                },
+            }
+        }
+
+        #[cfg(not(feature = "file"))]
+        {
+            Self {
+                max_string_len: ffi.max_string_len as usize,
+                log_max_buffer_count: ffi.log_max_buffer_count as usize,
+                line_end: ffi.line_end as char,
+            }
         }
     }
 }
