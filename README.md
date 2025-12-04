@@ -15,7 +15,19 @@ Logging lightweight as paper
 - Support for logging things that are c# instances by logging pointer value then calling to string (in bs-hooks)
 
 
-## Get Started
+## Get Started (Rust Quest Mod)
+
+```toml
+paper2_tracing = { git = "https://github.com/Fernthedev/paperlog.git", path = "tracing" }
+```
+
+And use in code: 
+```rust
+use paper2_tracing::init_paper_tracing;
+init_paper_tracing();
+```
+
+## Get Started (C++ Quest Mod)
 Paper makes use of [fmt](https://fmt.dev/latest/api.html), which has many optional formatters and features that are supported out of the box.
 
 By default, Paper will log write all logs in global context (which includes the global log file)

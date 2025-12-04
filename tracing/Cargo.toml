@@ -1,5 +1,5 @@
 [package]
-name = "tracing"
+name = "paper2_tracing"
 version = "0.1.0"
 edition = "2024"
 
@@ -13,5 +13,5 @@ tracing = { version = "0.1", features = [
 ], default-features = false }
 
 [lib]
-name = "paper_tracing"
+name = "paper2_tracing"
 crate-type = ["lib"]

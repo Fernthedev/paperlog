@@ -687,7 +687,7 @@ dependencies = [
  "paranoid-android",
  "rustc-hash",
  "thiserror",
- "tracing 0.1.43",
+ "tracing",
  "tracing-error",
  "tracing-subscriber",
  "tracing-test",
@@ -702,6 +702,15 @@ dependencies = [
  "mimalloc",
  "paper2",
  "scotland2_rs",
+]
+
+[[package]]
+name = "paper2_tracing"
+version = "0.1.0"
+dependencies = [
+ "paper2",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1062,15 +1071,6 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "tracing"
-version = "0.1.0"
-dependencies = [
- "paper2",
- "tracing 0.1.43",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tracing"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d15d90a0b5c19378952d479dc858407149d7bb45a14de0142f6c534b16fc647"
@@ -1095,7 +1095,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b1581020d7a273442f5b45074a6a57d5757ad0a47dac0e9f0bd57b81936f3db"
 dependencies = [
- "tracing 0.1.43",
+ "tracing",
  "tracing-subscriber",
 ]
 
@@ -1123,7 +1123,7 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
- "tracing 0.1.43",
+ "tracing",
  "tracing-core",
  "tracing-log",
 ]
