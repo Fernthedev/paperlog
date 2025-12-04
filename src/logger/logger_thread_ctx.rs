@@ -277,10 +277,30 @@ impl LoggerThreadCtx {
             // if queue is not empty, write the logs
             if !queue.is_empty() {
                 let max_str_len = logger_thread.read().config.max_string_len;
-                let split_logs = split_str_into_chunks(queue, max_str_len);
+                // collect the split logs into a vec so we can batch file writes
+                let logs_vec: Vec<LogData> = split_str_into_chunks(queue, max_str_len).collect();
 
-                for log in split_logs {
-                    do_log(log, &logger_thread)?;
+                // Batch file writes under a single write lock to reduce overhead
+                #[cfg(feature = "file")]
+                {
+                    // write files in batch
+                    super::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
+                }
+
+                // Call non-file backends per log (these are typically cheaper and may
+                // require per-log handling).
+                for log in &logs_vec {
+                    #[cfg(all(target_os = "android", feature = "logcat"))]
+                    logcat_logger::do_log(log)?;
+
+                    #[cfg(feature = "stdout")]
+                    stdout_logger::do_log(log);
+
+                    #[cfg(feature = "sinks")]
+                    super::sink_logger::do_log(log, &logger_thread)?;
+
+                    #[cfg(feature = "tracing")]
+                    tracing_logger::do_log(log)?;
                 }
             }
 
