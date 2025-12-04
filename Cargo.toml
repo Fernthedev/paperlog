@@ -29,15 +29,16 @@ paranoid-android = { version = "0.2", optional = true }
 chrono = "0.4"
 thiserror = "2.0"
 rustc-hash = "2.1.1"
+parking_lot = "0.12"
 
 [dev-dependencies]
 tracing-test = "0.2.5"
 color-eyre = "0.6"
-criterion = "0.7"
+criterion = "0.8"
 
 
 [build-dependencies]
-cbindgen = { version = "0.28", default-features = false }
+cbindgen = { version = "0.29", default-features = false }
 
 
 [features]
