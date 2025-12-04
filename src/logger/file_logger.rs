@@ -1,13 +1,12 @@
-use std::sync::RwLock;
+use parking_lot::RwLock;
 
 use crate::logger::logger_thread_ctx::LoggerThreadCtx;
-
 
 pub(crate) fn do_log(
     log: &super::LogData,
     logger_thread_lock: &RwLock<LoggerThreadCtx>,
 ) -> std::io::Result<()> {
-    let mut logger_thread = logger_thread_lock.write().unwrap();
+    let mut logger_thread = logger_thread_lock.write();
 
     let global_file = &mut logger_thread.global_file;
     log.write_to_io(global_file)?;

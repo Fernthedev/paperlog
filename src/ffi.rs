@@ -97,10 +97,10 @@ pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
 
     let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
 
-    let result = logger.write().unwrap().add_context(&tag);
+    let result = logger.write().add_context(&tag);
 
     if let Err(report) = result {
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
             message: format!("Error creating context {tag}:\n{report}"),
@@ -129,7 +129,7 @@ pub unsafe extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
 
     let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
 
-    logger.write().unwrap().remove_context(&tag);
+    logger.write().remove_context(&tag);
 }
 
 #[no_mangle]
@@ -180,7 +180,7 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
         ..Default::default()
     };
 
-    logger.read().unwrap().queue_log(log_data);
+    logger.read().queue_log(log_data);
 
     true
 }
@@ -195,7 +195,7 @@ pub unsafe extern "C" fn paper2_wait_for_flush() -> bool {
         return false;
     };
 
-    logger.read().unwrap().wait_for_flush();
+    logger.read().wait_for_flush();
 
     true
 }
@@ -213,7 +213,6 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 
     let log_directory = logger
         .read()
-        .unwrap()
         .config
         .context_log_path
         .to_string_lossy()
@@ -235,7 +234,6 @@ pub unsafe extern "C" fn paper2_get_inited() -> bool {
 
     let is_inited = logger
         .read()
-        .unwrap()
         .is_inited()
         .load(std::sync::atomic::Ordering::SeqCst);
 
@@ -254,7 +252,6 @@ pub unsafe extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_uint) -> bool {
 
     logger
         .read()
-        .unwrap()
         .wait_for_flush_timeout(std::time::Duration::from_millis(timeout_ms as u64));
 
     true
@@ -277,7 +274,6 @@ pub unsafe extern "C" fn paper2_add_log_sink(
 
     logger
         .write()
-        .unwrap()
         .add_sink(move |data: &LogData| -> Result<()> {
             let c_data: LogDataC = data.into();
             let user_data = user_data_ptr.load(Ordering::SeqCst);

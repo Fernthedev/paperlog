@@ -54,7 +54,6 @@ fn test_log_init() -> Result<()> {
 
     assert!(logger
         .read()
-        .unwrap()
         .is_inited()
         .load(std::sync::atomic::Ordering::SeqCst));
     Ok(())
@@ -76,7 +75,7 @@ fn test_log_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
             message: "hi! 5".to_owned(),
@@ -86,7 +85,7 @@ fn test_log_output() -> Result<()> {
             function_name: None,
             ..Default::default()
         });
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
     };
 
     logs_assert(find_log("Info [GLOBAL] hi! 5"));
@@ -109,7 +108,7 @@ fn test_single_thread_log_spam() -> Result<()> {
 
     let output = {
         let start = Instant::now();
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Debug,
             tag: None,
             message: "Spam logging now!".to_owned(),
@@ -122,7 +121,7 @@ fn test_single_thread_log_spam() -> Result<()> {
         });
 
         for i in 0..100000 {
-            logger.read().unwrap().queue_log(LogData {
+            logger.read().queue_log(LogData {
                 level: LogLevel::Debug,
                 tag: None,
                 message: format!("log i {i}"),
@@ -133,7 +132,7 @@ fn test_single_thread_log_spam() -> Result<()> {
                 ..Default::default()
             });
         }
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
         start.elapsed()
     };
 
@@ -157,7 +156,7 @@ fn test_multithread_log_spam() -> Result<()> {
 
     let output = {
         let start = Instant::now();
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Debug,
             tag: None,
             message: "Spam logging now!".to_owned(),
@@ -172,7 +171,7 @@ fn test_multithread_log_spam() -> Result<()> {
             let logger = Arc::clone(&logger);
             handles.push(thread::spawn(move || {
                 for i in 0..100000 {
-                    logger.read().unwrap().queue_log(LogData {
+                    logger.read().queue_log(LogData {
                         level: LogLevel::Debug,
                         tag: None,
                         message: format!("log i {i}"),
@@ -188,7 +187,7 @@ fn test_multithread_log_spam() -> Result<()> {
         for handle in handles {
             handle.join().unwrap();
         }
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
         start.elapsed()
     };
 
@@ -212,7 +211,7 @@ fn test_log_context_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: Some("Context".to_string()),
             message: "context hi! 6".to_owned(),
@@ -222,7 +221,7 @@ fn test_log_context_output() -> Result<()> {
             function_name: None,
             ..Default::default()
         });
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
     };
 
     logs_assert(find_log("Info [Context] context hi! 6"));
@@ -246,7 +245,7 @@ fn test_log_context_tag_output() -> Result<()> {
 
     let context = "Context";
     {
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: Some(context.to_string()),
             message: "hi this is a context log! 5".to_owned(),
@@ -256,7 +255,7 @@ fn test_log_context_tag_output() -> Result<()> {
             function_name: None,
             ..Default::default()
         });
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
         thread::sleep(Duration::from_millis(2));
     };
 
@@ -280,7 +279,7 @@ fn test_utf8() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().unwrap().queue_log(LogData {
+        logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
             message: "£ ह € 한".to_owned(),
@@ -290,7 +289,7 @@ fn test_utf8() -> Result<()> {
             function_name: None,
             ..Default::default()
         });
-        wait_for_complete_flush(&logger.read().unwrap());
+        wait_for_complete_flush(&logger.read());
     };
 
     logs_assert(find_log("Info [GLOBAL] £ ह € 한\n"));
@@ -309,7 +308,7 @@ fn test_utf8() -> Result<()> {
 
 //     let logger = LoggerThread::new(config, log_path)?.init(false)?;
 //     let output = capture_stdout(|| {
-//         logger.read().unwrap().queue_log(
+//         logger.read().queue_log(
 //             LogLevel::Info,
 //             None,
 //             format!(
@@ -319,7 +318,7 @@ fn test_utf8() -> Result<()> {
 //             file!().to_string(),
 //             line!(),
 //         );
-//         wait_for_complete_flush(&logger.read().unwrap());
+//         wait_for_complete_flush(&logger.read());
 //     })?;
 
 //     assert_eq!(

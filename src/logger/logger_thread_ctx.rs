@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, RwLock,
+        Arc,
     },
     thread,
     time::Duration,
@@ -20,6 +20,7 @@ use crate::{
 };
 use chrono::Local;
 use itertools::Itertools;
+use parking_lot::{Mutex, RwLock};
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
 
@@ -177,7 +178,7 @@ impl LoggerThreadCtx {
     pub fn queue_log(&self, log_data: LogData) {
         let (sempahore, queue) = self.log_queue.as_ref();
 
-        queue.lock().unwrap().push(log_data);
+        queue.lock().push(log_data);
         sempahore.signal();
     }
 
@@ -187,7 +188,7 @@ impl LoggerThreadCtx {
         let (sempahore, queue) = self.log_queue.as_ref();
 
         {
-            let mut locked_queue = queue.lock().unwrap();
+            let mut locked_queue = queue.lock();
             for log_data in log_data {
                 locked_queue.push(log_data);
             }
@@ -266,17 +267,16 @@ impl LoggerThreadCtx {
             // move items from queue to local variable
             // then resize the vec to 100
             // preventing an infinite growing log buffer
-            let queue = log_mutex.replace(vec).expect("queue");
+            let queue = {
+                let mut locked = log_mutex.lock();
+                std::mem::replace(&mut *locked, vec)
+            };
             vec = Vec::with_capacity(100);
             logged += queue.len();
 
             // if queue is not empty, write the logs
             if !queue.is_empty() {
-                let max_str_len = logger_thread
-                    .read()
-                    .expect("max_str_len")
-                    .config
-                    .max_string_len;
+                let max_str_len = logger_thread.read().config.max_string_len;
                 let split_logs = split_str_into_chunks(queue, max_str_len);
 
                 for log in split_logs {
@@ -288,7 +288,7 @@ impl LoggerThreadCtx {
             // or flush every 100 lines to avoid
             // missing flushes
             {
-                let is_empty = log_mutex.lock().expect("is_empty").is_empty();
+                let is_empty = log_mutex.lock().is_empty();
 
                 if is_empty || logged >= 100 {
                     Self::flush(&logger_thread, &flush_semaphore)
@@ -297,7 +297,7 @@ impl LoggerThreadCtx {
                 }
             }
             // only lock if the queue is empty
-            if log_mutex.lock().expect("is_empty").is_empty() {
+            if log_mutex.lock().is_empty() {
                 log_semaphore_lite.wait();
             }
         }
@@ -313,7 +313,7 @@ impl LoggerThreadCtx {
         // flush file
         #[cfg(feature = "file")]
         {
-            let mut logger_thread = logger_thread.write().unwrap();
+            let mut logger_thread = logger_thread.write();
             logger_thread.global_file.flush()?;
             logger_thread
                 .context_map

@@ -34,7 +34,7 @@ fn test_logger_thread_init() {
     let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     let thread_safe_logger = logger_thread.init(false).unwrap();
 
-    let logger_thread = thread_safe_logger.read().unwrap();
+    let logger_thread = thread_safe_logger.read();
     assert!(logger_thread.is_inited().load(Ordering::SeqCst));
 }
 
@@ -61,7 +61,7 @@ fn test_queue_log() {
 
     {
         let queue = logger_thread.get_queue();
-        let queue = queue.lock().unwrap();
+        let queue = queue.lock();
         assert_eq!(queue.len(), 1);
     }
 
@@ -71,13 +71,12 @@ fn test_queue_log() {
 
         thread_safe_logger
             .read()
-            .unwrap()
             .wait_for_flush_timeout(Duration::from_millis(500));
 
-        let logger_thread_read = thread_safe_logger.read().unwrap();
+        let logger_thread_read = thread_safe_logger.read();
         let queue = logger_thread_read.get_queue();
 
-        let queue = queue.lock().unwrap().len();
+        let queue = queue.lock().len();
         assert_eq!(queue, 0);
     }
 }
@@ -117,7 +116,7 @@ fn test_log_thread() {
     let logger_thread_clone = Arc::clone(&thread_safe_logger);
 
     thread::spawn(move || {
-        let logger_thread = logger_thread_clone.read().unwrap();
+        let logger_thread = logger_thread_clone.read();
         logger_thread.queue_log(LogData {
             level: LogLevel::Info,
             tag: Some("test".to_string()),
@@ -131,8 +130,8 @@ fn test_log_thread() {
     .join()
     .unwrap();
 
-    let logger_thread = thread_safe_logger.read().unwrap();
+    let logger_thread = thread_safe_logger.read();
     logger_thread.wait_for_flush_timeout(Duration::from_millis(1000));
-    let queue = logger_thread.get_queue().lock().unwrap().len();
+    let queue = logger_thread.get_queue().lock().len();
     // assert_eq!(queue, 0);
 }

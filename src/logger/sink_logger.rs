@@ -1,12 +1,13 @@
 use crate::Result;
+use parking_lot::RwLock;
 
 use super::log_data::LogData;
 
 pub(crate) fn do_log(
     log: &LogData,
-    logger_thread: &std::sync::RwLock<crate::logger::logger_thread_ctx::LoggerThreadCtx>,
+    logger_thread: &RwLock<crate::logger::logger_thread_ctx::LoggerThreadCtx>,
 ) -> Result<()> {
-    let sinks = &logger_thread.read().unwrap().sinks;
+    let sinks = &logger_thread.read().sinks;
 
     for sink in sinks {
         sink(log)?;
