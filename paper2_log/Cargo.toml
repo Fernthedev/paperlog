@@ -1,0 +1,16 @@
+[package]
+name = "paper2_log"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["std"]
+std = ["log/std"]
+
+[dependencies]
+log = { version = "0.4" }
+paper2_ffi = { path = "../paper2_ffi", default-features = false }
+
+[lib]
+name = "paper2_log"
+crate-type = ["lib"]
