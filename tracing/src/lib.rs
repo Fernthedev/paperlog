@@ -69,6 +69,7 @@ fn map_level(meta: &Metadata<'_>) -> LogLevel {
 }
 
 /// A tracing subscriber layer that forwards events into the `paper2` logger.
+#[derive(Clone, Debug, Default)]
 pub struct PaperLayer {
     tag: Option<String>,
 }
@@ -141,10 +142,13 @@ where
 ///
 /// Returns `Ok(())` if installed successfully, or the `tracing` error if a global
 /// subscriber is already set.
-pub fn init_paper_tracing() -> Result<(), tracing_subscriber::util::TryInitError> {
+pub fn init_paper_tracing(tag: Option<String>) -> Result<(), tracing_subscriber::util::TryInitError> {
     use tracing_subscriber::registry::Registry;
 
-    let layer = PaperLayer::new();
+    let layer = match tag {
+        Some(t) => PaperLayer::new().with_tag(t),
+        None => PaperLayer::new(),
+    };
     let subscriber = Registry::default().with(layer);
 
     subscriber.try_init()
