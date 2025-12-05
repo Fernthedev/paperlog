@@ -3,8 +3,11 @@ name = "paper2_tracing"
 version = "0.1.0"
 edition = "2024"
 
+
+
 [dependencies]
-paper2 = { path = "..", features = ["ffi"], default-features = false }
+# paper2 = { path = "..", features = ["ffi"], default-features = false }
+paper2_ffi = { path = "../paper2_ffi", default-features = false }
 # tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", features = ["registry"] }
 

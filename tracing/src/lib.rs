@@ -1,6 +1,7 @@
-use paper2::log_level::LogLevel;
+
 use std::ffi::CString;
 use std::{fmt, ptr};
+use paper2_ffi::{paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info, paper2_LogLevel_Warn};
 use tracing::{Event, Metadata};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
@@ -57,14 +58,14 @@ impl tracing::field::Visit for MessageVisitor {
 }
 
 /// Mapping from `tracing` levels to `paper2::log_level::LogLevel`.
-fn map_level(meta: &Metadata<'_>) -> LogLevel {
+fn map_level(meta: &Metadata<'_>) -> paper2_LogLevel {
     use tracing::Level;
     match *meta.level() {
-        Level::ERROR => LogLevel::Error,
-        Level::WARN => LogLevel::Warn,
-        Level::INFO => LogLevel::Info,
-        Level::DEBUG => LogLevel::Debug,
-        Level::TRACE => LogLevel::Debug,
+        Level::ERROR => paper2_LogLevel_Error,
+        Level::WARN => paper2_LogLevel_Warn,
+        Level::INFO => paper2_LogLevel_Info,
+        Level::DEBUG => paper2_LogLevel_Debug,
+        Level::TRACE => paper2_LogLevel_Debug,
     }
 }
 
@@ -113,7 +114,7 @@ where
                 .tag
                 .as_ref()
                 .and_then(|s| std::ffi::CString::new(s.as_str()).ok());
-            paper2::ffi::paper2_queue_log_ffi(
+            paper2_ffi::paper2_queue_log_ffi(
                 level,
                 tag.map(|c| c.as_ptr()).unwrap_or(ptr::null()),
                 std::ffi::CString::new(message).unwrap().as_ptr(),
