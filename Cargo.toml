@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["paper2_ffi", "paper2_log", "questloader", "scotland2", "tracing"]
+members = ["paper2_ffi", "paper2_log", "questloader", "scotland2", "paper2_tracing"]
 resolver = "3"
 
 [lib]

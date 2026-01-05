@@ -1,7 +1,9 @@
-
+use paper2_ffi::{
+    paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info,
+    paper2_LogLevel_Warn,
+};
 use std::ffi::CString;
 use std::{fmt, ptr};
-use paper2_ffi::{paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info, paper2_LogLevel_Warn};
 use tracing::{Event, Metadata};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
@@ -72,7 +74,7 @@ fn map_level(meta: &Metadata<'_>) -> paper2_LogLevel {
 /// A tracing subscriber layer that forwards events into the `paper2` logger.
 #[derive(Clone, Debug, Default)]
 pub struct PaperLayer {
-    tag: Option<String>,
+    tag: Option<CString>,
 }
 
 impl PaperLayer {
@@ -80,8 +82,8 @@ impl PaperLayer {
         Self { tag: None }
     }
 
-    pub fn with_tag<T: Into<String>>(mut self, tag: T) -> Self {
-        self.tag = Some(tag.into());
+    pub fn with_tag<T: Into<Vec<u8>>>(mut self, tag: T) -> Self {
+        self.tag = Some(CString::new(tag.into()).expect("Unable to make CString tag"));
         self
     }
 }
@@ -110,13 +112,10 @@ where
 
         // use C ABI to call FFI logging function
         unsafe {
-            let tag = self
-                .tag
-                .as_ref()
-                .and_then(|s| std::ffi::CString::new(s.as_str()).ok());
+            let tag = self.tag.as_ref().map(|c| c.as_ptr()).unwrap_or(ptr::null());
             paper2_ffi::paper2_queue_log_ffi(
                 level,
-                tag.map(|c| c.as_ptr()).unwrap_or(ptr::null()),
+                tag,
                 std::ffi::CString::new(message).unwrap().as_ptr(),
                 std::ffi::CString::new(file).unwrap().as_ptr(),
                 line as i32,
@@ -143,7 +142,9 @@ where
 ///
 /// Returns `Ok(())` if installed successfully, or the `tracing` error if a global
 /// subscriber is already set.
-pub fn init_paper_tracing(tag: Option<String>) -> Result<(), tracing_subscriber::util::TryInitError> {
+pub fn init_paper_tracing(
+    tag: Option<String>,
+) -> Result<(), tracing_subscriber::util::TryInitError> {
     use tracing_subscriber::registry::Registry;
 
     let layer = match tag {
