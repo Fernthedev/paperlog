@@ -25,6 +25,28 @@ use parking_lot::{Mutex, RwLock};
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
 
+// Helper macro to reduce repetition when constructing `LogData` and calling `do_log`.
+// The macro performs `format!` internally — pass format-style arguments directly.
+// Usage: log_data_to!(&logger, LogLevel::Error, Some("tag".to_string()), "msg: {}", val);
+macro_rules! log_data_to {
+    ($logger:expr, $level:expr, $tag:expr, $($arg:tt)+) => {{
+        let message = format!($($arg)+);
+        let _ = do_log(
+            LogData {
+                level: $level,
+                tag: $tag,
+                message,
+                timestamp: Local::now(),
+                file: file!().to_string(),
+                line: line!(),
+                column: column!(),
+                function_name: None,
+            },
+            $logger,
+        );
+    }};
+}
+
 pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThreadCtx>>;
 
 pub struct LoggerThreadCtx {
@@ -143,18 +165,11 @@ impl LoggerThreadCtx {
             if let Err(e) = result {
                 let _ = Self::flush(&thread_safe_self_clone, &flush_semaphore_clone);
 
-                let _ = do_log(
-                    LogData {
-                        level: LogLevel::Error,
-                        message: format!("Error occurred in logging thread: {e}"),
-                        tag: Some("Paper2".to_string()),
-                        timestamp: Local::now(),
-                        file: file!().to_string(),
-                        line: line!(),
-                        column: column!(),
-                        function_name: None,
-                    },
+                log_data_to!(
                     &thread_safe_self_clone,
+                    LogLevel::Error,
+                    Some("Paper2".to_string()),
+                    "Error occurred in logging thread: {e}"
                 );
             }
         });
@@ -265,7 +280,7 @@ impl LoggerThreadCtx {
         let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
 
         let mut logged = 0;
-        
+
         loop {
             let vec = log_pool.take_vec();
             // move items from queue to local variable
@@ -423,32 +438,19 @@ pub fn panic_hook(
             },
         };
 
-        let _ = do_log(
-            LogData {
-                level: LogLevel::Error,
-                tag: Some("panic".to_string()),
-                message: format!("panicked at '{msg}', {location}"),
-                timestamp: Local::now(),
-                file: file!().to_string(),
-                line: line!(),
-                column: column!(),
-                function_name: None,
-            },
+        log_data_to!(
             &logger_thread,
+            LogLevel::Error,
+            Some("panic".to_string()),
+            "panicked at '{msg}', {location}"
         );
         if backtrace {
-            let _ = do_log(
-                LogData {
-                    level: LogLevel::Error,
-                    tag: Some("panic".to_string()),
-                    message: format!("{:?}", Backtrace::force_capture()),
-                    timestamp: Local::now(),
-                    file: file!().to_string(),
-                    line: line!(),
-                    column: column!(),
-                    function_name: None,
-                },
+            log_data_to!(
                 &logger_thread,
+                LogLevel::Error,
+                Some("panic".to_string()),
+                "{:?}",
+                Backtrace::force_capture()
             );
         }
 
@@ -456,18 +458,12 @@ pub fn panic_hook(
         if spantrace {
             use tracing_error::SpanTrace;
 
-            let _ = do_log(
-                LogData {
-                    level: LogLevel::Error,
-                    tag: Some("panic".to_string()),
-                    message: format!("{:?}", SpanTrace::capture()),
-                    timestamp: Local::now(),
-                    file: file!().to_string(),
-                    line: line!(),
-                    column: column!(),
-                    function_name: None,
-                },
+            log_data_to!(
                 &logger_thread,
+                LogLevel::Error,
+                Some("panic".to_string()),
+                "{:?}",
+                SpanTrace::capture()
             );
         }
     })
