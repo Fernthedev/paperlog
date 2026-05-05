@@ -75,16 +75,7 @@ fn test_log_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().queue_log(LogData {
-            level: LogLevel::Info,
-            tag: None,
-            message: "hi! 5".to_owned(),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Info, None::<&str>, "hi! 5");
         wait_for_complete_flush(&logger.read());
     };
 
@@ -108,29 +99,10 @@ fn test_single_thread_log_spam() -> Result<()> {
 
     let output = {
         let start = Instant::now();
-        logger.read().queue_log(LogData {
-            level: LogLevel::Debug,
-            tag: None,
-            message: "Spam logging now!".to_owned(),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Debug, None::<&str>, "Spam logging now!");
 
         for i in 0..100000 {
-            logger.read().queue_log(LogData {
-                level: LogLevel::Debug,
-                tag: None,
-                message: format!("log i {i}"),
-                file: file!().to_string(),
-                line: line!(),
-                column: column!(),
-                function_name: None,
-                ..Default::default()
-            });
+            crate::log_data_to!(&logger, LogLevel::Debug, None::<&str>, "log i {i}");
         }
         wait_for_complete_flush(&logger.read());
         start.elapsed()
@@ -159,8 +131,8 @@ fn test_multithread_log_spam() -> Result<()> {
         logger.read().queue_log(LogData {
             level: LogLevel::Debug,
             tag: None,
-            message: "Spam logging now!".to_owned(),
-            file: file!().to_string(),
+            message: std::sync::Arc::from("Spam logging now!"),
+            file: std::sync::Arc::from(file!()),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -171,16 +143,7 @@ fn test_multithread_log_spam() -> Result<()> {
             let logger = Arc::clone(&logger);
             handles.push(thread::spawn(move || {
                 for i in 0..100000 {
-                    logger.read().queue_log(LogData {
-                        level: LogLevel::Debug,
-                        tag: None,
-                        message: format!("log i {i}"),
-                        file: file!().to_string(),
-                        line: line!(),
-                        column: column!(),
-                        function_name: None,
-                        ..Default::default()
-                    });
+                    crate::log_data_to!(&logger, LogLevel::Debug, None::<&str>, "log i {i}");
                 }
             }));
         }
@@ -211,16 +174,7 @@ fn test_log_context_output() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().queue_log(LogData {
-            level: LogLevel::Info,
-            tag: Some("Context".to_string()),
-            message: "context hi! 6".to_owned(),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Info, Some("Context"), "context hi! 6");
         wait_for_complete_flush(&logger.read());
     };
 
@@ -245,16 +199,7 @@ fn test_log_context_tag_output() -> Result<()> {
 
     let context = "Context";
     {
-        logger.read().queue_log(LogData {
-            level: LogLevel::Info,
-            tag: Some(context.to_string()),
-            message: "hi this is a context log! 5".to_owned(),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Info, Some(context), "hi this is a context log! 5");
         wait_for_complete_flush(&logger.read());
         thread::sleep(Duration::from_millis(2));
     };
@@ -279,16 +224,7 @@ fn test_utf8() -> Result<()> {
     thread::sleep(Duration::from_millis(2));
 
     {
-        logger.read().queue_log(LogData {
-            level: LogLevel::Info,
-            tag: None,
-            message: "£ ह € 한".to_owned(),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Info, None::<&str>, "£ ह € 한");
         wait_for_complete_flush(&logger.read());
     };
 

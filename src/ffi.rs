@@ -100,16 +100,7 @@ pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
     let result = logger.write().add_context(&tag);
 
     if let Err(report) = result {
-        logger.read().queue_log(LogData {
-            level: LogLevel::Info,
-            tag: None,
-            message: format!("Error creating context {tag}:\n{report}"),
-            file: file!().to_string(),
-            line: line!(),
-            column: column!(),
-            function_name: None,
-            ..Default::default()
-        });
+        crate::log_data_to!(&logger, LogLevel::Info, None::<&str>, "Error creating context {tag}:\n{report}");
     }
 }
 
@@ -158,11 +149,11 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
     let tag = unsafe {
         tag.as_ref()
             .map(|c_str| CStr::from_ptr(c_str))
-            .map(|c| c.to_string_lossy().into_owned())
+            .map(|c| Arc::from(c.to_string_lossy().into_owned()))
     };
 
-    let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
-    let file = unsafe { CStr::from_ptr(file).to_string_lossy().into_owned() };
+    let message = Arc::from(unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() });
+    let file = Arc::from(unsafe { CStr::from_ptr(file).to_string_lossy().into_owned() });
 
     let log_data = LogData {
         level,
@@ -175,7 +166,7 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
             function_name
                 .as_ref()
                 .map(|c_str| CStr::from_ptr(c_str))
-                .map(|c| c.to_string_lossy().into_owned())
+                .map(|c| Arc::from(c.to_string_lossy().into_owned()))
         },
         ..Default::default()
     };
@@ -345,10 +336,10 @@ impl<'a> From<&'a LogData> for LogDataC<'a> {
         Self {
             level: data.level,
             tag: data.tag.as_deref().into(),
-            message: data.message.as_str().into(),
+            message: data.message.as_ref().into(),
             timestamp: data.timestamp.timestamp(),
 
-            file: data.file.as_str().into(),
+            file: data.file.as_ref().into(),
             line: data.line,
             column: data.column,
             function_name: data.function_name.as_deref().into(),

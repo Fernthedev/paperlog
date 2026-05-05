@@ -25,27 +25,7 @@ use parking_lot::{Mutex, RwLock};
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
 
-// Helper macro to reduce repetition when constructing `LogData` and calling `do_log`.
-// The macro performs `format!` internally — pass format-style arguments directly.
-// Usage: log_data_to!(&logger, LogLevel::Error, Some("tag".to_string()), "msg: {}", val);
-macro_rules! log_data_to {
-    ($logger:expr, $level:expr, $tag:expr, $($arg:tt)+) => {{
-        let message = format!($($arg)+);
-        let _ = do_log(
-            LogData {
-                level: $level,
-                tag: $tag,
-                message,
-                timestamp: Local::now(),
-                file: file!().to_string(),
-                line: line!(),
-                column: column!(),
-                function_name: None,
-            },
-            $logger,
-        );
-    }};
-}
+// Use the crate-exported `log_data_to!` macro from `log_data.rs`.
 
 pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThreadCtx>>;
 
@@ -68,7 +48,7 @@ pub struct LoggerThreadCtx {
 
     /// Map of context log files. ID -> Log file
     #[cfg(feature = "file")]
-    pub(super) context_map: FxHashMap<String, BufWriter<File>>,
+    pub(super) context_map: FxHashMap<std::sync::Arc<str>, BufWriter<File>>,
 
     /// Additional log sinks
     pub(super) sinks: Vec<Box<dyn LogCallback>>,
@@ -165,10 +145,10 @@ impl LoggerThreadCtx {
             if let Err(e) = result {
                 let _ = Self::flush(&thread_safe_self_clone, &flush_semaphore_clone);
 
-                log_data_to!(
+                crate::log_data_to!(
                     &thread_safe_self_clone,
                     LogLevel::Error,
-                    Some("Paper2".to_string()),
+                    Some("Paper2"),
                     "Error occurred in logging thread: {e}"
                 );
             }
@@ -218,17 +198,16 @@ impl LoggerThreadCtx {
         use std::backtrace::Backtrace;
 
         let backtrace = Backtrace::capture();
-        let backtrace_str = format!("{backtrace:?}");
-
+        let msg = format!("{:?}", backtrace);
         self.queue_log(LogData {
             level: LogLevel::Error,
             tag: None,
-            message: backtrace_str,
-            file: file!().into(),
+            message: std::sync::Arc::from(msg),
+            timestamp: chrono::Local::now(),
+            file: std::sync::Arc::from(file!()),
             line: line!(),
             column: column!(),
             function_name: None,
-            ..LogData::default()
         });
 
         Ok(())
@@ -247,7 +226,7 @@ impl LoggerThreadCtx {
             })?;
             let file = BufWriter::new(file);
 
-            self.context_map.insert(tag.to_string(), file);
+            self.context_map.insert(std::sync::Arc::from(tag), file);
         }
 
         Ok(())
@@ -255,7 +234,7 @@ impl LoggerThreadCtx {
     pub fn remove_context(&mut self, tag: &str) {
         #[cfg(feature = "file")]
         {
-            self.context_map.remove(tag);
+            self.context_map.remove(&std::sync::Arc::from(tag));
         }
     }
 
@@ -389,7 +368,7 @@ fn split_str_into_chunks(queue: Vec<LogData>, max_str_len: usize) -> impl Iterat
                     .map(|chunk| {
                         let chunk = chunk.collect::<String>();
                         LogData {
-                            message: chunk,
+                            message: std::sync::Arc::from(chunk),
                             ..log.clone()
                         }
                     })
@@ -438,17 +417,17 @@ pub fn panic_hook(
             },
         };
 
-        log_data_to!(
+        crate::log_data_to!(
             &logger_thread,
             LogLevel::Error,
-            Some("panic".to_string()),
+            Some("panic"),
             "panicked at '{msg}', {location}"
         );
         if backtrace {
-            log_data_to!(
+            crate::log_data_to!(
                 &logger_thread,
                 LogLevel::Error,
-                Some("panic".to_string()),
+                Some("panic"),
                 "{:?}",
                 Backtrace::force_capture()
             );
@@ -458,10 +437,10 @@ pub fn panic_hook(
         if spantrace {
             use tracing_error::SpanTrace;
 
-            log_data_to!(
+            crate::log_data_to!(
                 &logger_thread,
                 LogLevel::Error,
-                Some("panic".to_string()),
+                Some("panic"),
                 "{:?}",
                 SpanTrace::capture()
             );

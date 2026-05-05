@@ -51,11 +51,12 @@ fn test_queue_log() {
     let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     logger_thread.queue_log(LogData {
         level: LogLevel::Info,
-        tag: Some("test".to_string()),
-        message: "This is a test log".to_string(),
-        file: file!().to_string(),
+        tag: Some(std::sync::Arc::from("test")),
+        message: std::sync::Arc::from("This is a test log"),
+        file: std::sync::Arc::from(file!()),
         line: line!(),
         column: column!(),
+        function_name: None,
         ..Default::default()
     });
 
@@ -119,11 +120,12 @@ fn test_log_thread() {
         let logger_thread = logger_thread_clone.read();
         logger_thread.queue_log(LogData {
             level: LogLevel::Info,
-            tag: Some("test".to_string()),
-            message: "This is a test log".to_string(),
-            file: file!().to_string(),
+            tag: Some(std::sync::Arc::from("test")),
+            message: std::sync::Arc::from("This is a test log"),
+            file: std::sync::Arc::from(file!()),
             line: line!(),
             column: column!(),
+            function_name: None,
             ..Default::default()
         });
     })
