@@ -10,18 +10,23 @@ use paper2_ffi::{
     paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info,
     paper2_LogLevel_Warn, paper2_get_inited, paper2_queue_log_ffi, paper2_wait_for_flush,
 };
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_int;
 use std::ptr;
 
 /// The paper2 logger that implements the `log::Log` trait.
-pub struct Paper2Logger;
+#[derive(Default)]
+pub struct Paper2Logger {
+    tag: Option<CString>
+}
 
 impl Paper2Logger {
     /// Initializes the global logger with the specified maximum log level.
     #[cfg(all(feature = "std", target_has_atomic = "ptr"))]
-    pub fn init_with_max_level(level: LevelFilter) -> Result<(), log::SetLoggerError> {
-        log::set_boxed_logger(Box::new(Paper2Logger))?;
+    pub fn init_with_max_level(level: LevelFilter, tag: Option<String>) -> Result<(), log::SetLoggerError> {
+        log::set_boxed_logger(Box::new(Paper2Logger{
+            tag: tag.map(|s| CString::new(s).unwrap())
+        }))?;
         log::set_max_level(level);
         Ok(())
     }
@@ -54,8 +59,7 @@ impl Log for Paper2Logger {
                 return;
             }
             let level = map_level(record.level());
-            let tag_opt = record.module_path();
-            let tag_c = tag_opt.and_then(|s| CString::new(s).ok());
+            let tag_c = self.tag.as_ref();
             let message_c = CString::new(record.args().to_string()).ok();
             let file_c = record.file().and_then(|s| CString::new(s).ok());
             let function_c = record.module_path().and_then(|s| CString::new(s).ok());
@@ -107,7 +111,7 @@ mod tests {
             let _ = paper2_init_logger_ffi(ptr::null(), path_c.as_ptr());
         }
 
-        let _ = Paper2Logger::init_with_max_level(LevelFilter::Info);
+        let _ = Paper2Logger::init_with_max_level(LevelFilter::Info, None);
 
         // Build a `Record` and call the facade directly so we don't depend on
         // the availability of `log::set_boxed_logger` in the test environment.
@@ -119,7 +123,7 @@ mod tests {
             .line(Some(1))
             .build();
 
-        Paper2Logger.log(&record);
+        Paper2Logger::default().log(&record);
 
         // Poll for a short while for the message to be flushed to disk.
         let mut found = false;
