@@ -2,18 +2,8 @@
 
 Logging lightweight as paper
 
-## Done:
-- Ideally source location
-- Template log calls
-- Backtrace logging
-- Better consumer thread usage for logging to file (?)
-- Print `\n` nicely
-- Ensure support for logging ustrings
-
-## TODO:
-- Flush needs to happen before crash (perhaps signal handler?, Less important)
-- Support for logging things that are c# instances by logging pointer value then calling to string (in bs-hooks)
-
+## Paper in Scotland2
+Paper provides a `scotland2` friendly version that instantiates paper when loaded by scotland2. It also configures the proper log paths for it, using `/sdcard/ModData/{game_id}/logs2` directory for both `Paperlog.log` and `{context}.log`.
 
 ## Get Started (Rust Quest Mod)
 
@@ -56,7 +46,7 @@ auto noFileContext = Paper::Logger::WithContext<"NoFile", false>();
 noFileContext.fmtLog<Paper::LogLevel::INF>("Only logs to logcat");
 ```
 
-You can manually log a context or register a context to log to files with the following 
+You can manually log a context or register a context to log to files with the following. This will make Paper write logs for a specific context in its own file. 
 ```cpp
 Paper::Logger::RegisterFileContextId("context", "log file path relative to log folder")
 

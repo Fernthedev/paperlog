@@ -2,6 +2,7 @@
 name = "paper2_ffi"
 version = "0.1.0"
 edition = "2024"
+description = "A Rust idiomatic FFI wrapper for paper2, using dynamic linking to paper2 instead of static linking. This is the recommended way to use paper2 in Rust mods, as it uses the C ABI with dynamic linking."
 
 [build-dependencies]
 bindgen = { version = "0.72", default-features = false }

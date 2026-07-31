@@ -31,6 +31,12 @@
 #include "source_location.hpp"
 
 namespace Paper {
+/// High-level logging API for Paper.
+///
+/// The logger supports formatted messages, source-location capture, contextual
+/// tags, and optional custom sinks. The free functions in Paper::Logger queue
+/// messages into the runtime backend, while context helpers attach a tag for
+/// contextual logging.
 #ifndef NOSTD_SOURCE_LOCATION_HPP
 using sl = PAPERLOG_SL_T;
 #else
@@ -84,6 +90,11 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
 
 template <typename... Args> using FmtStrSrcLoc = BasicFmtStrSrcLoc<char, std::type_identity_t<Args>...>;
 
+/// Immutable view of a single log entry as delivered to sinks.
+///
+/// This mirrors the data emitted by the FFI layer and is passed to custom log
+/// sink callbacks so downstream consumers can inspect the log level, message,
+/// tag, and source metadata without parsing the raw C ABI payload.
 struct LogData {
   LogLevel level;
   std::optional<std::string_view> tag;
@@ -109,13 +120,18 @@ struct LogData {
   }
 };
 
+/// Signature for custom sink callbacks.
 ///
-/// @param originalString This param exists since strings can be splitted due to
-/// newlines etc. Use this when you need the exact printed string for this sink
-/// call. Unformatted refers to no Paper prefixes. This does not give the
-/// origianl string without the initial fmt run
+/// Each sink receives a fully populated log entry after formatting and metadata
+/// extraction. This is the main extension point for routing logs to custom
+/// backends or additional storage.
 using LogSink = std::function<void(Paper::LogData const& logData)>;
 
+/// Runtime configuration for the logger backend.
+///
+/// These values control buffering behavior, the maximum size of strings before
+/// they are split, and how much of a message is preserved when routed to
+/// logcat.
 struct LoggerConfig {
   LoggerConfig() = default;
 
@@ -138,6 +154,11 @@ struct LoggerConfig {
 };
 
 namespace Logger {
+/// Queue a formatted log message with an explicit source location.
+///
+/// This is the lowest-level entry point used by the high-level helpers. It
+/// renders the format string with fmt, captures the current source location,
+/// and forwards the payload to the FFI logger backend.
 inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& sourceLoc, std::string_view const tag,
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
@@ -147,11 +168,19 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                                    sourceLoc.column(), sourceLoc.function_name().data());
 }
 
+/// Log a formatted message with an explicit tag.
+///
+/// The tag is used for contextual routing and file association. This overload
+/// is the primary entry point when a log should be associated with a specific
+/// context rather than the global logger.
 template <LogLevel lvl, typename... TArgs>
 constexpr auto fmtLogTag(FmtStrSrcLoc<TArgs...> str, std::string_view const tag, TArgs&&... args) {
   return Logger::vfmtLog(str, lvl, str.sourceLocation, tag, fmt::make_format_args(args...));
 }
 
+/// Log a formatted message using the global/default context.
+///
+/// This is the convenience overload for emitting logs without an explicit tag.
 template <LogLevel lvl, typename... TArgs> constexpr auto fmtLog(FmtStrSrcLoc<TArgs...> str, TArgs&&... args) {
   return fmtLogTag<lvl, TArgs...>(str, {}, std::forward<TArgs>(args)...);
 }
@@ -172,33 +201,40 @@ inline void fmtThrowErrorTag(FmtStrSrcLoc<TArgs...> str, std::string_view const 
 }
 #endif
 
+/// Return the directory used for Paper log files.
 inline std::filesystem::path getLogDirectoryPathGlobal() {
   return Paper::ffi::paper2_get_log_directory();
 }
 
+/// Initialize the logger with a global log file path.
 inline void Init(std::string_view globalLogFile) {
   Paper::ffi::paper2_init_logger_ffi(nullptr, globalLogFile.data());
 }
+/// Initialize the logger with a custom configuration and log path.
 inline void Init(std::string_view logPath, LoggerConfig const& config) {
   ffi::paper2_LoggerConfigFfi configFfi = { config.MaxStringLen, config.LogMaxBufferCount, config.lineEnd, nullptr };
   Paper::ffi::paper2_init_logger_ffi(&configFfi, logPath.data());
 }
+/// Return whether the logger backend has been initialized.
 inline bool IsInited() {
   return Paper::ffi::paper2_get_inited();
 }
 
+/// Register a context ID so logs for that context are written to a file.
 inline void RegisterFileContextId(std::string_view contextId) {
   Paper::ffi::paper2_register_context_id(contextId.data());
 }
 
+/// Remove a previously registered file context ID.
 inline void UnregisterFileContextId(std::string_view contextId) {
   Paper::ffi::paper2_unregister_context_id(contextId.data());
 }
 
-// blocks indefinitely until a log gets flushed
+/// Block until the logger has flushed at least one pending log entry.
 inline void WaitForFlush() {
   Paper::ffi::paper2_wait_for_flush();
 }
+/// Block up to the provided timeout in milliseconds for a flush to complete.
 inline void WaitForFlushTimeout(uint32_t timeout) {
   Paper::ffi::paper2_wait_flush_timeout(timeout);
 }
@@ -206,7 +242,7 @@ inline void WaitForFlushTimeout(uint32_t timeout) {
 // defined in backtrace.hpp
 void Backtrace(std::string_view const tag, uint16_t frameCount);
 
-// TODO: Sinks
+/// Register a custom sink that will receive every queued log entry.
 inline void AddLogSink(LogSink tempSink) {
 
   Paper::ffi::paper2_add_log_sink(
@@ -236,6 +272,10 @@ template <typename... TArgs> inline auto critical(FmtStrSrcLoc<TArgs...> const& 
 }
 } // namespace Logger
 
+/// Base type for context-aware logging helpers.
+///
+/// A logger context carries a tag that is automatically supplied to emitted
+/// logs, allowing callers to group messages by subsystem or feature.
 template <typename Str> struct BaseLoggerContext {
   Str tag;
 
@@ -294,12 +334,18 @@ struct LoggerContext : public BaseLoggerContext<std::string> {
 };
 
 namespace Logger {
+/// Create a logger context from a compile-time string literal.
+///
+/// When enabled, the context ID is registered for file logging as well.
 template <ConstLoggerContext ctx, bool registerFile = true> inline auto WithContext() {
   if constexpr (registerFile) {
     RegisterFileContextId(ctx.tag);
   }
   return ctx;
 }
+/// Create a logger context from a runtime string tag.
+///
+/// When enabled, the supplied tag is registered for file logging as well.
 template <bool registerFile = true> inline auto WithContextRuntime(std::string_view const tag) {
   if constexpr (registerFile) {
     RegisterFileContextId(tag);

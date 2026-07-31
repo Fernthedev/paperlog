@@ -2,5 +2,6 @@
 name = "questloader"
 version = "0.1.0"
 edition = "2021"
+description = "Paper2 configured for QuestLoader, a mod loader for Quest2. This vendors and configures paper2 for use in QuestLoader."
 
 [dependencies]

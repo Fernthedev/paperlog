@@ -2,7 +2,7 @@
 name = "paper2_tracing"
 version = "0.1.0"
 edition = "2024"
-
+description = "Paper2 subscriber for tracing, a Rust logging framework. This is a subscriber for tracing that uses paper2's logging system to log messages from tracing. Useful for Rust mods that use tracing for logging, as it allows them to log messages to paper2's logging system."
 
 
 [dependencies]

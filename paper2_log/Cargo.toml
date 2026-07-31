@@ -2,6 +2,7 @@
 name = "paper2_log"
 version = "0.1.0"
 edition = "2024"
+description = "a `log` implementation for paper2, a logging system for Quest2. This is a `log` implementation that uses paper2's logging system to log messages from `log`. Useful for Rust mods that use `log` for logging, as it allows them to log messages to paper2's logging system."
 
 [features]
 default = ["std"]
