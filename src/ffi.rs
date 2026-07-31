@@ -237,16 +237,13 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 /// # Safety
 /// - No arguments. Safe to call at any time.
 pub unsafe extern "C" fn paper2_get_inited() -> bool {
-    let Some(logger) = get_logger() else {
-        return false;
-    };
-
-    let is_inited = logger
-        .read()
-        .is_inited()
-        .load(std::sync::atomic::Ordering::SeqCst);
-
-    is_inited
+    // `LOGGER` is only ever populated (via `init_logger`) with an instance
+    // that has already gone through `LoggerThreadCtx::init()`, so its
+    // presence alone tells us the logger is initialized without needing to
+    // take the `RwLock` and load the atomic flag too. This is called on
+    // every log line from the `log`-crate facade, so keeping it to a single
+    // `OnceLock` load (no lock, no second atomic) is worth it.
+    get_logger().is_some()
 }
 
 #[no_mangle]
