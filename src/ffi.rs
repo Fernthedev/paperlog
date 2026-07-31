@@ -1,10 +1,15 @@
+use bstr::{ByteSlice, ByteVec};
+
 use crate::ffi::c_str_helper::StringRef;
 use crate::get_logger;
 use crate::init_logger;
 use crate::log_level::LogLevel;
+use crate::logger::logger_chunk::LogDataChunk;
 use crate::logger::LogData;
 use crate::logger::LoggerConfig;
 use crate::Result;
+use crate::types::PaperStr;
+use crate::types::PaperString;
 use std::ffi::c_uint;
 use std::ffi::{c_uchar, c_ulonglong, CStr};
 use std::os::raw::{c_char, c_int};
@@ -28,10 +33,10 @@ pub struct LogDataC<'a> {
     pub message: StringRef<'a>,
     pub timestamp: i64, // Unix timestamp in seconds
 
-    pub file: StringRef<'a>,
+    pub file: StringRef<'static>,
     pub line: u32,
     pub column: u32,
-    pub function_name: StringRef<'a>,
+    pub function_name: StringRef<'static>,
 }
 
 #[repr(C)]
@@ -64,12 +69,9 @@ pub unsafe extern "C" fn paper2_init_logger_ffi(
     }
 
     let c_str = unsafe { CStr::from_ptr(path) };
-    let path_str = match c_str.to_str() {
-        Ok(str) => str,
-        Err(_) => return false,
-    };
-
-    let path_buf = PathBuf::from(path_str);
+    // `to_path_lossy()` is zero-copy on unix (raw bytes reinterpreted as
+    // `OsStr`), so a non-UTF-8 path still works instead of failing init.
+    let path_buf: PathBuf = c_str.to_bytes().to_path_lossy().into_owned();
 
     let converted_config: LoggerConfig = unsafe {
         config
@@ -95,16 +97,16 @@ pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
         return;
     };
 
-    let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
+    let tag = unsafe { PaperStr::new(CStr::from_ptr(tag).to_bytes()) };
 
-    let result = logger.write().add_context(&tag);
+    let result = logger.write().add_context(tag);
 
     if let Err(report) = result {
         logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
-            message: format!("Error creating context {tag}:\n{report}"),
-            file: file!().to_string(),
+            message: format!("Error creating context {tag}:\n{report}").into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -127,9 +129,9 @@ pub unsafe extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
         return;
     };
 
-    let tag = unsafe { CStr::from_ptr(tag).to_string_lossy() };
+    let tag = unsafe { PaperStr::new(CStr::from_ptr(tag).to_bytes()) };
 
-    logger.write().remove_context(&tag);
+    logger.write().remove_context(tag);
 }
 
 #[no_mangle]
@@ -158,24 +160,25 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
     let tag = unsafe {
         tag.as_ref()
             .map(|c_str| CStr::from_ptr(c_str))
-            .map(|c| c.to_string_lossy().into_owned())
+            .map(|c| PaperString::from(c.to_bytes()))
     };
 
-    let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
-    let file = unsafe { CStr::from_ptr(file).to_string_lossy().into_owned() };
+    let message: &'static CStr = unsafe { CStr::from_ptr(message) };
+    let file: &'static CStr = unsafe { CStr::from_ptr(file) };
 
     let log_data = LogData {
         level,
         tag,
-        message,
-        file,
+        message: PaperString::from(message.to_bytes()),
+        file: PaperStr::new(file.to_bytes()),
+
         line: line as u32,
         column: column as u32,
         function_name: unsafe {
             function_name
                 .as_ref()
                 .map(|c_str| CStr::from_ptr(c_str))
-                .map(|c| c.to_string_lossy().into_owned())
+                .map(|c: &'static CStr| PaperStr::new(c.to_bytes()))
         },
         ..Default::default()
     };
@@ -219,12 +222,9 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
             return std::ptr::null();
         };
 
-        let log_directory = logger
-            .read()
-            .config
-            .context_log_path
-            .to_string_lossy()
-            .into_owned();
+        // `Vec::from_path_lossy` is zero-copy on unix, so this doesn't
+        // require the configured path to be valid UTF-8.
+        let log_directory = Vec::from_path_lossy(&logger.read().config.context_log_path).into_owned();
 
         let c_str = std::ffi::CString::new(log_directory).unwrap();
         c_str.into_raw()
@@ -283,8 +283,8 @@ pub unsafe extern "C" fn paper2_add_log_sink(
 
     logger
         .write()
-        .add_sink(move |data: &LogData| -> Result<()> {
-            let c_data: LogDataC = data.into();
+        .add_sink(move |chunk: LogDataChunk<'_>| -> Result<()> {
+            let c_data: LogDataC = chunk.into();
             let user_data = user_data_ptr.load(Ordering::SeqCst);
             callback(&c_data, user_data);
             Ok(())
@@ -317,11 +317,13 @@ impl From<LoggerConfigFfi> for LoggerConfig {
                 max_string_len: ffi.max_string_len as usize,
                 log_max_buffer_count: ffi.log_max_buffer_count as usize,
                 line_end: ffi.line_end as char,
+                // `to_path_lossy()` is zero-copy on unix, so a non-UTF-8
+                // configured path doesn't get rejected or mangled here.
                 context_log_path: unsafe {
                     CStr::from_ptr(ffi.context_log_path)
-                        .to_string_lossy()
+                        .to_bytes()
+                        .to_path_lossy()
                         .into_owned()
-                        .into()
                 },
             }
         }
@@ -337,21 +339,25 @@ impl From<LoggerConfigFfi> for LoggerConfig {
     }
 }
 
-/// Converts internal LogData to FFI-compatible LogDataC.
-/// # Safety
-/// - All string fields are converted to C strings. Caller must ensure proper memory management.
-impl<'a> From<&'a LogData> for LogDataC<'a> {
-    fn from(data: &'a LogData) -> Self {
+/// Converts a log chunk to an FFI-compatible `LogDataC`.
+///
+/// Fields are exposed as raw `(ptr, len)` byte views (see `StringRef`)
+/// rather than validated UTF-8 strings, since the underlying bytes
+/// ultimately come from a caller-supplied C string that isn't guaranteed to
+/// be valid UTF-8.
+impl<'a> From<LogDataChunk<'a>> for LogDataC<'a> {
+    fn from(chunk: LogDataChunk<'a>) -> Self {
+        let data = chunk.original;
         Self {
             level: data.level,
-            tag: data.tag.as_deref().into(),
-            message: data.message.as_str().into(),
+            tag: data.tag.as_ref().map(|s| s.as_bstr()).into(),
+            message: chunk.message.into(),
             timestamp: data.timestamp.timestamp(),
 
-            file: data.file.as_str().into(),
+            file: data.file.into(),
             line: data.line,
             column: data.column,
-            function_name: data.function_name.as_deref().into(),
+            function_name: data.function_name.into(),
         }
     }
 }

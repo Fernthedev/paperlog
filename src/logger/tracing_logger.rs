@@ -2,6 +2,8 @@ use tracing::{debug, error, info, warn};
 
 use crate::log_level::LogLevel;
 
+use super::logger_chunk::LogDataChunk;
+
 impl From<LogLevel> for tracing::Level {
     fn from(level: LogLevel) -> Self {
         match level {
@@ -16,9 +18,9 @@ impl From<LogLevel> for tracing::Level {
     }
 }
 
-pub fn do_log(log: &super::LogData) -> crate::Result<()> {
+pub fn do_log(log: LogDataChunk<'_>) -> crate::Result<()> {
     let message = log.format();
-    match log.level {
+    match log.original.level {
         LogLevel::Info => info!("{message}"),
         LogLevel::Warn => warn!("{message}"),
         LogLevel::Error => error!("{message}"),

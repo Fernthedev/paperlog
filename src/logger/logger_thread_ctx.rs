@@ -13,15 +13,12 @@ use std::{
 };
 
 use crate::{
-    log_level::LogLevel,
-    logger::{LogCallback, LogData, LoggerConfig},
-    semaphore_lite::SemaphoreLite,
-    vec_pool::VecPool,
-    LoggerError, Result,
+    LoggerError, Result, log_level::LogLevel, logger::{LogCallback, LogData, LoggerConfig, logger_chunk}, semaphore_lite::SemaphoreLite, types::{PaperStr, PaperString}, vec_pool::VecPool,
 };
+use bstr::ByteSlice;
 use chrono::Local;
-use itertools::Itertools;
-use parking_lot::{Mutex, RwLock};
+use crossbeam::channel::{self, Receiver, Sender};
+use parking_lot::RwLock;
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
 
@@ -30,14 +27,14 @@ use rustc_hash::FxHashMap;
 // Usage: log_data_to!(&logger, LogLevel::Error, Some("tag".to_string()), "msg: {}", val);
 macro_rules! log_data_to {
     ($logger:expr, $level:expr, $tag:expr, $($arg:tt)+) => {{
-        let message = format!($($arg)+);
+        let message = format!($($arg)+).into();
         let _ = do_log(
-            LogData {
+            &LogData {
                 level: $level,
                 tag: $tag,
                 message,
                 timestamp: Local::now(),
-                file: file!().to_string(),
+                file: file!().into(),
                 line: line!(),
                 column: column!(),
                 function_name: None,
@@ -52,11 +49,16 @@ pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThreadCtx>>;
 pub struct LoggerThreadCtx {
     pub config: LoggerConfig,
 
-    /// Semaphore to indicate new log entries
-    /// Mutex to protect log queue
-    log_queue: Arc<(SemaphoreLite, Mutex<Vec<LogData>>)>,
+    /// Producer-side handle. Cloneable, thread-safe — every caller of
+    /// `queue_log`/`queue_logs` sends through this.
+    log_sender: Sender<LogData>,
 
-    /// Semaphore to indicate flush completion
+    /// Consumer-side handle. Held here only until `init()` moves it into the
+    /// dedicated logging thread; `None` afterwards.
+    log_receiver: Option<Receiver<LogData>>,
+
+    /// Signaled once a flush completes, so callers of `wait_for_flush` /
+    /// `wait_for_flush_timeout` can block until logs are durably written.
     flush_semaphore: Arc<SemaphoreLite>,
 
     /// Whether the logger has been initialized
@@ -68,7 +70,7 @@ pub struct LoggerThreadCtx {
 
     /// Map of context log files. ID -> Log file
     #[cfg(feature = "file")]
-    pub(super) context_map: FxHashMap<String, BufWriter<File>>,
+    pub(super) context_map: FxHashMap<PaperString, BufWriter<File>>,
 
     /// Additional log sinks
     pub(super) sinks: Vec<Box<dyn LogCallback>>,
@@ -76,10 +78,10 @@ pub struct LoggerThreadCtx {
 
 impl LoggerThreadCtx {
     pub fn new(config: LoggerConfig, log_path: PathBuf) -> Result<Self> {
-        let log_queue = Arc::new((
-            SemaphoreLite::new(),
-            Mutex::new(Vec::with_capacity(config.log_max_buffer_count)),
-        ));
+        // Unbounded MPSC: many producer threads/call sites, one consumer
+        // (the logging thread). Swap for `channel::bounded(n)` if you want
+        // backpressure instead of unbounded growth under a log storm.
+        let (log_sender, log_receiver) = channel::unbounded();
         let flush_semaphore = Arc::new(SemaphoreLite::new());
 
         #[cfg(feature = "file")]
@@ -114,7 +116,8 @@ impl LoggerThreadCtx {
 
         Ok(LoggerThreadCtx {
             config,
-            log_queue,
+            log_sender,
+            log_receiver: Some(log_receiver),
             flush_semaphore,
             inited: AtomicBool::new(false),
 
@@ -128,14 +131,19 @@ impl LoggerThreadCtx {
         })
     }
 
-    pub fn init(self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
+    pub fn init(mut self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
         if self.inited.load(Ordering::SeqCst) {
             return Err(LoggerError::AlreadyInitialized);
         }
 
         self.inited.store(true, Ordering::SeqCst);
 
-        let log_queue_clone = Arc::clone(&self.log_queue);
+        // Move the receiver out before `self` is consumed into the Arc<RwLock<..>>.
+        // There is exactly one consumer, so this must succeed on first init.
+        let log_receiver = self
+            .log_receiver
+            .take()
+            .expect("log receiver already taken; init() called more than once?");
         let flush_semaphore_clone = Arc::clone(&self.flush_semaphore);
         let thread_safe_self: Arc<RwLock<LoggerThreadCtx>> = Arc::new(self.into());
         let thread_safe_self_clone = Arc::clone(&thread_safe_self);
@@ -154,9 +162,19 @@ impl LoggerThreadCtx {
             std::panic::set_hook(panic_hook(true, true, thread_safe_self.clone()));
         }
 
+        // `tracing`'s default dispatcher is thread-local, so the dedicated
+        // logging thread spawned below wouldn't otherwise see whatever
+        // subscriber (e.g. a test's `#[traced_test]` capture) is active on
+        // the calling thread. Capture it here and re-install it there.
+        #[cfg(feature = "tracing")]
+        let dispatch = tracing::dispatcher::get_default(|d| d.clone());
+
         thread::spawn(move || {
+            #[cfg(feature = "tracing")]
+            let _dispatch_guard = tracing::dispatcher::set_default(&dispatch);
+
             let result = Self::log_thread(
-                log_queue_clone,
+                log_receiver,
                 flush_semaphore_clone.clone(),
                 thread_safe_self_clone.clone(),
             );
@@ -168,7 +186,7 @@ impl LoggerThreadCtx {
                 log_data_to!(
                     &thread_safe_self_clone,
                     LogLevel::Error,
-                    Some("Paper2".to_string()),
+                    Some("Paper2".into()),
                     "Error occurred in logging thread: {e}"
                 );
             }
@@ -181,35 +199,30 @@ impl LoggerThreadCtx {
         &self.inited
     }
 
-    pub fn get_queue(&self) -> &Mutex<Vec<LogData>> {
-        &self.log_queue.1
-    }
-
     pub fn get_sinks(&self) -> &Vec<Box<dyn LogCallback>> {
         &self.sinks
     }
 
     /// Queues a log entry to be written by the logging thread.
-    /// This is thread-safe.
+    /// This is thread-safe; `Sender<T>` is `Clone + Send + Sync`.
     pub fn queue_log(&self, log_data: LogData) {
-        let (sempahore, queue) = self.log_queue.as_ref();
-
-        queue.lock().push(log_data);
-        sempahore.signal();
+        // If the consumer has been dropped (shutdown), just drop the log
+        // rather than panicking the caller.
+        let _ = self.log_sender.send(log_data);
     }
 
-    /// Queues a log entry to be written by the logging thread.
+    /// Queues multiple log entries to be written by the logging thread.
     /// This is thread-safe.
     pub fn queue_logs(&self, log_data: impl Iterator<Item = LogData>) {
-        let (sempahore, queue) = self.log_queue.as_ref();
-
-        {
-            let mut locked_queue = queue.lock();
-            for log_data in log_data {
-                locked_queue.push(log_data);
-            }
+        for log_data in log_data {
+            let _ = self.log_sender.send(log_data);
         }
-        sempahore.signal();
+    }
+
+    /// Approximate number of log entries not yet picked up by the logging
+    /// thread. Mainly useful for tests/inspection.
+    pub fn queue_len(&self) -> usize {
+        self.log_sender.len()
     }
 
     #[cfg(feature = "backtrace")]
@@ -218,7 +231,7 @@ impl LoggerThreadCtx {
         use std::backtrace::Backtrace;
 
         let backtrace = Backtrace::capture();
-        let backtrace_str = format!("{backtrace:?}");
+        let backtrace_str = format!("{backtrace:?}").into();
 
         self.queue_log(LogData {
             level: LogLevel::Error,
@@ -234,10 +247,16 @@ impl LoggerThreadCtx {
         Ok(())
     }
 
-    pub fn add_context(&mut self, tag: &str) -> Result<()> {
+    pub fn add_context(&mut self, tag: &PaperStr) -> Result<()> {
         #[cfg(feature = "file")]
         {
-            let log_path = self.config.context_log_path.join(tag).with_extension("log");
+            // `to_path_lossy()` is zero-copy on unix (raw bytes reinterpreted as
+            // `OsStr`), so this doesn't require `tag` to be valid UTF-8.
+            let log_path = self
+                .config
+                .context_log_path
+                .join(tag.to_path_lossy())
+                .with_extension("log");
             let file = File::create(&log_path).map_err(|e| {
                 LoggerError::IoSpecificError(
                     e,
@@ -247,12 +266,12 @@ impl LoggerThreadCtx {
             })?;
             let file = BufWriter::new(file);
 
-            self.context_map.insert(tag.to_string(), file);
+            self.context_map.insert(tag.to_owned(), file);
         }
 
         Ok(())
     }
-    pub fn remove_context(&mut self, tag: &str) {
+    pub fn remove_context(&mut self, tag: &PaperStr) {
         #[cfg(feature = "file")]
         {
             self.context_map.remove(tag);
@@ -267,78 +286,75 @@ impl LoggerThreadCtx {
     }
 
     /// The main logging thread function.
-    /// Waits for log entries and writes them to the appropriate backends.
-    /// This function runs indefinitely until the program exits.
+    /// Blocks on the channel for the next entry, then drains whatever else
+    /// has queued up (non-blocking) so writes happen in batches.
+    /// Returns when all `Sender` handles are dropped (channel disconnected).
     fn log_thread(
-        log_queue: Arc<(SemaphoreLite, Mutex<Vec<LogData>>)>,
+        log_receiver: Receiver<LogData>,
         flush_semaphore: Arc<SemaphoreLite>,
         logger_thread: Arc<RwLock<LoggerThreadCtx>>,
     ) -> Result<()> {
         //TODO: Use config max buffer count to limit log batch size
         let mut log_pool: VecPool<LogData> = VecPool::with_initial_amount(2, 1024);
-
-        let (log_semaphore_lite, log_mutex) = log_queue.as_ref();
-
         let mut logged = 0;
 
         loop {
-            let vec = log_pool.take_vec();
-            // move items from queue to local variable
-            // then resize the vec to 100
-            // preventing an infinite growing log buffer
-            let queue = {
-                let mut locked = log_mutex.lock();
-                std::mem::replace(&mut *locked, vec.to_vec())
+            // Block until at least one log arrives. Err means every Sender
+            // was dropped, i.e. clean shutdown — exit the loop.
+            let first = match log_receiver.recv() {
+                Ok(log) => log,
+                Err(_) => break,
             };
+
+            let mut queue = log_pool.take_vec();
+            queue.clear();
+            queue.push(first);
+
+            // Drain anything else already queued, without blocking, so we
+            // batch writes instead of doing one syscall per log line.
+            while let Ok(log) = log_receiver.try_recv() {
+                queue.push(log);
+            }
+
             logged += queue.len();
 
-            // if queue is not empty, write the logs
-            if !queue.is_empty() {
-                let max_str_len = logger_thread.read().config.max_string_len;
-                // collect the split logs into a vec so we can batch file writes
-                let logs_vec: Vec<LogData> = split_str_into_chunks(queue, max_str_len).collect();
+            let max_str_len = logger_thread.read().config.max_string_len;
+            // collect the split logs into a vec so we can batch file writes
+            let logs_vec: Vec<_> = logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
 
-                // Batch file writes under a single write lock to reduce overhead
-                #[cfg(feature = "file")]
-                {
-                    // write files in batch
-                    super::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
-                }
+            // Batch file writes under a single write lock to reduce overhead
+            #[cfg(feature = "file")]
+            {
+                // write files in batch
+                super::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
+            }
 
-                // Call non-file backends per log (these are typically cheaper and may
-                // require per-log handling).
-                for log in &logs_vec {
-                    #[cfg(all(target_os = "android", feature = "logcat"))]
-                    super::logcat_logger::do_log(log)?;
+            // Call non-file backends per log (these are typically cheaper and may
+            // require per-log handling).
+            for log in logs_vec {
+                #[cfg(all(target_os = "android", feature = "logcat"))]
+                super::logcat_logger::do_log(log)?;
 
-                    #[cfg(feature = "stdout")]
-                    stdout_logger::do_log(log);
+                #[cfg(feature = "stdout")]
+                super::stdout_logger::do_log(log);
 
-                    #[cfg(feature = "sinks")]
-                    super::sink_logger::do_log(log, &logger_thread)?;
+                #[cfg(feature = "sinks")]
+                super::sink_logger::do_log(log, &logger_thread)?;
 
-                    #[cfg(feature = "tracing")]
-                    tracing_logger::do_log(log)?;
-                }
+                #[cfg(feature = "tracing")]
+                super::tracing_logger::do_log(log)?;
             }
 
             // if no more logs in the pipeline, flush it
-            // or flush every 100 lines to avoid
-            // missing flushes
-            {
-                let is_empty = log_mutex.lock().is_empty();
-
-                if is_empty || logged >= 100 {
-                    Self::flush(&logger_thread, &flush_semaphore)
-                        .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
-                    logged = 0;
-                }
-            }
-            // only lock if the queue is empty
-            if log_mutex.lock().is_empty() {
-                log_semaphore_lite.wait();
+            // or flush every 100 lines to avoid missing flushes
+            if log_receiver.is_empty() || logged >= 100 {
+                Self::flush(&logger_thread, &flush_semaphore)
+                    .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
+                logged = 0;
             }
         }
+
+        Ok(())
     }
 
     /// Flushes all log files.
@@ -364,59 +380,44 @@ impl LoggerThreadCtx {
         Ok(())
     }
 
-    ///
-    /// Waits indefinitely until the next queue is flushed
-    /// May block until a log is called forth
+    /// Waits indefinitely until the next flush completes.
     pub fn wait_for_flush(&self) {
-        self.log_queue.0.wait();
+        self.flush_semaphore.wait();
     }
     pub fn wait_for_flush_timeout(&self, duration: Duration) {
-        self.log_queue.0.wait_timeout(duration);
+        self.flush_semaphore.wait_timeout(duration);
     }
 }
 
-/// Split log message by line endings and then split each line into chunks
-fn split_str_into_chunks(queue: Vec<LogData>, max_str_len: usize) -> impl Iterator<Item = LogData> {
-    queue.into_iter().flat_map(move |log| {
-        // split log message by line endings
-        log.message
-            .split("\n")
-            .flat_map(|s| {
-                // split string into chunks
-                s.chars()
-                    .chunks(max_str_len)
-                    .into_iter()
-                    .map(|chunk| {
-                        let chunk = chunk.collect::<String>();
-                        LogData {
-                            message: chunk,
-                            ..log.clone()
-                        }
-                    })
-                    .collect_vec()
-            })
-            .collect_vec()
-    })
-}
 
-/// Logs a log entry to all enabled backends.
-pub fn do_log(log: LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<()> {
+/// Logs a single, unchunked log entry to all enabled backends. Used for
+/// internal logger errors (panic hook, logging-thread failure) rather than
+/// the hot path, which chunks messages via `LogDataChunk` instead.
+pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<()> {
     use super::*;
 
+    // Every backend below takes a `LogDataChunk`; build one borrowing the
+    // whole message rather than allocating an owned copy.
+    #[allow(unused_variables)]
+    let chunk = LogDataChunk {
+        original: log,
+        message: log.message.as_bstr(),
+    };
+
     #[cfg(all(target_os = "android", feature = "logcat"))]
-    logcat_logger::do_log(&log)?;
+    logcat_logger::do_log(chunk)?;
 
     #[cfg(feature = "file")]
-    file_logger::do_log(&log, logger_thread)?;
+    file_logger::do_log(log, logger_thread)?;
 
     #[cfg(feature = "stdout")]
-    stdout_logger::do_log(&log);
+    stdout_logger::do_log(chunk);
 
     #[cfg(feature = "sinks")]
-    sink_logger::do_log(&log, logger_thread)?;
+    sink_logger::do_log(chunk, logger_thread)?;
 
     #[cfg(feature = "tracing")]
-    tracing_logger::do_log(&log)?;
+    tracing_logger::do_log(chunk)?;
 
     Ok(())
 }
@@ -441,14 +442,14 @@ pub fn panic_hook(
         log_data_to!(
             &logger_thread,
             LogLevel::Error,
-            Some("panic".to_string()),
+            Some("panic".into()),
             "panicked at '{msg}', {location}"
         );
         if backtrace {
             log_data_to!(
                 &logger_thread,
                 LogLevel::Error,
-                Some("panic".to_string()),
+                Some("panic".into()),
                 "{:?}",
                 Backtrace::force_capture()
             );
@@ -461,7 +462,7 @@ pub fn panic_hook(
             log_data_to!(
                 &logger_thread,
                 LogLevel::Error,
-                Some("panic".to_string()),
+                Some("panic".into()),
                 "{:?}",
                 SpanTrace::capture()
             );

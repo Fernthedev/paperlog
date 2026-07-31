@@ -1,8 +1,10 @@
 // https://github.com/raftario/paranoid-android/blob/main/src/writer.rs
 
-use crate::{log_level::LogLevel, Result};
+use crate::types::PaperStr;
+use crate::{log_level::LogLevel, logger::logger_chunk::LogDataChunk, Result};
 
 use std::ffi::{CStr, CString};
+use std::io::Write as _;
 
 // assert tracing is not enabled
 #[cfg(feature = "tracing")]
@@ -67,46 +69,75 @@ thread_local! {
     static CSTRING_BUFFER: std::cell::RefCell<Vec<u8>> = std::cell::RefCell::new(Vec::with_capacity(8092));
 }
 
-pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
-    let message_str = format!(
-        "[{}:{}:{} @ {}] {}",
-        log.file,
-        log.line,
-        log.column,
-        log.function_name.as_deref().unwrap_or(""),
-        log.message.clone()
-    );
+/// Appends `s` plus a nul terminator to `buf`, and returns a closure that
+/// later resolves to a `&CStr` view of just the segment written here, given
+/// `buf`'s eventual final contents.
+///
+/// This can't hand back the `&CStr` directly: a later append (or the
+/// `write!` for the message) can still grow/reallocate `buf`, which would
+/// dangle an already-borrowed slice, and the borrow checker wouldn't allow
+/// reusing `buf` for the next append while an earlier live `&CStr` from it
+/// exists anyway. The returned closure instead captures only two plain
+/// `usize` offsets — not a reference into `buf` — so `buf`'s mutable borrow
+/// ends the moment this function returns. Any number of these can be
+/// created across several appends and then all resolved together, once,
+/// from one shared immutable borrow after every append is done.
+fn append_string_to_buf(buf: &mut Vec<u8>, s: &PaperStr) -> impl Fn(&[u8]) -> &CStr {
+    let start = buf.len();
+    buf.extend_from_slice(s);
+    buf.push(0);
+    let end = buf.len();
+    move |buf: &[u8]| unsafe { CStr::from_bytes_with_nul_unchecked(&buf[start..end]) }
+}
 
-    let priority: Priority = log.level.into();
+pub(crate) fn do_log(log: LogDataChunk<'_>) -> Result<()> {
+    let data = log.original;
+    let priority: Priority = data.level.into();
+
     CSTRING_BUFFER.with_borrow_mut(|buffer| unsafe {
-        let tag = log.tag.as_deref().unwrap_or("default");
+        let tag = log.tag();
 
-        let sizes = tag.len() + log.file.len() + message_str.len() + 3;
-        if buffer.capacity() < sizes {
-            let capacity = buffer.capacity();
-            buffer.reserve(sizes - capacity);
-        }
+        // Reserve a rough estimate up front; `write!`/`extend_from_slice`
+        // below will grow the buffer further if needed. The buffer is
+        // thread-local and reused across calls, so this only costs a
+        // reallocation on the first few (growing) calls.
+        let estimate = tag.len() + data.file.len() + log.message.len() + 32;
+        buffer.reserve(estimate.saturating_sub(buffer.capacity()));
 
-        // tag, file, and message are null-terminated
-        buffer.extend(tag.bytes().chain(std::iter::once(b'\0')));
-        buffer.extend(log.file.bytes().chain(std::iter::once(b'\0')));
-        buffer.extend(message_str.bytes().chain(std::iter::once(b'\0')));
+        // tag, and (only when needed) file, are written directly into the
+        // reusable buffer (no intermediate `String` allocation) and
+        // null-terminated in place so they can be handed to the NDK as C
+        // strings.
+        let tag_view = append_string_to_buf(buffer, tag);
 
-        let tag_len = tag.len() + 1;
-        let file_len = tag_len + log.file.len() + 1;
-        let message_len = message_str.len() + 1;
+        // The plain `__android_log_write` path below only takes a tag and a
+        // message; `file` as its own C string is only read by the
+        // `android-api-30` log-message struct, so skip that copy otherwise.
+        #[cfg(feature = "android-api-30")]
+        let file_view = append_string_to_buf(buffer, data.file);
 
-        let tag = CStr::from_bytes_with_nul_unchecked(&buffer[0..tag_len]);
-        let file = CStr::from_bytes_with_nul_unchecked(&buffer[tag_len..file_len]);
-        let message = CStr::from_bytes_with_nul_unchecked(&buffer[file_len..message_len]);
+        let message_start = buffer.len();
+        write!(
+            buffer,
+            "[{file}:{line}:{column} @ {function_name}] {message}\0",
+            file = data.file,
+            line = data.line,
+            column = data.column,
+            function_name = data.function_name_or_default(),
+            message = log.message,
+        )
+        .expect("writing to an in-memory buffer cannot fail");
+
+        let tag = tag_view(buffer);
+        let message = CStr::from_bytes_with_nul_unchecked(&buffer[message_start..]);
 
         #[cfg(feature = "android-api-30")]
         {
-            use ndk_sys::{__android_log_message, __android_log_write_log_message};
+            use ndk_sys::{__android_log_is_loggable, __android_log_message, __android_log_write_log_message};
 
-            if unsafe { __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) }
-                == 0
-            {
+            let file = file_view(buffer);
+
+            if __android_log_is_loggable(priority as i32, tag.as_ptr(), priority as i32) == 0 {
                 return;
             }
 
@@ -116,11 +147,11 @@ pub(crate) fn do_log(log: &super::log_data::LogData) -> Result<()> {
                 priority: priority as i32,
                 tag: tag.as_ptr(),
                 file: file.as_ptr(),
-                line: log.line,
+                line: data.line,
                 message: message.as_ptr(),
             };
 
-            unsafe { __android_log_write_log_message(&mut message) };
+            __android_log_write_log_message(&mut message);
         }
 
         #[cfg(not(feature = "android-api-30"))]

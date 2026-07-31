@@ -34,8 +34,13 @@ typedef struct paper2_LoggerConfigFfi {
 } paper2_LoggerConfigFfi;
 
 /**
- * Helper struct to manage ownership of C strings across FFI boundaries.
+ * Helper struct to manage ownership of a byte slice across FFI boundaries.
  * I'm not sure if I can pass a struct using CString directly, so this is a workaround.
+ *
+ * Deliberately a raw `(ptr, len)` pair over arbitrary bytes rather than a
+ * `&str` — the data ultimately comes from a caller-supplied C string that
+ * isn't guaranteed to be valid UTF-8, and re-validating it here would mean
+ * either rejecting or lossily rewriting bytes the caller explicitly wrote.
  */
 typedef struct paper2_StringRef {
   const uint8_t *_0;

@@ -51,19 +51,15 @@ fn test_queue_log() {
     let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
     logger_thread.queue_log(LogData {
         level: LogLevel::Info,
-        tag: Some("test".to_string()),
-        message: "This is a test log".to_string(),
-        file: file!().to_string(),
+        tag: Some("test".into()),
+        message: "This is a test log".into(),
+        file: file!().into(),
         line: line!(),
         column: column!(),
         ..Default::default()
     });
 
-    {
-        let queue = logger_thread.get_queue();
-        let queue = queue.lock();
-        assert_eq!(queue.len(), 1);
-    }
+    assert_eq!(logger_thread.queue_len(), 1);
 
     {
         let thread_safe_logger = logger_thread.init(false).unwrap();
@@ -73,10 +69,7 @@ fn test_queue_log() {
             .read()
             .wait_for_flush_timeout(Duration::from_millis(500));
 
-        let logger_thread_read = thread_safe_logger.read();
-        let queue = logger_thread_read.get_queue();
-
-        let queue = queue.lock().len();
+        let queue = thread_safe_logger.read().queue_len();
         assert_eq!(queue, 0);
     }
 }
@@ -119,9 +112,9 @@ fn test_log_thread() {
         let logger_thread = logger_thread_clone.read();
         logger_thread.queue_log(LogData {
             level: LogLevel::Info,
-            tag: Some("test".to_string()),
-            message: "This is a test log".to_string(),
-            file: file!().to_string(),
+            tag: Some("test".into()),
+            message: "This is a test log".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             ..Default::default()
@@ -132,6 +125,5 @@ fn test_log_thread() {
 
     let logger_thread = thread_safe_logger.read();
     logger_thread.wait_for_flush_timeout(Duration::from_millis(1000));
-    let queue = logger_thread.get_queue().lock().len();
-    // assert_eq!(queue, 0);
+    assert_eq!(logger_thread.queue_len(), 0);
 }

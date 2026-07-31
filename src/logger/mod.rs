@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
-use crate::Result;
+use crate::{Result, logger::logger_chunk::LogDataChunk};
+
+pub mod logger_chunk;
 
 pub mod logger_thread_ctx;
 
-#[cfg(all(target_os = "android", feature = "logcat"))]
+#[cfg(feature = "logcat")]
 pub mod logcat_logger;
 
 #[cfg(feature = "file")]
@@ -23,7 +25,7 @@ pub mod tracing_logger;
 mod log_data;
 pub use log_data::LogData;
 
-pub trait LogCallback = Fn(&LogData) -> Result<()> + Send + Sync;
+pub trait LogCallback = Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync;
 
 
 #[repr(C)]

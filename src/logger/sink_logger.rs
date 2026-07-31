@@ -1,10 +1,8 @@
-use crate::Result;
+use crate::{Result, logger::logger_chunk::LogDataChunk};
 use parking_lot::RwLock;
 
-use super::log_data::LogData;
-
 pub(crate) fn do_log(
-    log: &LogData,
+    log: LogDataChunk<'_>,
     logger_thread: &RwLock<crate::logger::logger_thread_ctx::LoggerThreadCtx>,
 ) -> Result<()> {
     let sinks = &logger_thread.read().sinks;
