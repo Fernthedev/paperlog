@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           submodules: true
