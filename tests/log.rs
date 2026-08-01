@@ -1,9 +1,9 @@
 use color_eyre::eyre::Result;
 
-use crate::types::config::LoggerConfig;
-use crate::types::log_level::LogLevel;
-use crate::types::LogData;
-use crate::LoggerThreadCtx;
+use paper2::logger::LoggerThreadCtx;
+use paper2::types::config::LoggerConfig;
+use paper2::types::log_level::LogLevel;
+use paper2::types::LogData;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -296,35 +296,3 @@ fn test_utf8() -> Result<()> {
     logs_assert(find_log("INFO [GLOBAL] £ ह € 한\n"));
     Ok(())
 }
-
-// #[test]
-// fn test_utf16_to_utf8() -> Result<()> {
-//     let config = LoggerConfig {
-//         max_string_len: 100,
-//         log_max_buffer_count: 50,
-//         line_end: '\n',
-//         context_log_path: PathBuf::from("./logs/"),
-//     };
-//     let log_path = PathBuf::from("./logs/test_log.log");
-
-//     let logger = LoggerThread::new(config, log_path)?.init(false)?;
-//     let output = capture_stdout(|| {
-//         logger.read().queue_log(
-//             LogLevel::Info,
-//             None,
-//             format!(
-//                 "Testing UTF-16 conversion chars {}",
-//                 String::from_utf16(u"한🌮🦀").unwrap()
-//             ),
-//             file!().into(),
-//             line!(),
-//         );
-//         wait_for_complete_flush(&logger.read());
-//     })?;
-
-//     assert_eq!(
-//         output,
-//         "INFO [GLOBAL] Testing UTF-16 conversion chars 한🌮🦀\n"
-//     );
-//     Ok(())
-// }

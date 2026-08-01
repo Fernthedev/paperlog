@@ -19,6 +19,14 @@ harness = false
 name = "lock_compare"
 harness = false
 
+[[bench]]
+name = "chunking_bench"
+harness = false
+
+[[bench]]
+name = "ffi_bench"
+harness = false
+
 [dependencies]
 cfg-if = "1"
 itertools = "0.14"

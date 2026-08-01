@@ -10,6 +10,22 @@ use crate::types::PaperStr;
 #[repr(C)]
 pub struct StringRef<'a>(*const u8, usize, std::marker::PhantomData<&'a [u8]>);
 
+impl<'a> StringRef<'a> {
+    /// Reinterprets the `(pointer, length)` pair as a byte slice.
+    ///
+    /// # Safety
+    /// The pointed-to memory must still be valid and unchanged since this
+    /// `StringRef` was constructed — the same requirement a C consumer
+    /// reading the raw `_0`/`_1` fields directly is already bound by.
+    pub unsafe fn as_bytes(&self) -> &'a [u8] {
+        if self.0.is_null() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.0, self.1) }
+        }
+    }
+}
+
 impl<'a> From<&'a PaperStr> for StringRef<'a> {
     fn from(s: &'a PaperStr) -> Self {
         Self(s.as_ptr(), s.len(), std::marker::PhantomData)

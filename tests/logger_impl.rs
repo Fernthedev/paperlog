@@ -5,7 +5,10 @@ use std::{
     time::Duration,
 };
 
-use crate::{LoggerConfig, LoggerThreadCtx, types::log_level::LogLevel, types::LogData};
+use paper2::logger::LoggerThreadCtx;
+use paper2::types::config::LoggerConfig;
+use paper2::types::log_level::LogLevel;
+use paper2::types::LogData;
 
 #[test]
 fn test_logger_thread_initialization() {
@@ -73,25 +76,6 @@ fn test_queue_log() {
         assert_eq!(queue, 0);
     }
 }
-
-// #[test]
-// fn test_add_sink() {
-//     let config = LoggerConfig {
-//         max_string_len: 100,
-//         log_max_buffer_count: 50,
-//         line_end: '\n',
-//         context_log_path: "./logs".into(),
-//     };
-//     let log_path = PathBuf::from("./logs/test_log.log");
-
-//     let mut logger_thread = LoggerThread::new(config, log_path).unwrap();
-//     logger_thread.add_sink(|log_data: &LogData| -> Result<()> {
-//         println!("Log: {:?}", log_data);
-//         Ok(())
-//     });
-
-//     assert_eq!(logger_thread.get_sinks().len(), 1);
-// }
 
 #[test]
 fn test_log_thread() {
