@@ -28,7 +28,7 @@ use chrono::Local;
 use crossbeam::channel::{self, Receiver, Sender};
 use parking_lot::RwLock;
 
-mod sinks;
+pub mod sinks;
 
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
