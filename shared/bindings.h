@@ -99,8 +99,21 @@ void paper2_unregister_context_id(const char *tag);
  * Queues a log entry from FFI.
  *
  * # Safety
- * - All pointer arguments must be valid, null-terminated C strings.
+ * - `tag`/`function_name` may be null (meaning "absent"); if non-null, and
+ *   `message`/`file` always, must be valid, null-terminated C strings.
+ * - `file` and `function_name` are stored as `&'static` references without
+ *   copying — the pointed-to memory must remain valid for the rest of the
+ *   process's lifetime. This holds for the common case (`__FILE__`/
+ *   `__builtin_FUNCTION()`/`std::source_location`, all backed by static
+ *   storage) but NOT for a transient/stack/heap buffer built per call; do
+ *   not pass one of those here. `tag` and `message` are copied, so they
+ *   have no such requirement.
  * - `level` must be a valid `LogLevel`.
+ *
+ * Prefer [`paper2_queue_log_bytes_ffi`] when the caller already knows each
+ * string's length (e.g. `std::string_view::size()`) — it avoids a `strlen`
+ * scan per field here, and doesn't require `tag`/`function_name` to be
+ * null-terminated at all.
  */
 bool paper2_queue_log_ffi(enum paper2_LogLevel level,
                           const char *tag,
@@ -109,6 +122,44 @@ bool paper2_queue_log_ffi(enum paper2_LogLevel level,
                           int line,
                           int column,
                           const char *function_name);
+
+/**
+ * Queues a log entry from FFI using explicit `(pointer, length)` pairs
+ * instead of null-terminated C strings.
+ *
+ * Prefer this over [`paper2_queue_log_ffi`] whenever the caller already has
+ * a length on hand (`std::string_view`/`std::string` both do, for free).
+ * Benefits over the C-string version:
+ * - No `strlen` scan for any of the four fields.
+ * - `tag`/`function_name` don't need to be null-terminated at all — a
+ *   `std::string_view` that's a substring of a larger buffer is safe to
+ *   pass directly, which it is *not* for [`paper2_queue_log_ffi`].
+ * - Embedded NUL bytes in the middle of a string are preserved rather than
+ *   silently truncating it, consistent with this crate's non-UTF-8-safe,
+ *   arbitrary-byte-string design.
+ *
+ * # Safety
+ * - `message_ptr`/`file_ptr` must be non-null and valid for reads of
+ *   `message_len`/`file_len` bytes.
+ * - `tag_ptr`/`function_name_ptr` may be null (meaning "absent"); if
+ *   non-null, must be valid for reads of `tag_len`/`function_name_len`
+ *   bytes.
+ * - `file` and `function_name` are stored as `&'static` references without
+ *   copying — see the equivalent note on [`paper2_queue_log_ffi`]; the
+ *   same static-storage requirement applies here.
+ * - `level` must be a valid `LogLevel`.
+ */
+bool paper2_queue_log_bytes_ffi(enum paper2_LogLevel level,
+                                const uint8_t *tag_ptr,
+                                uintptr_t tag_len,
+                                const uint8_t *message_ptr,
+                                uintptr_t message_len,
+                                const uint8_t *file_ptr,
+                                uintptr_t file_len,
+                                int line,
+                                int column,
+                                const uint8_t *function_name_ptr,
+                                uintptr_t function_name_len);
 
 /**
  * Waits for all logs to be flushed.

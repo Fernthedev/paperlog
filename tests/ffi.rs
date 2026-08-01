@@ -5,9 +5,9 @@ use std::sync::Mutex;
 use std::{fs, path::PathBuf, thread, time::Duration};
 
 use paper2::ffi::{
-    paper2_add_log_sink, paper2_get_inited, paper2_init_logger_ffi, paper2_queue_log_ffi,
-    paper2_register_context_id, paper2_unregister_context_id, paper2_wait_flush_timeout,
-    LogDataC,
+    paper2_add_log_sink, paper2_get_inited, paper2_init_logger_ffi, paper2_queue_log_bytes_ffi,
+    paper2_queue_log_ffi, paper2_register_context_id, paper2_unregister_context_id,
+    paper2_wait_flush_timeout, LogDataC,
 };
 use paper2::types::log_level::LogLevel;
 
@@ -82,6 +82,33 @@ fn ffi_round_trip() {
     };
     assert!(queued_invalid);
 
+    // `paper2_queue_log_bytes_ffi` takes explicit lengths instead of relying
+    // on null termination — the point being that a `(ptr, len)` view into
+    // the middle of a larger buffer (like a `std::string_view` substring)
+    // is valid input even though the byte right after the logical end is
+    // NOT a nul terminator. Build one such buffer here and confirm only the
+    // in-range bytes are read.
+    let tag_buf = b"cx\xFFt_TRAILING_GARBAGE".to_vec();
+    let tag_len = 4; // covers `cx\xFFt`, deliberately stopping short of the nul-less garbage tail
+    let message_buf = b"byte-oriented hello_TRAILING_GARBAGE".to_vec();
+    let message_len = b"byte-oriented hello".len(); // stops short of the nul-less garbage tail
+    let queued_bytes = unsafe {
+        paper2_queue_log_bytes_ffi(
+            LogLevel::Info,
+            tag_buf.as_ptr(),
+            tag_len,
+            message_buf.as_ptr(),
+            message_len,
+            file_c.as_ptr().cast(),
+            file_c.as_bytes().len(),
+            line!() as i32,
+            column!() as i32,
+            std::ptr::null(),
+            0,
+        )
+    };
+    assert!(queued_bytes);
+
     // Registering/unregistering a context tag must not panic either, even
     // for a tag that isn't valid UTF-8.
     let tag = CString::new(vec![b'c', b't', 0xFF, b'x']).unwrap();
@@ -99,6 +126,12 @@ fn ffi_round_trip() {
     assert!(
         captured.iter().any(|m| *m == invalid_bytes),
         "sink didn't receive the non-UTF-8 message byte-for-byte; got {captured:?}"
+    );
+    assert!(
+        captured
+            .iter()
+            .any(|m| m == b"byte-oriented hello" && !m.ends_with(b"_TRAILING_GARBAGE")),
+        "paper2_queue_log_bytes_ffi should stop exactly at message_len, not read past it; got {captured:?}"
     );
     drop(captured);
 
