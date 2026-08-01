@@ -9,7 +9,11 @@ use paper2::types::log_level::LogLevel;
 // logger once; later calls (including from other benches in this binary)
 // are safe no-ops, so it's fine to call this from every bench function.
 fn ensure_inited() {
-    let log_path = CString::new("logs/ffi_bench.log").unwrap();
+    // See `benches/logger_bench.rs`: keep bench log files off whatever
+    // filesystem the checkout happens to be on (may be slow/inconsistent,
+    // e.g. FUSE-backed) and use the OS temp dir instead.
+    let log_path = std::env::temp_dir().join("paper2_bench").join("ffi_bench.log");
+    let log_path = CString::new(log_path.to_str().unwrap()).unwrap();
     unsafe {
         paper2_init_logger_ffi(std::ptr::null(), log_path.as_ptr());
     }
