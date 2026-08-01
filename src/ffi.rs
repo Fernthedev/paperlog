@@ -3,13 +3,13 @@ use bstr::{ByteSlice, ByteVec};
 use crate::ffi::c_str_helper::StringRef;
 use crate::get_logger;
 use crate::init_logger;
-use crate::log_level::LogLevel;
-use crate::logger::logger_chunk::LogDataChunk;
-use crate::logger::LogData;
-use crate::logger::LoggerConfig;
-use crate::Result;
+use crate::types::config::LoggerConfig;
+use crate::types::log_level::LogLevel;
+use crate::types::logger_chunk::LogDataChunk;
+use crate::types::LogData;
 use crate::types::PaperStr;
 use crate::types::PaperString;
+use crate::Result;
 use std::ffi::c_uint;
 use std::ffi::{c_uchar, c_ulonglong, CStr};
 use std::os::raw::{c_char, c_int};
@@ -224,7 +224,8 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 
         // `Vec::from_path_lossy` is zero-copy on unix, so this doesn't
         // require the configured path to be valid UTF-8.
-        let log_directory = Vec::from_path_lossy(&logger.read().config.context_log_path).into_owned();
+        let log_directory =
+            Vec::from_path_lossy(&logger.read().config.context_log_path).into_owned();
 
         let c_str = std::ffi::CString::new(log_directory).unwrap();
         c_str.into_raw()

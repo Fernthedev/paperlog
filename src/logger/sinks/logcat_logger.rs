@@ -1,14 +1,16 @@
 // https://github.com/raftario/paranoid-android/blob/main/src/writer.rs
 
 use crate::types::PaperStr;
-use crate::{log_level::LogLevel, logger::logger_chunk::LogDataChunk, Result};
+use crate::types::log_level::LogLevel;
+use crate::types::logger_chunk::LogDataChunk;
+use crate::Result;
 
 use std::ffi::{CStr, CString};
 use std::io::Write as _;
 
-// assert tracing is not enabled
-#[cfg(feature = "tracing")]
-compile_error!("The 'tracing' feature must not be enabled to use this logger.");
+// // assert tracing is not enabled
+// #[cfg(feature = "tracing")]
+// compile_error!("The 'tracing' feature must not be enabled to use this logger.");
 
 use ndk_sys::{android_LogPriority, log_id};
 
@@ -133,7 +135,9 @@ pub(crate) fn do_log(log: LogDataChunk<'_>) -> Result<()> {
 
         #[cfg(feature = "android-api-30")]
         {
-            use ndk_sys::{__android_log_is_loggable, __android_log_message, __android_log_write_log_message};
+            use ndk_sys::{
+                __android_log_is_loggable, __android_log_message, __android_log_write_log_message,
+            };
 
             let file = file_view(buffer);
 
@@ -158,7 +162,7 @@ pub(crate) fn do_log(log: LogDataChunk<'_>) -> Result<()> {
         {
             use ndk_sys::__android_log_write;
 
-            __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr()) ;
+            __android_log_write(priority as i32, tag.as_ptr(), message.as_ptr());
         }
 
         buffer.clear();

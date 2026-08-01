@@ -1,34 +1,6 @@
+#[cfg(feature = "file")]
 use std::path::PathBuf;
 
-use crate::{Result, logger::logger_chunk::LogDataChunk};
-
-pub mod logger_chunk;
-
-pub mod logger_thread_ctx;
-
-#[cfg(feature = "logcat")]
-pub mod logcat_logger;
-
-#[cfg(feature = "file")]
-pub mod file_logger;
-
-#[cfg(feature = "stdout")]
-pub mod stdout_logger;
-
-#[cfg(feature = "sinks")]
-pub mod sink_logger;
-
-#[cfg(feature = "tracing")]
-pub mod tracing_logger;
-
-// export LogData for FFI use
-mod log_data;
-pub use log_data::LogData;
-
-pub trait LogCallback = Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync;
-
-
-#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct LoggerConfig {
     pub max_string_len: usize,

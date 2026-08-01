@@ -17,15 +17,18 @@ use std::ptr;
 /// The paper2 logger that implements the `log::Log` trait.
 #[derive(Default)]
 pub struct Paper2Logger {
-    tag: Option<CString>
+    tag: Option<CString>,
 }
 
 impl Paper2Logger {
     /// Initializes the global logger with the specified maximum log level.
     #[cfg(all(feature = "std", target_has_atomic = "ptr"))]
-    pub fn init_with_max_level(level: LevelFilter, tag: Option<String>) -> Result<(), log::SetLoggerError> {
-        log::set_boxed_logger(Box::new(Paper2Logger{
-            tag: tag.map(|s| CString::new(s).unwrap())
+    pub fn init_with_max_level(
+        level: LevelFilter,
+        tag: Option<String>,
+    ) -> Result<(), log::SetLoggerError> {
+        log::set_boxed_logger(Box::new(Paper2Logger {
+            tag: tag.map(|s| CString::new(s).unwrap()),
         }))?;
         log::set_max_level(level);
         Ok(())

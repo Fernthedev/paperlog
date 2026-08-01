@@ -34,10 +34,7 @@ fn dlopen_initialize() {
 
     let file = path.join("Paperlog.log");
     if let Err(e) = paper2::init_logger(config, file) {
-        log_info(format!(
-            "Error occurred in logging thread: {}",
-            e
-        ));
+        log_info(format!("Error occurred in logging thread: {}", e));
         panic!("Error occurred in logging thread: {}", e);
     }
 }

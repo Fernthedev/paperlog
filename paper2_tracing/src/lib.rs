@@ -59,7 +59,7 @@ impl tracing::field::Visit for MessageVisitor {
     }
 }
 
-/// Mapping from `tracing` levels to `paper2::log_level::LogLevel`.
+/// Mapping from `tracing` levels to `paper2::types::log_level::LogLevel`.
 fn map_level(meta: &Metadata<'_>) -> paper2_LogLevel {
     use tracing::Level;
     match *meta.level() {

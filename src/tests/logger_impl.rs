@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{log_level::LogLevel, logger::LogData, LoggerConfig, LoggerThreadCtx};
+use crate::{LoggerConfig, LoggerThreadCtx, types::log_level::LogLevel, types::LogData};
 
 #[test]
 fn test_logger_thread_initialization() {

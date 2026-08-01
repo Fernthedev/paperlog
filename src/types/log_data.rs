@@ -1,7 +1,10 @@
 use bstr::ByteSlice;
 use chrono::{DateTime, Local};
 
-use crate::{log_level::LogLevel, logger::logger_chunk::LogDataChunk, types::{PaperStr, PaperString}};
+use crate::{
+    types::log_level::LogLevel,
+    types::{logger_chunk::LogDataChunk, PaperStr, PaperString},
+};
 
 pub const DEFAULT_TAG: &str = "GLOBAL";
 
@@ -45,11 +48,14 @@ impl LogData {
     /// `PaperString` (`BString`) derefs to `Vec<u8>`, not `PaperStr`, so this
     /// goes through `as_bstr()` rather than `as_deref()`.
     pub(crate) fn tag_or_default(&self) -> &PaperStr {
-        self.tag.as_ref().map_or_else(|| PaperStr::new(DEFAULT_TAG), |t| t.as_bstr())
+        self.tag
+            .as_ref()
+            .map_or_else(|| PaperStr::new(DEFAULT_TAG), |t| t.as_bstr())
     }
 
     pub(crate) fn function_name_or_default(&self) -> &PaperStr {
-        self.function_name.unwrap_or_else(|| PaperStr::new("default"))
+        self.function_name
+            .unwrap_or_else(|| PaperStr::new("default"))
     }
 
     /// Borrows the whole entry as a single, unsplit [`LogDataChunk`].

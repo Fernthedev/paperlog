@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use paper2::{
-    log_level::LogLevel,
-    logger::{logger_thread_ctx::LoggerThreadCtx, LogData, LoggerConfig},
+    logger::LoggerThreadCtx,
+    types::{config::LoggerConfig, log_level::LogLevel, LogData},
 };
 use std::{path::PathBuf, time::Duration};
 
@@ -15,7 +15,7 @@ fn bench_queue_log(c: &mut Criterion) {
 
     let log_data = LogData {
         level: LogLevel::Info,
-        message: "Benchmark log message".to_string(),
+        message: "Benchmark log message".into(),
         ..Default::default()
     };
 
@@ -38,7 +38,7 @@ fn bench_log_100_and_flush(c: &mut Criterion) {
 
     let log_data = LogData {
         level: LogLevel::Info,
-        message: "Benchmark log message".to_string(),
+        message: "Benchmark log message".into(),
         ..Default::default()
     };
 

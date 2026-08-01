@@ -1,13 +1,11 @@
 #![feature(error_generic_member_access)]
-#![feature(lock_value_accessors)]
 #![feature(trait_alias)]
 
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 
-pub mod log_level;
 pub mod logger;
-pub mod vec_pool;
 pub mod types;
+pub mod vec_pool;
 
 mod semaphore_lite;
 
@@ -19,10 +17,12 @@ pub mod ffi;
 #[cfg(test)]
 mod tests;
 
-use logger::LoggerConfig;
 use thiserror::Error;
 
-use crate::logger::logger_thread_ctx::{LoggerThreadCtx, ThreadSafeLoggerThread};
+use crate::{
+    logger::{LoggerThreadCtx, ThreadSafeLoggerThread},
+    types::config::LoggerConfig,
+};
 
 pub type Result<T> = std::result::Result<T, LoggerError>;
 

@@ -13,14 +13,27 @@ use std::{
 };
 
 use crate::{
-    LoggerError, Result, log_level::LogLevel, logger::{LogCallback, LogData, LoggerConfig, logger_chunk}, semaphore_lite::SemaphoreLite, types::{PaperStr, PaperString}, vec_pool::VecPool,
+    semaphore_lite::SemaphoreLite,
+    types::config::LoggerConfig,
+    types::log_level::LogLevel,
+    types::{
+        logger_chunk::{self, LogDataChunk},
+        LogData, PaperStr, PaperString,
+    },
+    vec_pool::VecPool,
+    LoggerError, Result,
 };
 use bstr::ByteSlice;
 use chrono::Local;
 use crossbeam::channel::{self, Receiver, Sender};
 use parking_lot::RwLock;
+
+mod sinks;
+
 #[cfg(feature = "file")]
 use rustc_hash::FxHashMap;
+
+pub trait LogCallback = Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync;
 
 // Helper macro to reduce repetition when constructing `LogData` and calling `do_log`.
 // The macro performs `format!` internally — pass format-style arguments directly.
@@ -320,29 +333,31 @@ impl LoggerThreadCtx {
 
             let max_str_len = logger_thread.read().config.max_string_len;
             // collect the split logs into a vec so we can batch file writes
-            let logs_vec: Vec<_> = logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
+            let logs_vec: Vec<_> =
+                logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
 
             // Batch file writes under a single write lock to reduce overhead
             #[cfg(feature = "file")]
             {
                 // write files in batch
-                super::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
+
+                crate::logger::sinks::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
             }
 
             // Call non-file backends per log (these are typically cheaper and may
             // require per-log handling).
             for log in logs_vec {
                 #[cfg(all(target_os = "android", feature = "logcat"))]
-                super::logcat_logger::do_log(log)?;
+                crate::logger::sinks::logcat_logger::do_log(log)?;
 
                 #[cfg(feature = "stdout")]
-                super::stdout_logger::do_log(log);
+                crate::logger::sinks::stdout_logger::do_log(log);
 
                 #[cfg(feature = "sinks")]
-                super::sink_logger::do_log(log, &logger_thread)?;
+                crate::logger::sinks::sink_logger::do_log(log, &logger_thread)?;
 
                 #[cfg(feature = "tracing")]
-                super::tracing_logger::do_log(log)?;
+                crate::logger::sinks::tracing_logger::do_log(log)?;
             }
 
             // if no more logs in the pipeline, flush it
@@ -389,12 +404,11 @@ impl LoggerThreadCtx {
     }
 }
 
-
 /// Logs a single, unchunked log entry to all enabled backends. Used for
 /// internal logger errors (panic hook, logging-thread failure) rather than
 /// the hot path, which chunks messages via `LogDataChunk` instead.
 pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<()> {
-    use super::*;
+    use crate::logger::sinks::*;
 
     // Every backend below takes a `LogDataChunk`; build one borrowing the
     // whole message rather than allocating an owned copy.

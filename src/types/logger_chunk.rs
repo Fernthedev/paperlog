@@ -1,15 +1,12 @@
 use bstr::ByteSlice;
 
-use crate::{logger::LogData, types::PaperStr};
-
-
+use crate::types::{LogData, PaperStr};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LogDataChunk<'a> {
     pub original: &'a LogData,
     pub message: &'a PaperStr,
 }
-
 
 impl<'a> LogDataChunk<'a> {
     pub fn to_owned(&self) -> LogData {
@@ -70,7 +67,7 @@ impl<'a> LogDataChunk<'a> {
 }
 
 /// Helper to chunk a BStr by character count instead of raw byte count
-fn chunk_by_chars<'a>(s: &'a PaperStr, max_chars: usize) -> impl Iterator<Item = &'a PaperStr> {
+fn chunk_by_chars(s: &PaperStr, max_chars: usize) -> impl Iterator<Item = &PaperStr> {
     let mut remaining = s;
 
     std::iter::from_fn(move || {

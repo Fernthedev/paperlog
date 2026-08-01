@@ -1,7 +1,8 @@
 use color_eyre::eyre::Result;
 
-use crate::log_level::LogLevel;
-use crate::logger::{LogData, LoggerConfig};
+use crate::types::config::LoggerConfig;
+use crate::types::log_level::LogLevel;
+use crate::types::LogData;
 use crate::LoggerThreadCtx;
 use std::path::PathBuf;
 use std::sync::Arc;

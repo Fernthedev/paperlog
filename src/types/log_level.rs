@@ -8,7 +8,7 @@ pub enum LogLevel {
     Error,
     Debug,
     Crit,
-    Off
+    Off,
 }
 
 impl LogLevel {
@@ -33,7 +33,6 @@ impl Display for LogLevel {
             LogLevel::Debug => write!(f, "DEBUG"),
             LogLevel::Crit => write!(f, "CRIT"),
             LogLevel::Off => write!(f, "OFF"),
-
         }
     }
 }

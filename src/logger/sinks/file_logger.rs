@@ -1,10 +1,13 @@
 use bstr::ByteSlice;
 use parking_lot::RwLock;
 
-use crate::logger::{logger_chunk::LogDataChunk, logger_thread_ctx::LoggerThreadCtx};
+use crate::{
+    logger::{logger_chunk::LogDataChunk, LoggerThreadCtx},
+    types::LogData,
+};
 
 pub(crate) fn do_log(
-    log: &super::LogData,
+    log: &LogData,
     logger_thread_lock: &RwLock<LoggerThreadCtx>,
 ) -> std::io::Result<()> {
     let mut logger_thread = logger_thread_lock.write();

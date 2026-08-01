@@ -1,8 +1,8 @@
 use tracing::{debug, error, info, warn};
 
-use crate::log_level::LogLevel;
+use crate::types::log_level::LogLevel;
 
-use super::logger_chunk::LogDataChunk;
+use crate::types::logger_chunk::LogDataChunk;
 
 impl From<LogLevel> for tracing::Level {
     fn from(level: LogLevel) -> Self {
