@@ -172,11 +172,11 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
   file.remove_prefix(std::min(size_t(SOURCE_OFFSET), file.size()));
   std::string_view const functionName = sourceLoc.function_name();
 
-  Paper::ffi::paper2_queue_log_bytes_ffi(
-      (ffi::paper2_LogLevel)level, reinterpret_cast<uint8_t const*>(tag.data()), tag.size(),
-      reinterpret_cast<uint8_t const*>(message.data()), message.size(), reinterpret_cast<uint8_t const*>(file.data()),
-      file.size(), sourceLoc.line(), sourceLoc.column(), reinterpret_cast<uint8_t const*>(functionName.data()),
-      functionName.size());
+  Paper::ffi::paper2_queue_log_bytes_ffi((ffi::paper2_LogLevel)level, reinterpret_cast<uint8_t const*>(tag.data()),
+                                         tag.size(), reinterpret_cast<uint8_t const*>(message.data()), message.size(),
+                                         reinterpret_cast<uint8_t const*>(file.data()), file.size(), sourceLoc.line(),
+                                         sourceLoc.column(), reinterpret_cast<uint8_t const*>(functionName.data()),
+                                         functionName.size());
 }
 
 /// Log a formatted message with an explicit tag.
