@@ -68,7 +68,7 @@ pub struct LoggerThreadCtx {
 
     /// Consumer-side handle. Held here only until `init()` moves it into the
     /// dedicated logging thread; `None` afterwards.
-    log_receiver: Option<Receiver<LogData>>,
+    log_receiver: Receiver<LogData>,
 
     /// Signaled once a flush completes, so callers of `wait_for_flush` /
     /// `wait_for_flush_timeout` can block until logs are durably written.
@@ -130,7 +130,7 @@ impl LoggerThreadCtx {
         Ok(LoggerThreadCtx {
             config,
             log_sender,
-            log_receiver: Some(log_receiver),
+            log_receiver,
             flush_semaphore,
             inited: AtomicBool::new(false),
 
@@ -151,12 +151,7 @@ impl LoggerThreadCtx {
 
         self.inited.store(true, Ordering::SeqCst);
 
-        // Move the receiver out before `self` is consumed into the Arc<RwLock<..>>.
-        // There is exactly one consumer, so this must succeed on first init.
-        let log_receiver = self
-            .log_receiver
-            .take()
-            .expect("log receiver already taken; init() called more than once?");
+        let log_receiver = self.log_receiver.clone();
         let flush_semaphore_clone = Arc::clone(&self.flush_semaphore);
         let thread_safe_self: Arc<RwLock<LoggerThreadCtx>> = Arc::new(self.into());
         let thread_safe_self_clone = Arc::clone(&thread_safe_self);
@@ -439,7 +434,7 @@ pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<
 /// Returns a panic handler, optionally with backtrace and spantrace capture.
 pub fn panic_hook(
     backtrace: bool,
-    spantrace: bool,
+    _spantrace: bool,
     logger_thread: Arc<RwLock<LoggerThreadCtx>>,
 ) -> Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync + 'static> {
     // Mostly taken from https://doc.rust-lang.org/src/std/panicking.rs.html
@@ -470,7 +465,7 @@ pub fn panic_hook(
         }
 
         #[cfg(feature = "tracing")]
-        if spantrace {
+        if _spantrace {
             use tracing_error::SpanTrace;
 
             log_data_to!(

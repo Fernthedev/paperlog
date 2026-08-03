@@ -12,7 +12,9 @@ fn ensure_inited() {
     // See `benches/logger_bench.rs`: keep bench log files off whatever
     // filesystem the checkout happens to be on (may be slow/inconsistent,
     // e.g. FUSE-backed) and use the OS temp dir instead.
-    let log_path = std::env::temp_dir().join("paper2_bench").join("ffi_bench.log");
+    let log_path = std::env::temp_dir()
+        .join("paper2_bench")
+        .join("ffi_bench.log");
     let log_path = CString::new(log_path.to_str().unwrap()).unwrap();
     unsafe {
         paper2_init_logger_ffi(std::ptr::null(), log_path.as_ptr());

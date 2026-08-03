@@ -58,7 +58,9 @@ fn non_utf8_tag_routes_to_a_byte_exact_context_file() {
     });
 
     thread::sleep(Duration::from_millis(50));
-    logger.read().wait_for_flush_timeout(Duration::from_millis(500));
+    logger
+        .read()
+        .wait_for_flush_timeout(Duration::from_millis(500));
 
     let contents = fs::read_to_string(&expected_path).unwrap();
     assert!(contents.contains("hello from a byte-tagged context"));
