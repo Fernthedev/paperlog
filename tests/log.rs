@@ -1,8 +1,9 @@
 use color_eyre::eyre::Result;
 
-use crate::log_level::LogLevel;
-use crate::logger::{LogData, LoggerConfig};
-use crate::LoggerThreadCtx;
+use paper2::logger::LoggerThreadCtx;
+use paper2::types::config::LoggerConfig;
+use paper2::types::log_level::LogLevel;
+use paper2::types::LogData;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -78,8 +79,8 @@ fn test_log_output() -> Result<()> {
         logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
-            message: "hi! 5".to_owned(),
-            file: file!().to_string(),
+            message: "hi! 5".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -88,7 +89,7 @@ fn test_log_output() -> Result<()> {
         wait_for_complete_flush(&logger.read());
     };
 
-    logs_assert(find_log("Info [GLOBAL] hi! 5"));
+    logs_assert(find_log("INFO [GLOBAL] hi! 5"));
 
     Ok(())
 }
@@ -111,8 +112,8 @@ fn test_single_thread_log_spam() -> Result<()> {
         logger.read().queue_log(LogData {
             level: LogLevel::Debug,
             tag: None,
-            message: "Spam logging now!".to_owned(),
-            file: file!().to_string(),
+            message: "Spam logging now!".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -124,8 +125,8 @@ fn test_single_thread_log_spam() -> Result<()> {
             logger.read().queue_log(LogData {
                 level: LogLevel::Debug,
                 tag: None,
-                message: format!("log i {i}"),
-                file: file!().to_string(),
+                message: format!("log i {i}").into(),
+                file: file!().into(),
                 line: line!(),
                 column: column!(),
                 function_name: None,
@@ -159,8 +160,8 @@ fn test_multithread_log_spam() -> Result<()> {
         logger.read().queue_log(LogData {
             level: LogLevel::Debug,
             tag: None,
-            message: "Spam logging now!".to_owned(),
-            file: file!().to_string(),
+            message: "Spam logging now!".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -174,8 +175,8 @@ fn test_multithread_log_spam() -> Result<()> {
                     logger.read().queue_log(LogData {
                         level: LogLevel::Debug,
                         tag: None,
-                        message: format!("log i {i}"),
-                        file: file!().to_string(),
+                        message: format!("log i {i}").into(),
+                        file: file!().into(),
                         line: line!(),
                         column: column!(),
                         function_name: None,
@@ -213,9 +214,9 @@ fn test_log_context_output() -> Result<()> {
     {
         logger.read().queue_log(LogData {
             level: LogLevel::Info,
-            tag: Some("Context".to_string()),
-            message: "context hi! 6".to_owned(),
-            file: file!().to_string(),
+            tag: Some("Context".into()),
+            message: "context hi! 6".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -224,7 +225,7 @@ fn test_log_context_output() -> Result<()> {
         wait_for_complete_flush(&logger.read());
     };
 
-    logs_assert(find_log("Info [Context] context hi! 6"));
+    logs_assert(find_log("INFO [Context] context hi! 6"));
     Ok(())
 }
 
@@ -247,9 +248,9 @@ fn test_log_context_tag_output() -> Result<()> {
     {
         logger.read().queue_log(LogData {
             level: LogLevel::Info,
-            tag: Some(context.to_string()),
-            message: "hi this is a context log! 5".to_owned(),
-            file: file!().to_string(),
+            tag: Some(context.into()),
+            message: "hi this is a context log! 5".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -259,7 +260,7 @@ fn test_log_context_tag_output() -> Result<()> {
         thread::sleep(Duration::from_millis(2));
     };
 
-    logs_assert(find_log("Info [Context] hi this is a context log! 5"));
+    logs_assert(find_log("INFO [Context] hi this is a context log! 5"));
     Ok(())
 }
 
@@ -282,8 +283,8 @@ fn test_utf8() -> Result<()> {
         logger.read().queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
-            message: "£ ह € 한".to_owned(),
-            file: file!().to_string(),
+            message: "£ ह € 한".into(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             function_name: None,
@@ -292,38 +293,6 @@ fn test_utf8() -> Result<()> {
         wait_for_complete_flush(&logger.read());
     };
 
-    logs_assert(find_log("Info [GLOBAL] £ ह € 한\n"));
+    logs_assert(find_log("INFO [GLOBAL] £ ह € 한\n"));
     Ok(())
 }
-
-// #[test]
-// fn test_utf16_to_utf8() -> Result<()> {
-//     let config = LoggerConfig {
-//         max_string_len: 100,
-//         log_max_buffer_count: 50,
-//         line_end: '\n',
-//         context_log_path: PathBuf::from("./logs/"),
-//     };
-//     let log_path = PathBuf::from("./logs/test_log.log");
-
-//     let logger = LoggerThread::new(config, log_path)?.init(false)?;
-//     let output = capture_stdout(|| {
-//         logger.read().queue_log(
-//             LogLevel::Info,
-//             None,
-//             format!(
-//                 "Testing UTF-16 conversion chars {}",
-//                 String::from_utf16(u"한🌮🦀").unwrap()
-//             ),
-//             file!().to_string(),
-//             line!(),
-//         );
-//         wait_for_complete_flush(&logger.read());
-//     })?;
-
-//     assert_eq!(
-//         output,
-//         "Info [GLOBAL] Testing UTF-16 conversion chars 한🌮🦀\n"
-//     );
-//     Ok(())
-// }

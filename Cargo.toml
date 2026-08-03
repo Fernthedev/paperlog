@@ -19,6 +19,14 @@ harness = false
 name = "lock_compare"
 harness = false
 
+[[bench]]
+name = "chunking_bench"
+harness = false
+
+[[bench]]
+name = "ffi_bench"
+harness = false
+
 [dependencies]
 cfg-if = "1"
 itertools = "0.14"
@@ -35,6 +43,8 @@ chrono = "0.4"
 thiserror = "2.0"
 rustc-hash = "2.1.1"
 parking_lot = "0.12"
+crossbeam = "0.8.4"
+bstr = "1.13.0"
 
 [dev-dependencies]
 tracing-test = "0.2.5"
@@ -53,8 +63,7 @@ default = [
     "ffi",
     "backtrace",
     "file",
-    "sinks",
-    "logcat",
+    "sinks"
 ]
 android-api-30 = []
 global_log = []

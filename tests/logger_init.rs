@@ -1,6 +1,7 @@
 use std::{fs, time::Duration};
 
-use crate::{LoggerConfig, LoggerThreadCtx};
+use paper2::logger::LoggerThreadCtx;
+use paper2::types::config::LoggerConfig;
 
 #[test]
 fn test_logger_initialization() {
@@ -13,7 +14,7 @@ fn test_logger_initialization() {
     let log_path = config.context_log_path.join("test_log.log");
 
     let logger = LoggerThreadCtx::new(config, log_path.clone()).unwrap();
-    let thread = logger.init(false).unwrap();
+    let _thread = logger.init(false).unwrap();
 
     std::thread::sleep(Duration::from_millis(500));
 
@@ -31,7 +32,6 @@ fn test_logger_config() {
         line_end: '\r',
         context_log_path: "./logs/1".into(),
     };
-    let log_path = config.context_log_path.join("test_log.log");
 
     assert_eq!(config.max_string_len, 2048);
     assert_eq!(config.log_max_buffer_count, 100);

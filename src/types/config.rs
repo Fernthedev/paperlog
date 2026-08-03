@@ -1,32 +1,6 @@
+#[cfg(feature = "file")]
 use std::path::PathBuf;
 
-use crate::Result;
-
-pub mod logger_thread_ctx;
-
-#[cfg(all(target_os = "android", feature = "logcat"))]
-pub mod logcat_logger;
-
-#[cfg(feature = "file")]
-pub mod file_logger;
-
-#[cfg(feature = "stdout")]
-pub mod stdout_logger;
-
-#[cfg(feature = "sinks")]
-pub mod sink_logger;
-
-#[cfg(feature = "tracing")]
-pub mod tracing_logger;
-
-// export LogData for FFI use
-mod log_data;
-pub use log_data::LogData;
-
-pub trait LogCallback = Fn(&LogData) -> Result<()> + Send + Sync;
-
-
-#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct LoggerConfig {
     pub max_string_len: usize,

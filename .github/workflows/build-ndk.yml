@@ -25,7 +25,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -33,7 +33,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
       - name: Build
         run: cargo build --verbose
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           submodules: true
@@ -78,7 +78,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -86,7 +86,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
       - name: Install cargo ndk
         continue-on-error: true

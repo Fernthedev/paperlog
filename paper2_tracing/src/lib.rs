@@ -2,7 +2,6 @@ use paper2_ffi::{
     paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info,
     paper2_LogLevel_Warn,
 };
-use std::ffi::CString;
 use std::{fmt, ptr};
 use tracing::{Event, Metadata};
 use tracing_subscriber::Layer;
@@ -59,7 +58,7 @@ impl tracing::field::Visit for MessageVisitor {
     }
 }
 
-/// Mapping from `tracing` levels to `paper2::log_level::LogLevel`.
+/// Mapping from `tracing` levels to `paper2::types::log_level::LogLevel`.
 fn map_level(meta: &Metadata<'_>) -> paper2_LogLevel {
     use tracing::Level;
     match *meta.level() {
@@ -74,7 +73,7 @@ fn map_level(meta: &Metadata<'_>) -> paper2_LogLevel {
 /// A tracing subscriber layer that forwards events into the `paper2` logger.
 #[derive(Clone, Debug, Default)]
 pub struct PaperLayer {
-    tag: Option<CString>,
+    tag: Option<String>,
 }
 
 impl PaperLayer {
@@ -82,8 +81,9 @@ impl PaperLayer {
         Self { tag: None }
     }
 
-    pub fn with_tag<T: Into<Vec<u8>>>(mut self, tag: T) -> Self {
-        self.tag = Some(CString::new(tag.into()).expect("Unable to make CString tag"));
+    /// Sets the tag for the paper layer.
+    pub fn with_tag<T: Into<String>>(mut self, tag: T) -> Self {
+        self.tag = Some(tag.into());
         self
     }
 }
@@ -106,21 +106,37 @@ where
             meta.target().to_string()
         };
 
-        let file = meta.file().map(|s| s.to_string()).unwrap_or_default();
+        // `file`/`target` come straight from `Metadata`, which borrows
+        // `'static` string data baked in at the call site (from the
+        // `tracing` macros) — no need to copy them into an owned `String`
+        // just to hand them across FFI.
+        let file = meta.file().unwrap_or("");
         let line = meta.line().unwrap_or(0);
-        let function_name = CString::new(meta.target()).expect("Function name");
+        let function_name = meta.target();
 
-        // use C ABI to call FFI logging function
+        // Byte-oriented FFI call: avoids building a `CString` (and the
+        // panic-on-embedded-NUL / extra allocation that implies) for
+        // message/file/function_name/tag, none of which are guaranteed
+        // free of embedded NULs — `message` in particular can contain
+        // arbitrary field values recorded by `MessageVisitor`.
         unsafe {
-            let tag = self.tag.as_ref().map(|c| c.as_ptr()).unwrap_or(ptr::null());
-            paper2_ffi::paper2_queue_log_ffi(
+            let (tag_ptr, tag_len) = match self.tag.as_deref() {
+                Some(tag) => (tag.as_ptr(), tag.len()),
+                None => (ptr::null(), 0),
+            };
+
+            paper2_ffi::paper2_queue_log_bytes_ffi(
                 level,
-                tag,
-                std::ffi::CString::new(message).unwrap().as_ptr(),
-                std::ffi::CString::new(file).unwrap().as_ptr(),
+                tag_ptr,
+                tag_len,
+                message.as_ptr(),
+                message.len(),
+                file.as_ptr(),
+                file.len(),
                 line as i32,
                 0,
                 function_name.as_ptr(),
+                function_name.len(),
             )
         };
 

@@ -1,12 +1,12 @@
 #![feature(error_generic_member_access)]
-#![feature(lock_value_accessors)]
 #![feature(trait_alias)]
 
 use std::{backtrace, path::PathBuf, sync::OnceLock};
 
-pub mod log_level;
 pub mod logger;
+pub mod types;
 pub mod vec_pool;
+
 mod semaphore_lite;
 
 static LOGGER: OnceLock<ThreadSafeLoggerThread> = OnceLock::new();
@@ -17,10 +17,12 @@ pub mod ffi;
 #[cfg(test)]
 mod tests;
 
-use logger::LoggerConfig;
 use thiserror::Error;
 
-use crate::logger::logger_thread_ctx::{LoggerThreadCtx, ThreadSafeLoggerThread};
+use crate::{
+    logger::{LoggerThreadCtx, ThreadSafeLoggerThread},
+    types::config::LoggerConfig,
+};
 
 pub type Result<T> = std::result::Result<T, LoggerError>;
 
@@ -56,8 +58,16 @@ pub enum LoggerError {
     AlreadyInitialized,
 }
 
-pub fn get_logger() -> Option<ThreadSafeLoggerThread> {
-    LOGGER.get().cloned()
+/// Returns a `'static` reference to the global logger, if initialized.
+///
+/// This borrows straight out of `LOGGER` instead of cloning the `Arc`: since
+/// `LOGGER` is itself `'static` and never repopulated once set, the `Arc`'s
+/// refcount doesn't need to be bumped just to hand out a reference that
+/// already lives for the rest of the program. This is on the hot path for
+/// every FFI call, so skipping that atomic increment/decrement pair matters.
+#[inline]
+pub fn get_logger() -> Option<&'static ThreadSafeLoggerThread> {
+    LOGGER.get()
 }
 
 pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {

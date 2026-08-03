@@ -8,25 +8,25 @@
 use log::{LevelFilter, Log, Metadata, Record};
 use paper2_ffi::{
     paper2_LogLevel, paper2_LogLevel_Debug, paper2_LogLevel_Error, paper2_LogLevel_Info,
-    paper2_LogLevel_Warn, paper2_get_inited, paper2_queue_log_ffi, paper2_wait_for_flush,
+    paper2_LogLevel_Warn, paper2_get_inited, paper2_queue_log_bytes_ffi, paper2_wait_for_flush,
 };
-use std::ffi::{CStr, CString};
 use std::os::raw::c_int;
 use std::ptr;
 
 /// The paper2 logger that implements the `log::Log` trait.
 #[derive(Default)]
 pub struct Paper2Logger {
-    tag: Option<CString>
+    tag: Option<String>,
 }
 
 impl Paper2Logger {
     /// Initializes the global logger with the specified maximum log level.
     #[cfg(all(feature = "std", target_has_atomic = "ptr"))]
-    pub fn init_with_max_level(level: LevelFilter, tag: Option<String>) -> Result<(), log::SetLoggerError> {
-        log::set_boxed_logger(Box::new(Paper2Logger{
-            tag: tag.map(|s| CString::new(s).unwrap())
-        }))?;
+    pub fn init_with_max_level(
+        level: LevelFilter,
+        tag: Option<String>,
+    ) -> Result<(), log::SetLoggerError> {
+        log::set_boxed_logger(Box::new(Paper2Logger { tag }))?;
         log::set_max_level(level);
         Ok(())
     }
@@ -54,31 +54,42 @@ impl Log for Paper2Logger {
         }
 
         // If the paper2 logger is initialized (via FFI), forward via the FFI queue.
+        //
+        // Uses the byte-oriented `paper2_queue_log_bytes_ffi` rather than the
+        // null-terminated `paper2_queue_log_ffi`: message/file/module-path
+        // content is arbitrary and not guaranteed free of embedded NULs, so
+        // building a `CString` from it (as this used to) could silently drop
+        // the record or panic. Passing explicit lengths also skips a
+        // `strlen` scan on the receiving side for every field.
         unsafe {
             if !paper2_get_inited() {
                 return;
             }
             let level = map_level(record.level());
-            let tag_c = self.tag.as_ref();
-            let message_c = CString::new(record.args().to_string()).ok();
-            let file_c = record.file().and_then(|s| CString::new(s).ok());
-            let function_c = record.module_path().and_then(|s| CString::new(s).ok());
-
-            let tag_ptr = tag_c.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null());
-            let msg_ptr = message_c
-                .as_ref()
-                .map(|s| s.as_ptr())
-                .unwrap_or(ptr::null());
-            let file_ptr = file_c.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null());
-            let func_ptr = function_c
-                .as_ref()
-                .map(|s| s.as_ptr())
-                .unwrap_or(ptr::null());
-
+            let message = record.args().to_string();
+            let file = record.file().unwrap_or("");
+            let function_name = record.module_path().unwrap_or("");
             let line = record.line().unwrap_or(0) as c_int;
 
+            let (tag_ptr, tag_len) = match self.tag.as_deref() {
+                Some(tag) => (tag.as_ptr(), tag.len()),
+                None => (ptr::null(), 0),
+            };
+
             // Best-effort: ignore return value
-            let _ = paper2_queue_log_ffi(level, tag_ptr, msg_ptr, file_ptr, line, 0, func_ptr);
+            let _ = paper2_queue_log_bytes_ffi(
+                level,
+                tag_ptr,
+                tag_len,
+                message.as_ptr(),
+                message.len(),
+                file.as_ptr(),
+                file.len(),
+                line,
+                0,
+                function_name.as_ptr(),
+                function_name.len(),
+            );
         }
     }
 
@@ -94,6 +105,7 @@ impl Log for Paper2Logger {
 #[cfg(test)]
 mod tests {
     use paper2_ffi::paper2_init_logger_ffi;
+    use std::ffi::CString;
 
     use super::*;
     // Basic smoke test: using the facade directly to send a single record via FFI.

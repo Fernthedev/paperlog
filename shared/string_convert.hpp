@@ -62,7 +62,6 @@ inline std::u16string from_utf8(std::string_view str) {
   return val;
 }
 
-
 #else
 
 inline std::string from_utf16(std::u16string_view ustr) {

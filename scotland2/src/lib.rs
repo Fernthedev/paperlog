@@ -1,5 +1,5 @@
 use ctor::ctor;
-use paper2::logger::LoggerConfig;
+use paper2::types::config::LoggerConfig;
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
 use std::{ffi::CStr, path::PathBuf};
@@ -12,11 +12,11 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 fn log_info(message_str: String) {
     #[cfg(target_os = "android")]
-    paper2::logger::logcat_logger::log_info(message_str);
+    paper2::logger::sinks::logcat_logger::log_info(message_str);
 }
 fn log_error(message_str: String) {
     #[cfg(target_os = "android")]
-    paper2::logger::logcat_logger::log_error(message_str);
+    paper2::logger::sinks::logcat_logger::log_error(message_str);
 }
 
 #[ctor]
@@ -34,10 +34,7 @@ fn dlopen_initialize() {
 
     let file = path.join("Paperlog.log");
     if let Err(e) = paper2::init_logger(config, file) {
-        log_info(format!(
-            "Error occurred in logging thread: {}",
-            e
-        ));
+        log_info(format!("Error occurred in logging thread: {}", e));
         panic!("Error occurred in logging thread: {}", e);
     }
 }

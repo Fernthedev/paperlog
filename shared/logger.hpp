@@ -163,9 +163,20 @@ inline void vfmtLog(fmt::string_view const str, LogLevel level, sl const& source
                     fmt::format_args&& args) noexcept {
   auto message = fmt::vformat(str, args);
 
-  Paper::ffi::paper2_queue_log_ffi((ffi::paper2_LogLevel)level, tag.data(), message.c_str(),
-                                   sourceLoc.file_name().data() + size_t(SOURCE_OFFSET), sourceLoc.line(),
-                                   sourceLoc.column(), sourceLoc.function_name().data());
+  // `.size()` is free on every one of these (string/string_view already
+  // track their length), so passing it explicitly avoids a `strlen` scan
+  // per field on the Rust side, and — unlike the null-terminated
+  // `paper2_queue_log_ffi` — doesn't require `tag` to be null-terminated,
+  // which a `std::string_view` is not guaranteed to be.
+  std::string_view file = sourceLoc.file_name();
+  file.remove_prefix(std::min(size_t(SOURCE_OFFSET), file.size()));
+  std::string_view const functionName = sourceLoc.function_name();
+
+  Paper::ffi::paper2_queue_log_bytes_ffi((ffi::paper2_LogLevel)level, reinterpret_cast<uint8_t const*>(tag.data()),
+                                         tag.size(), reinterpret_cast<uint8_t const*>(message.data()), message.size(),
+                                         reinterpret_cast<uint8_t const*>(file.data()), file.size(), sourceLoc.line(),
+                                         sourceLoc.column(), reinterpret_cast<uint8_t const*>(functionName.data()),
+                                         functionName.size());
 }
 
 /// Log a formatted message with an explicit tag.

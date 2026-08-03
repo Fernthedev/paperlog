@@ -6,19 +6,18 @@ env:
   qmodName: paper2_scotland2
   CARGO_TERM_COLOR: always
 
-
 on:
   # workflow_run:
   #   workflows: ["build-ndk"]
   #   types: [completed]
   push:
     tags:
-      - 'v*'
+      - "v*"
 
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to publish (e.g. v1.2.3)'
+        description: "Tag to publish (e.g. v1.2.3)"
         required: true
         type: string
 
@@ -26,7 +25,7 @@ jobs:
   publish_qpm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           submodules: true
@@ -43,7 +42,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -51,7 +50,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
       - name: Install cargo ndk
         continue-on-error: true
@@ -69,7 +68,6 @@ jobs:
           sudo apt-get install -y llvm llvm-dev libclang-dev clang
           echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
           echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
-
 
       # - name: Run tests
       #   run: cargo test --verbose
@@ -93,7 +91,7 @@ jobs:
 
           resolve_ndk: true
 
-          publish: 'late'
+          publish: "late"
           publish_token: ${{secrets.QPM_TOKEN}}
 
           version: ${{ steps.get_tag_version.outputs.VERSION }}
