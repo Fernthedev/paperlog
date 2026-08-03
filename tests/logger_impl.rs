@@ -1,58 +1,36 @@
-use std::{
-    path::PathBuf,
-    sync::{atomic::Ordering, Arc},
-    thread,
-    time::Duration,
-};
+use std::{thread, time::Duration};
 
-use paper2::logger::LoggerThreadCtx;
 use paper2::types::config::LoggerConfig;
 use paper2::types::log_level::LogLevel;
 use paper2::types::LogData;
 
-#[test]
-fn test_logger_thread_initialization() {
-    let config = LoggerConfig {
+fn test_config(name: &str) -> LoggerConfig {
+    let context_log_path = std::env::temp_dir().join("paper").join(name);
+    let log_path = context_log_path.join("test_log.log");
+
+    LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
         line_end: '\n',
-        context_log_path: PathBuf::from("./logs/9"),
-    };
-    let log_path = config.context_log_path.join("test_log.log");
-
-    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
-    assert!(!logger_thread.is_inited().load(Ordering::SeqCst));
+        context_log_path,
+        log_path,
+    }
 }
 
 #[test]
 fn test_logger_thread_init() {
-    let config = LoggerConfig {
-        max_string_len: 100,
-        log_max_buffer_count: 50,
-        line_end: '\n',
-        context_log_path: PathBuf::from("./logs/8"),
-    };
-    let log_path = config.context_log_path.join("test_log.log");
+    let config = test_config("test_impl_8");
 
-    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
-    let thread_safe_logger = logger_thread.init(false).unwrap();
-
-    let logger_thread = thread_safe_logger.read();
-    assert!(logger_thread.is_inited().load(Ordering::SeqCst));
+    let logger = config.init(false);
+    assert!(logger.is_ok());
 }
 
 #[test]
 fn test_queue_log() {
-    let config = LoggerConfig {
-        max_string_len: 100,
-        log_max_buffer_count: 50,
-        line_end: '\n',
-        context_log_path: "./logs".into(),
-    };
-    let log_path = PathBuf::from("./logs/test_log.log");
+    let config = test_config("test_impl_queue");
 
-    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
-    logger_thread.queue_log(LogData {
+    let logger = config.init(false).unwrap();
+    logger.queue_log(LogData {
         level: LogLevel::Info,
         tag: Some("test".into()),
         message: "This is a test log".into(),
@@ -62,39 +40,23 @@ fn test_queue_log() {
         ..Default::default()
     });
 
-    assert_eq!(logger_thread.queue_len(), 1);
+    thread::sleep(Duration::from_millis(500));
+    logger.wait_for_flush_timeout(Duration::from_millis(500));
 
-    {
-        let thread_safe_logger = logger_thread.init(false).unwrap();
-        thread::sleep(Duration::from_millis(500));
-
-        thread_safe_logger
-            .read()
-            .wait_for_flush_timeout(Duration::from_millis(500));
-
-        let queue = thread_safe_logger.read().queue_len();
-        assert_eq!(queue, 0);
-    }
+    assert_eq!(logger.queue_len(), 0);
 }
 
 #[test]
 fn test_log_thread() {
-    let config = LoggerConfig {
-        max_string_len: 100,
-        log_max_buffer_count: 50,
-        line_end: '\n',
-        context_log_path: "./logs".into(),
-    };
-    let log_path = PathBuf::from("./logs/test_log.log");
+    let config = test_config("test_impl_thread");
 
-    let logger_thread = LoggerThreadCtx::new(config, log_path).unwrap();
-    let thread_safe_logger = logger_thread.init(false).unwrap();
+    let logger = config.init(false).unwrap();
 
-    let logger_thread_clone = Arc::clone(&thread_safe_logger);
-
+    // `Logger` is cheap to clone (a channel `Sender` + one `Arc` refcount
+    // bump), so no `Arc::clone` wrapper is needed here.
+    let logger_clone = logger.clone();
     thread::spawn(move || {
-        let logger_thread = logger_thread_clone.read();
-        logger_thread.queue_log(LogData {
+        logger_clone.queue_log(LogData {
             level: LogLevel::Info,
             tag: Some("test".into()),
             message: "This is a test log".into(),
@@ -107,7 +69,6 @@ fn test_log_thread() {
     .join()
     .unwrap();
 
-    let logger_thread = thread_safe_logger.read();
-    logger_thread.wait_for_flush_timeout(Duration::from_millis(1000));
-    assert_eq!(logger_thread.queue_len(), 0);
+    logger.wait_for_flush_timeout(Duration::from_millis(1000));
+    assert_eq!(logger.queue_len(), 0);
 }

@@ -1,26 +1,17 @@
 use std::{
-    backtrace::Backtrace,
-    fs::{self, File},
-    io::{BufWriter, Write},
-    panic::PanicHookInfo,
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread,
-    time::Duration,
+    backtrace::Backtrace, io::Write, panic::PanicHookInfo, sync::Arc, thread, time::Duration,
 };
 
+#[cfg(feature = "file")]
+use crate::types::file_logger_map::FileLoggers;
 use crate::{
     semaphore_lite::SemaphoreLite,
     types::config::LoggerConfig,
     types::log_level::LogLevel,
     types::{
         logger_chunk::{self, LogDataChunk},
-        LogData, PaperStr, PaperString,
+        LogData, PaperStr,
     },
-    vec_pool::VecPool,
     LoggerError, Result,
 };
 use bstr::ByteSlice;
@@ -29,9 +20,6 @@ use crossbeam::channel::{self, Receiver, Sender};
 use parking_lot::RwLock;
 
 pub mod sinks;
-
-#[cfg(feature = "file")]
-use rustc_hash::FxHashMap;
 
 pub trait LogCallback = Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync;
 
@@ -57,104 +45,92 @@ macro_rules! log_data_to {
     }};
 }
 
-pub type ThreadSafeLoggerThread = Arc<RwLock<LoggerThreadCtx>>;
+pub type ThreadSafeLoggerThread = Logger;
 
-pub struct LoggerThreadCtx {
-    pub config: LoggerConfig,
-
-    /// Producer-side handle. Cloneable, thread-safe — every caller of
-    /// `queue_log`/`queue_logs` sends through this.
-    log_sender: Sender<LogData>,
-
-    /// Consumer-side handle. Held here only until `init()` moves it into the
-    /// dedicated logging thread; `None` afterwards.
-    log_receiver: Receiver<LogData>,
-
+/// State shared between the [`Logger`] (producer/public API) and
+/// [`LoggerThread`] (consumer, runs on the dedicated logging thread).
+///
+/// Grouping these behind a single `Arc` — rather than each field getting its
+/// own `Arc` cloned into both structs — means cloning a `Logger` (done on
+/// every FFI call site that grabs the global logger) bumps one refcount
+/// instead of several.
+///
+/// Locking is kept off the hot path (`queue_log`/`queue_logs`, which only
+/// touch the lock-free channel) by design:
+/// - `config` is immutable after construction, so it needs no lock at all.
+/// - `flush_semaphore` has its own internal `Mutex`/`Condvar` and is never
+///   wrapped in an outer lock.
+/// - `file_loggers` and `sinks` are only mutated by rare, non-hot-path calls
+///   (`add_context`/`remove_context`/`add_sink`); the logging thread only
+///   ever takes a *read* lock on them (each individual file inside
+///   `FileLoggers` has its own `Mutex`, so a shared read lock is enough to
+///   write to it).
+struct SharedLoggerState {
     /// Signaled once a flush completes, so callers of `wait_for_flush` /
     /// `wait_for_flush_timeout` can block until logs are durably written.
-    flush_semaphore: Arc<SemaphoreLite>,
+    flush_semaphore: SemaphoreLite,
 
-    /// Whether the logger has been initialized
-    inited: AtomicBool,
-
-    /// Global log file
-    #[cfg(feature = "file")]
-    pub(super) global_file: BufWriter<File>,
+    config: LoggerConfig,
 
     /// Map of context log files. ID -> Log file
     #[cfg(feature = "file")]
-    pub(super) context_map: FxHashMap<PaperString, BufWriter<File>>,
+    file_loggers: RwLock<FileLoggers>,
 
     /// Additional log sinks
-    pub(super) sinks: Vec<Box<dyn LogCallback>>,
+    sinks: RwLock<Vec<Box<dyn LogCallback>>>,
+}
+/// Producer-side handle. Cloneable, thread-safe — every caller of
+/// `queue_log`/`queue_logs` sends through this.
+#[derive(Clone)]
+pub struct Logger {
+    log_sender: Sender<LogData>,
+    shared: Arc<SharedLoggerState>,
 }
 
-impl LoggerThreadCtx {
-    pub fn new(config: LoggerConfig, log_path: PathBuf) -> Result<Self> {
+/// Consumer-side handle. Only the dedicated logging thread reads from
+/// this.
+struct LoggerThread {
+    log_receiver: Receiver<LogData>,
+
+    shared: Arc<SharedLoggerState>,
+}
+
+impl LoggerConfig {
+    pub fn init(self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
         // Unbounded MPSC: many producer threads/call sites, one consumer
         // (the logging thread). Swap for `channel::bounded(n)` if you want
         // backpressure instead of unbounded growth under a log storm.
         let (log_sender, log_receiver) = channel::unbounded();
-        let flush_semaphore = Arc::new(SemaphoreLite::new());
 
         #[cfg(feature = "file")]
-        let global_file = {
-            fs::create_dir_all(&config.context_log_path).map_err(|e| {
+        let file_loggers = {
+            let log_path = self.log_path.clone();
+            FileLoggers::new(log_path.clone(), self.context_log_path.clone()).map_err(|e| {
                 LoggerError::IoSpecificError(
                     e,
-                    Some("Unable to make logging directory for contexts".to_string()),
-                    config.context_log_path.clone(),
-                )
-            })?;
-
-            if let Some(parent) = log_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
-                    LoggerError::IoSpecificError(
-                        e,
-                        Some("Unable to make logging directory for global".to_string()),
-                        parent.to_path_buf(),
-                    )
-                })?;
-            }
-
-            let inner = File::create(&log_path).map_err(|e| {
-                LoggerError::IoSpecificError(
-                    e,
-                    Some("Unable to create global file".to_string()),
+                    Some("Unable to create file loggers".to_string()),
                     log_path,
                 )
-            })?;
-            BufWriter::new(inner)
+            })?
         };
 
-        Ok(LoggerThreadCtx {
-            config,
+        let shared = Arc::new(SharedLoggerState {
+            flush_semaphore: SemaphoreLite::new(),
+            #[cfg(feature = "file")]
+            file_loggers: RwLock::new(file_loggers),
+            sinks: RwLock::new(Vec::new()),
+            config: self,
+        });
+
+        let logger = Logger {
             log_sender,
+            shared: Arc::clone(&shared),
+        };
+
+        let logger_thread = LoggerThread {
             log_receiver,
-            flush_semaphore,
-            inited: AtomicBool::new(false),
-
-            #[cfg(feature = "file")]
-            global_file,
-
-            #[cfg(feature = "file")]
-            context_map: Default::default(),
-
-            sinks: Vec::new(),
-        })
-    }
-
-    pub fn init(mut self, install_panic_hook: bool) -> Result<ThreadSafeLoggerThread> {
-        if self.inited.load(Ordering::SeqCst) {
-            return Err(LoggerError::AlreadyInitialized);
-        }
-
-        self.inited.store(true, Ordering::SeqCst);
-
-        let log_receiver = self.log_receiver.clone();
-        let flush_semaphore_clone = Arc::clone(&self.flush_semaphore);
-        let thread_safe_self: Arc<RwLock<LoggerThreadCtx>> = Arc::new(self.into());
-        let thread_safe_self_clone = Arc::clone(&thread_safe_self);
+            shared,
+        };
 
         #[cfg(feature = "tracing")]
         {
@@ -167,7 +143,7 @@ impl LoggerThreadCtx {
         }
 
         if install_panic_hook {
-            std::panic::set_hook(panic_hook(true, true, thread_safe_self.clone()));
+            std::panic::set_hook(panic_hook(true, true, logger.clone()));
         }
 
         // `tracing`'s default dispatcher is thread-local, so the dedicated
@@ -177,22 +153,20 @@ impl LoggerThreadCtx {
         #[cfg(feature = "tracing")]
         let dispatch = tracing::dispatcher::get_default(|d| d.clone());
 
+        let logger_for_thread = logger.clone();
+
         thread::spawn(move || {
             #[cfg(feature = "tracing")]
             let _dispatch_guard = tracing::dispatcher::set_default(&dispatch);
 
-            let result = Self::log_thread(
-                log_receiver,
-                flush_semaphore_clone.clone(),
-                thread_safe_self_clone.clone(),
-            );
+            let result = logger_thread.log_thread();
 
             // handle log thread dying
             if let Err(e) = result {
-                let _ = Self::flush(&thread_safe_self_clone, &flush_semaphore_clone);
+                let _ = logger_thread.flush();
 
                 log_data_to!(
-                    &thread_safe_self_clone,
+                    &logger_for_thread,
                     LogLevel::Error,
                     Some("Paper2".into()),
                     "Error occurred in logging thread: {e}"
@@ -200,19 +174,57 @@ impl LoggerThreadCtx {
             }
         });
 
-        Ok(thread_safe_self)
+        Ok(logger)
+    }
+}
+
+impl Logger {
+    /// Waits indefinitely until the next flush completes.
+    pub fn wait_for_flush(&self) {
+        self.shared.flush_semaphore.wait();
+    }
+    pub fn wait_for_flush_timeout(&self, duration: Duration) {
+        self.shared.flush_semaphore.wait_timeout(duration);
     }
 
-    pub fn is_inited(&self) -> &AtomicBool {
-        &self.inited
+    pub fn config(&self) -> &LoggerConfig {
+        &self.shared.config
     }
 
-    pub fn get_sinks(&self) -> &Vec<Box<dyn LogCallback>> {
-        &self.sinks
+    /// Registers a new logging context. This is not on the hot path (called
+    /// rarely, e.g. once per mod/module at startup), so blocking on the
+    /// `file_loggers` write lock is fine.
+    pub fn add_context(&self, tag: &PaperStr) -> Result<()> {
+        #[cfg(feature = "file")]
+        {
+            let mut file_loggers = self.shared.file_loggers.write();
+            file_loggers.add_context(tag)?;
+        }
+
+        Ok(())
+    }
+    pub fn remove_context(&self, tag: &PaperStr) {
+        #[cfg(feature = "file")]
+        {
+            let mut file_loggers = self.shared.file_loggers.write();
+            file_loggers.remove_context(tag);
+        }
+    }
+
+    pub fn add_sink<F>(&self, sink: F)
+    where
+        F: LogCallback + 'static,
+    {
+        self.shared.sinks.write().push(Box::new(sink));
+    }
+
+    pub fn get_sinks(&self) -> &RwLock<Vec<Box<dyn LogCallback>>> {
+        &self.shared.sinks
     }
 
     /// Queues a log entry to be written by the logging thread.
-    /// This is thread-safe; `Sender<T>` is `Clone + Send + Sync`.
+    /// This is thread-safe; `Sender<T>` is `Clone + Send + Sync`. This is the
+    /// hot path: no lock is taken, only a channel send.
     pub fn queue_log(&self, log_data: LogData) {
         // If the consumer has been dropped (shutdown), just drop the log
         // rather than panicking the caller.
@@ -254,90 +266,56 @@ impl LoggerThreadCtx {
 
         Ok(())
     }
+}
 
-    pub fn add_context(&mut self, tag: &PaperStr) -> Result<()> {
-        #[cfg(feature = "file")]
-        {
-            // `to_path_lossy()` is zero-copy on unix (raw bytes reinterpreted as
-            // `OsStr`), so this doesn't require `tag` to be valid UTF-8.
-            let log_path = self
-                .config
-                .context_log_path
-                .join(tag.to_path_lossy())
-                .with_extension("log");
-            let file = File::create(&log_path).map_err(|e| {
-                LoggerError::IoSpecificError(
-                    e,
-                    Some("Unable to create context file".to_string()),
-                    log_path,
-                )
-            })?;
-            let file = BufWriter::new(file);
-
-            self.context_map.insert(tag.to_owned(), file);
-        }
-
-        Ok(())
-    }
-    pub fn remove_context(&mut self, tag: &PaperStr) {
-        #[cfg(feature = "file")]
-        {
-            self.context_map.remove(tag);
-        }
-    }
-
-    pub fn add_sink<F>(&mut self, sink: F)
-    where
-        F: LogCallback + 'static,
-    {
-        self.sinks.push(Box::new(sink));
-    }
-
+impl LoggerThread {
     /// The main logging thread function.
     /// Blocks on the channel for the next entry, then drains whatever else
     /// has queued up (non-blocking) so writes happen in batches.
     /// Returns when all `Sender` handles are dropped (channel disconnected).
-    fn log_thread(
-        log_receiver: Receiver<LogData>,
-        flush_semaphore: Arc<SemaphoreLite>,
-        logger_thread: Arc<RwLock<LoggerThreadCtx>>,
-    ) -> Result<()> {
+    fn log_thread(&self) -> Result<()> {
         //TODO: Use config max buffer count to limit log batch size
-        let mut log_pool: VecPool<LogData> = VecPool::with_initial_amount(2, 1024);
         let mut logged = 0;
+        let mut queue = Vec::with_capacity(1024);
 
         loop {
+            queue.clear();
             // Block until at least one log arrives. Err means every Sender
             // was dropped, i.e. clean shutdown — exit the loop.
-            let first = match log_receiver.recv() {
+            let first = match self.log_receiver.recv() {
                 Ok(log) => log,
                 Err(_) => break,
             };
 
-            let mut queue = log_pool.take_vec();
-            queue.clear();
             queue.push(first);
 
             // Drain anything else already queued, without blocking, so we
             // batch writes instead of doing one syscall per log line.
-            while let Ok(log) = log_receiver.try_recv() {
+            while let Ok(log) = self.log_receiver.try_recv() {
                 queue.push(log);
             }
 
             logged += queue.len();
 
-            let max_str_len = logger_thread.read().config.max_string_len;
+            let max_str_len = self.shared.config.max_string_len;
             // collect the split logs into a vec so we can batch file writes
             let logs_vec: Vec<_> =
                 logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
 
-            // Batch file writes under a single write lock to reduce overhead
+            // Batch file writes under a single read lock (each file has its
+            // own internal `Mutex`) to reduce lock-acquisition overhead.
             #[cfg(feature = "file")]
             {
-                // write files in batch
-
-                crate::logger::sinks::file_logger::do_log_batch(&logs_vec, &logger_thread)?;
+                crate::logger::sinks::file_logger::do_log_batch(
+                    &logs_vec,
+                    &self.shared.file_loggers.read(),
+                )?;
             }
+
+            // Lock the sinks list once for the whole batch rather than once
+            // per log line.
+            #[cfg(feature = "sinks")]
+            let sinks_guard = self.shared.sinks.read();
 
             // Call non-file backends per log (these are typically cheaper and may
             // require per-log handling).
@@ -349,7 +327,7 @@ impl LoggerThreadCtx {
                 crate::logger::sinks::stdout_logger::do_log(log);
 
                 #[cfg(feature = "sinks")]
-                crate::logger::sinks::sink_logger::do_log(log, &logger_thread)?;
+                crate::logger::sinks::sink_logger::do_log(log, &sinks_guard)?;
 
                 #[cfg(feature = "tracing")]
                 crate::logger::sinks::tracing_logger::do_log(log)?;
@@ -357,8 +335,8 @@ impl LoggerThreadCtx {
 
             // if no more logs in the pipeline, flush it
             // or flush every 100 lines to avoid missing flushes
-            if log_receiver.is_empty() || logged >= 100 {
-                Self::flush(&logger_thread, &flush_semaphore)
+            if self.log_receiver.is_empty() || logged >= 100 {
+                self.flush()
                     .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
                 logged = 0;
             }
@@ -370,39 +348,30 @@ impl LoggerThreadCtx {
     /// Flushes all log files.
     /// This is called after all logs in the queue have been processed.
     /// This function is thread-safe.
-    fn flush(
-        logger_thread: &Arc<RwLock<LoggerThreadCtx>>,
-        flush_semaphore: &Arc<SemaphoreLite>,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn flush(&self) -> std::result::Result<(), std::io::Error> {
         // flush file
         #[cfg(feature = "file")]
         {
-            let mut logger_thread = logger_thread.write();
-            logger_thread.global_file.flush()?;
-            logger_thread
-                .context_map
-                .values_mut()
-                .try_for_each(|file| file.flush())?;
+            // Only a read lock is needed: each file is independently
+            // synchronized via its own `Mutex`.
+            let file_loggers = self.shared.file_loggers.read();
+            file_loggers.get_global_file().lock().flush()?;
+            file_loggers
+                .get_context_map()
+                .values()
+                .try_for_each(|file| file.lock().flush())?;
         }
 
         // signal flush complete
-        flush_semaphore.signal();
+        self.shared.flush_semaphore.signal();
         Ok(())
-    }
-
-    /// Waits indefinitely until the next flush completes.
-    pub fn wait_for_flush(&self) {
-        self.flush_semaphore.wait();
-    }
-    pub fn wait_for_flush_timeout(&self, duration: Duration) {
-        self.flush_semaphore.wait_timeout(duration);
     }
 }
 
 /// Logs a single, unchunked log entry to all enabled backends. Used for
 /// internal logger errors (panic hook, logging-thread failure) rather than
 /// the hot path, which chunks messages via `LogDataChunk` instead.
-pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<()> {
+pub fn do_log(log: &LogData, logger: &Logger) -> Result<()> {
     use crate::logger::sinks::*;
 
     // Every backend below takes a `LogDataChunk`; build one borrowing the
@@ -417,13 +386,13 @@ pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<
     logcat_logger::do_log(chunk)?;
 
     #[cfg(feature = "file")]
-    file_logger::do_log(log, logger_thread)?;
+    file_logger::do_log(log, &logger.shared.file_loggers.read())?;
 
     #[cfg(feature = "stdout")]
     stdout_logger::do_log(chunk);
 
     #[cfg(feature = "sinks")]
-    sink_logger::do_log(chunk, logger_thread)?;
+    sink_logger::do_log(chunk, &logger.shared.sinks.read())?;
 
     #[cfg(feature = "tracing")]
     tracing_logger::do_log(chunk)?;
@@ -435,7 +404,7 @@ pub fn do_log(log: &LogData, logger_thread: &RwLock<LoggerThreadCtx>) -> Result<
 pub fn panic_hook(
     backtrace: bool,
     _spantrace: bool,
-    logger_thread: Arc<RwLock<LoggerThreadCtx>>,
+    logger_thread: ThreadSafeLoggerThread,
 ) -> Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync + 'static> {
     // Mostly taken from https://doc.rust-lang.org/src/std/panicking.rs.html
     Box::new(move |info| {

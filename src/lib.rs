@@ -19,10 +19,7 @@ mod tests;
 
 use thiserror::Error;
 
-use crate::{
-    logger::{LoggerThreadCtx, ThreadSafeLoggerThread},
-    types::config::LoggerConfig,
-};
+use crate::{logger::ThreadSafeLoggerThread, types::config::LoggerConfig};
 
 pub type Result<T> = std::result::Result<T, LoggerError>;
 
@@ -71,12 +68,16 @@ pub fn get_logger() -> Option<&'static ThreadSafeLoggerThread> {
 }
 
 pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {
-    let res = LOGGER
-        .get_or_init(|| {
-            let logger = LoggerThreadCtx::new(config, path).expect("Unable to create logger");
+    #[cfg(feature = "file")]
+    let config = LoggerConfig {
+        log_path: path,
+        ..config
+    };
+    #[cfg(not(feature = "file"))]
+    let _ = path;
 
-            logger.init(false).expect("Unable to init logger")
-        })
+    let res = LOGGER
+        .get_or_init(|| config.init(false).expect("Unable to init logger"))
         .clone();
 
     Ok(res)

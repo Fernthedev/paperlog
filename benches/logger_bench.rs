@@ -1,8 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use paper2::{
-    logger::LoggerThreadCtx,
-    types::{config::LoggerConfig, log_level::LogLevel, LogData},
-};
+use paper2::types::{config::LoggerConfig, log_level::LogLevel, LogData};
 use std::time::Duration;
 
 // Benches write real log files, so their directory matters: the repo
@@ -14,20 +11,18 @@ fn bench_log_dir() -> std::path::PathBuf {
     std::env::temp_dir().join("paper2_bench")
 }
 
-fn bench_config() -> LoggerConfig {
+fn bench_config(log_path: std::path::PathBuf) -> LoggerConfig {
     LoggerConfig {
         context_log_path: bench_log_dir(),
+        log_path,
         ..LoggerConfig::default()
     }
 }
 
 fn bench_queue_log(c: &mut Criterion) {
-    let config = bench_config();
     let log_path = bench_log_dir().join("bench.log");
-    let logger = LoggerThreadCtx::new(config, log_path)
-        .unwrap()
-        .init(true)
-        .unwrap();
+    let config = bench_config(log_path);
+    let logger = config.init(true).unwrap();
 
     let log_data = LogData {
         level: LogLevel::Info,
@@ -37,7 +32,7 @@ fn bench_queue_log(c: &mut Criterion) {
 
     c.bench_function("queue_log", |b| {
         b.iter(|| {
-            logger.read().queue_log(log_data.clone());
+            logger.queue_log(log_data.clone());
         })
     });
 
@@ -48,18 +43,15 @@ fn bench_queue_log(c: &mut Criterion) {
     // empty — so without this loop, the leftover backlog keeps being
     // written in the background while the next bench function measures,
     // contaminating its timings.
-    while logger.read().queue_len() > 0 {
-        logger.read().wait_for_flush_timeout(Duration::from_secs(5));
+    while logger.queue_len() > 0 {
+        logger.wait_for_flush_timeout(Duration::from_secs(5));
     }
 }
 
 fn bench_log_100_and_flush(c: &mut Criterion) {
-    let config = bench_config();
     let log_path = bench_log_dir().join("bench_100.log");
-    let logger = LoggerThreadCtx::new(config, log_path)
-        .unwrap()
-        .init(true)
-        .unwrap();
+    let config = bench_config(log_path);
+    let logger = config.init(true).unwrap();
 
     let log_data = LogData {
         level: LogLevel::Info,
@@ -70,9 +62,9 @@ fn bench_log_100_and_flush(c: &mut Criterion) {
     c.bench_function("log_100_and_flush", |b| {
         b.iter(|| {
             for _ in 0..100 {
-                logger.read().queue_log(log_data.clone());
+                logger.queue_log(log_data.clone());
             }
-            logger.read().wait_for_flush_timeout(Duration::from_secs(5));
+            logger.wait_for_flush_timeout(Duration::from_secs(5));
         })
     });
 }

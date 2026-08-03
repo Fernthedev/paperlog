@@ -1,8 +1,8 @@
 // https://github.com/raftario/paranoid-android/blob/main/src/writer.rs
 
-use crate::types::PaperStr;
 use crate::types::log_level::LogLevel;
 use crate::types::logger_chunk::LogDataChunk;
+use crate::types::PaperStr;
 use crate::Result;
 
 use std::ffi::{CStr, CString};

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod file_logger_map;
 pub mod log_level;
 pub mod logger_chunk;
 

@@ -99,10 +99,10 @@ pub unsafe extern "C" fn paper2_register_context_id(tag: *const c_char) {
 
     let tag = unsafe { PaperStr::new(CStr::from_ptr(tag).to_bytes()) };
 
-    let result = logger.write().add_context(tag);
+    let result = logger.add_context(tag);
 
     if let Err(report) = result {
-        logger.read().queue_log(LogData {
+        logger.queue_log(LogData {
             level: LogLevel::Info,
             tag: None,
             message: format!("Error creating context {tag}:\n{report}").into(),
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn paper2_unregister_context_id(tag: *const c_char) {
 
     let tag = unsafe { PaperStr::new(CStr::from_ptr(tag).to_bytes()) };
 
-    logger.write().remove_context(tag);
+    logger.remove_context(tag);
 }
 
 #[no_mangle]
@@ -196,7 +196,7 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
         ..Default::default()
     };
 
-    logger.read().queue_log(log_data);
+    logger.queue_log(log_data);
 
     true
 }
@@ -271,7 +271,7 @@ pub unsafe extern "C" fn paper2_queue_log_bytes_ffi(
         ..Default::default()
     };
 
-    logger.read().queue_log(log_data);
+    logger.queue_log(log_data);
 
     true
 }
@@ -286,7 +286,7 @@ pub unsafe extern "C" fn paper2_wait_for_flush() -> bool {
         return false;
     };
 
-    logger.read().wait_for_flush();
+    logger.wait_for_flush();
 
     true
 }
@@ -312,8 +312,7 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 
         // `Vec::from_path_lossy` is zero-copy on unix, so this doesn't
         // require the configured path to be valid UTF-8.
-        let log_directory =
-            Vec::from_path_lossy(&logger.read().config.context_log_path).into_owned();
+        let log_directory = Vec::from_path_lossy(&logger.config().context_log_path).into_owned();
 
         let c_str = std::ffi::CString::new(log_directory).unwrap();
         c_str.into_raw()
@@ -327,7 +326,7 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 /// - No arguments. Safe to call at any time.
 pub unsafe extern "C" fn paper2_get_inited() -> bool {
     // `LOGGER` is only ever populated (via `init_logger`) with an instance
-    // that has already gone through `LoggerThreadCtx::init()`, so its
+    // that has already gone through `LoggerConfig::init()`, so its
     // presence alone tells us the logger is initialized without needing to
     // take the `RwLock` and load the atomic flag too. This is called on
     // every log line from the `log`-crate facade, so keeping it to a single
@@ -345,9 +344,7 @@ pub unsafe extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_uint) -> bool {
         return false;
     };
 
-    logger
-        .read()
-        .wait_for_flush_timeout(std::time::Duration::from_millis(timeout_ms as u64));
+    logger.wait_for_flush_timeout(std::time::Duration::from_millis(timeout_ms as u64));
 
     true
 }
@@ -367,14 +364,12 @@ pub unsafe extern "C" fn paper2_add_log_sink(
     // Wrap the user_data pointer in an Arc<AtomicPtr<c_void>> to make it Send + Sync
     let user_data_ptr = Arc::new(AtomicPtr::new(user_data));
 
-    logger
-        .write()
-        .add_sink(move |chunk: LogDataChunk<'_>| -> Result<()> {
-            let c_data: LogDataC = chunk.into();
-            let user_data = user_data_ptr.load(Ordering::SeqCst);
-            callback(&c_data, user_data);
-            Ok(())
-        });
+    logger.add_sink(move |chunk: LogDataChunk<'_>| -> Result<()> {
+        let c_data: LogDataC = chunk.into();
+        let user_data = user_data_ptr.load(Ordering::SeqCst);
+        callback(&c_data, user_data);
+        Ok(())
+    });
 
     true
 }
@@ -411,6 +406,10 @@ impl From<LoggerConfigFfi> for LoggerConfig {
                         .to_path_lossy()
                         .into_owned()
                 },
+                // Overwritten by `init_logger` with the `path` argument of
+                // `paper2_init_logger_ffi`; `LoggerConfigFfi` carries no
+                // separate global-log-file path of its own.
+                ..Default::default()
             }
         }
 

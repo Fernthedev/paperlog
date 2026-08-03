@@ -1,51 +1,44 @@
 use bstr::ByteSlice;
-use parking_lot::RwLock;
 
 use crate::{
-    logger::{logger_chunk::LogDataChunk, LoggerThreadCtx},
-    types::LogData,
+    logger::logger_chunk::LogDataChunk,
+    types::{file_logger_map::FileLoggers, LogData},
 };
 
-pub(crate) fn do_log(
-    log: &LogData,
-    logger_thread_lock: &RwLock<LoggerThreadCtx>,
-) -> std::io::Result<()> {
-    let mut logger_thread = logger_thread_lock.write();
-
-    let global_file = &mut logger_thread.global_file;
-    log.write_to_io(global_file)?;
+pub(crate) fn do_log(log: &LogData, file_loggers: &FileLoggers) -> std::io::Result<()> {
+    log.write_to_io(&mut *file_loggers.get_global_file().lock())?;
 
     let context_file = log
         .tag
         .as_ref()
-        .and_then(|tag| logger_thread.context_map.get_mut(tag.as_bstr()));
+        .and_then(|tag| file_loggers.get_writer(tag.as_bstr()));
 
     if let Some(context_file) = context_file {
-        log.write_compact_to_io(context_file)?;
+        log.write_compact_to_io(&mut *context_file.lock())?;
     }
 
     Ok(())
 }
 
-/// Write a batch of logs to the file-backed outputs while holding the write lock only once.
+/// Write a batch of logs to the file-backed outputs while holding each file's
+/// lock only once for the whole batch, rather than once per log line.
 pub(crate) fn do_log_batch(
     logs: &[LogDataChunk<'_>],
-    logger_thread_lock: &RwLock<LoggerThreadCtx>,
+    file_loggers: &FileLoggers,
 ) -> std::io::Result<()> {
-    let mut logger_thread = logger_thread_lock.write();
+    let mut global_file = file_loggers.get_global_file().lock();
 
     for log in logs {
-        let global_file = &mut logger_thread.global_file;
-        log.write_to_io(global_file)?;
+        log.write_to_io(&mut *global_file)?;
 
         let context_file = log
             .original
             .tag
             .as_ref()
-            .and_then(|tag| logger_thread.context_map.get_mut(tag.as_bstr()));
+            .and_then(|tag| file_loggers.get_writer(tag.as_bstr()));
 
         if let Some(context_file) = context_file {
-            log.write_compact_to_io(context_file)?;
+            log.write_compact_to_io(&mut *context_file.lock())?;
         }
     }
 
