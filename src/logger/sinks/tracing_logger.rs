@@ -18,16 +18,15 @@ impl From<LogLevel> for tracing::Level {
     }
 }
 
+/// Re-emits the chunk as a `tracing` event. The chunk is passed as a
+/// `Display` argument, so nothing is formatted (or allocated) unless a
+/// subscriber actually records the event.
 pub fn do_log(log: LogDataChunk<'_>) -> crate::Result<()> {
-    let message = log.format();
     match log.original.level {
-        LogLevel::Info => info!("{message}"),
-        LogLevel::Warn => warn!("{message}"),
-        LogLevel::Error => error!("{message}"),
-        LogLevel::Debug => debug!("{message}"),
-        LogLevel::Crit => {
-            error!("{message}");
-        }
+        LogLevel::Info => info!("{log}"),
+        LogLevel::Warn => warn!("{log}"),
+        LogLevel::Error | LogLevel::Crit => error!("{log}"),
+        LogLevel::Debug => debug!("{log}"),
         LogLevel::Off => {
             // No logging
         }

@@ -24,15 +24,23 @@ impl LogLevel {
     }
 }
 
+impl LogLevel {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LogLevel::Info => "INFO",
+            LogLevel::Warn => "WARN",
+            LogLevel::Error => "ERROR",
+            LogLevel::Debug => "DEBUG",
+            LogLevel::Crit => "CRIT",
+            LogLevel::Off => "OFF",
+        }
+    }
+}
+
 impl Display for LogLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LogLevel::Info => write!(f, "INFO"),
-            LogLevel::Warn => write!(f, "WARN"),
-            LogLevel::Error => write!(f, "ERROR"),
-            LogLevel::Debug => write!(f, "DEBUG"),
-            LogLevel::Crit => write!(f, "CRIT"),
-            LogLevel::Off => write!(f, "OFF"),
-        }
+        // `pad` rather than `write_str` so width/alignment specifiers
+        // (`{:<5}`) still work.
+        f.pad(self.as_str())
     }
 }

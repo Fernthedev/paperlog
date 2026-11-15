@@ -1,7 +1,15 @@
-use std::{backtrace::Backtrace, panic::PanicHookInfo, sync::Arc, thread, time::Duration};
+use std::{
+    backtrace::Backtrace,
+    panic::PanicHookInfo,
+    sync::Arc,
+    thread,
+    time::{Duration, SystemTime},
+};
 
 #[cfg(feature = "file")]
 use crate::types::file_logger_map::FileLoggers;
+#[cfg(feature = "file")]
+use crate::LoggerError;
 use crate::{
     semaphore_lite::SemaphoreLite,
     types::config::LoggerConfig,
@@ -10,22 +18,33 @@ use crate::{
         logger_chunk::{self, LogDataChunk},
         LogData, PaperStr,
     },
-    LoggerError, Result,
+    Result,
 };
 use bstr::ByteSlice;
-use chrono::Local;
-use crossbeam::channel::{self, Receiver, Sender};
+use crossbeam_channel::{self as channel, Receiver, Sender};
 #[cfg(feature = "file")]
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 
+mod error;
 pub mod sinks;
 
-pub trait LogCallback = Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync;
+#[cfg(feature = "file")]
+use error::report_internal;
+use error::{ErrorReporter, ErrorSource};
+
+/// A log sink: called with every chunk the logging thread writes.
+///
+/// Implemented for every matching closure, so `add_sink(|chunk| ...)` works
+/// directly. (A blanket-implemented trait instead of a nightly
+/// `trait_alias`, so the crate builds on stable.)
+pub trait LogCallback: Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync {}
+
+impl<F> LogCallback for F where F: Fn(LogDataChunk<'_>) -> Result<()> + Send + Sync {}
 
 // Helper macro to reduce repetition when constructing `LogData` and calling `do_log`.
 // The macro performs `format!` internally — pass format-style arguments directly.
-// Usage: log_data_to!(&logger, LogLevel::Error, Some("tag".to_string()), "msg: {}", val);
+// Usage: log_data_to!(&logger, LogLevel::Error, Some("tag".into()), "msg: {}", val);
 macro_rules! log_data_to {
     ($logger:expr, $level:expr, $tag:expr, $($arg:tt)+) => {{
         let message = format!($($arg)+).into();
@@ -34,7 +53,7 @@ macro_rules! log_data_to {
                 level: $level,
                 tag: $tag,
                 message,
-                timestamp: Local::now(),
+                timestamp: SystemTime::now(),
                 file: file!().into(),
                 line: line!(),
                 column: column!(),
@@ -133,15 +152,8 @@ impl LoggerConfig {
             shared,
         };
 
-        #[cfg(feature = "tracing")]
-        {
-            use cfg_if::cfg_if;
-            cfg_if! {
-                if #[cfg(all(target_os = "android"))] {
-                    paranoid_android::init("paper");
-                }
-            }
-        }
+        #[cfg(all(feature = "tracing", target_os = "android"))]
+        paranoid_android::init("paper");
 
         if install_panic_hook {
             std::panic::set_hook(panic_hook(true, true, logger.clone()));
@@ -154,25 +166,14 @@ impl LoggerConfig {
         #[cfg(feature = "tracing")]
         let dispatch = tracing::dispatcher::get_default(|d| d.clone());
 
-        let logger_for_thread = logger.clone();
-
+        // The thread deliberately holds no `Logger` (and so no `Sender`):
+        // once every `Logger` is dropped the channel disconnects and the
+        // thread flushes and exits on its own.
         thread::spawn(move || {
             #[cfg(feature = "tracing")]
             let _dispatch_guard = tracing::dispatcher::set_default(&dispatch);
 
-            let result = logger_thread.log_thread();
-
-            // handle log thread dying
-            if let Err(e) = result {
-                let _ = logger_thread.flush();
-
-                log_data_to!(
-                    &logger_for_thread,
-                    LogLevel::Error,
-                    Some("Paper2".into()),
-                    "Error occurred in logging thread: {e}"
-                );
-            }
+            logger_thread.log_thread();
         });
 
         Ok(logger)
@@ -200,6 +201,8 @@ impl Logger {
         {
             self.shared.file_loggers.lock().add_context(tag)?;
         }
+        #[cfg(not(feature = "file"))]
+        let _ = tag;
 
         Ok(())
     }
@@ -208,6 +211,8 @@ impl Logger {
         {
             self.shared.file_loggers.lock().remove_context(tag);
         }
+        #[cfg(not(feature = "file"))]
+        let _ = tag;
     }
 
     pub fn add_sink<F>(&self, sink: F)
@@ -267,23 +272,41 @@ impl Logger {
     }
 }
 
+/// Empties `v` and hands back its allocation retyped for a different
+/// lifetime, so a buffer of borrowed chunks can be reused across batches
+/// even though each batch borrows from a different `queue` generation.
+///
+/// Relies on `Vec`'s in-place `collect` (same size/alignment element type),
+/// which reuses the source allocation; `recycled_vec_keeps_capacity` below
+/// guards that assumption.
+fn recycle_vec<'b>(mut v: Vec<LogDataChunk<'_>>) -> Vec<LogDataChunk<'b>> {
+    v.clear();
+    v.into_iter().map(|_| unreachable!()).collect()
+}
+
 impl LoggerThread {
     /// The main logging thread function.
     /// Blocks on the channel for the next entry, then drains whatever else
     /// has queued up (non-blocking) so writes happen in batches.
     /// Returns when all `Sender` handles are dropped (channel disconnected).
-    fn log_thread(&self) -> Result<()> {
+    ///
+    /// Output errors never end the loop: they're reported through
+    /// [`ErrorReporter`] and logging carries on, since a logging thread that
+    /// silently exits leaves producers filling an unbounded channel nobody
+    /// reads.
+    fn log_thread(&self) {
         //TODO: Use config max buffer count to limit log batch size
         let mut logged = 0;
         let mut queue = Vec::with_capacity(1024);
+        let mut chunks_buf: Vec<LogDataChunk<'static>> = Vec::with_capacity(1024);
+        let mut errors = ErrorReporter::default();
 
         loop {
             queue.clear();
             // Block until at least one log arrives. Err means every Sender
             // was dropped, i.e. clean shutdown — exit the loop.
-            let first = match self.log_receiver.recv() {
-                Ok(log) => log,
-                Err(_) => break,
+            let Ok(first) = self.log_receiver.recv() else {
+                break;
             };
 
             queue.push(first);
@@ -297,50 +320,79 @@ impl LoggerThread {
             logged += queue.len();
 
             let max_str_len = self.shared.config.max_string_len;
-            // collect the split logs into a vec so we can batch file writes
-            let logs_vec: Vec<_> =
-                logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
+            // Collect the split logs so file writes can be batched under one
+            // lock, reusing last batch's allocation.
+            let mut logs_vec = recycle_vec(std::mem::take(&mut chunks_buf));
+            logs_vec.extend(logger_chunk::split_str_into_chunks(&queue, max_str_len));
 
             // Batch file writes under a single lock acquisition.
             #[cfg(feature = "file")]
-            {
+            errors.check(
+                ErrorSource::File,
                 crate::logger::sinks::file_logger::do_log_batch(
                     &logs_vec,
                     &mut self.shared.file_loggers.lock(),
-                )?;
-            }
+                ),
+            );
 
             // Lock the sinks list once for the whole batch rather than once
             // per log line.
             #[cfg(feature = "sinks")]
             let sinks_guard = self.shared.sinks.read();
 
+            // Same for stdout: one lock and one buffered write per batch
+            // instead of a lock + line-buffered write per `println!`.
+            #[cfg(feature = "stdout")]
+            let mut stdout = std::io::BufWriter::new(std::io::stdout().lock());
+
             // Call non-file backends per log (these are typically cheaper and may
             // require per-log handling).
-            for log in logs_vec {
+            #[allow(unused_variables)] // with no per-line backends enabled
+            for &log in &logs_vec {
                 #[cfg(all(target_os = "android", feature = "logcat"))]
-                crate::logger::sinks::logcat_logger::do_log(log)?;
+                errors.check(
+                    ErrorSource::Logcat,
+                    crate::logger::sinks::logcat_logger::do_log(log),
+                );
 
                 #[cfg(feature = "stdout")]
-                crate::logger::sinks::stdout_logger::do_log(log);
+                errors.check(
+                    ErrorSource::Stdout,
+                    crate::logger::sinks::stdout_logger::do_log(log, &mut stdout),
+                );
 
                 #[cfg(feature = "sinks")]
-                crate::logger::sinks::sink_logger::do_log(log, &sinks_guard)?;
+                crate::logger::sinks::sink_logger::do_log(log, &sinks_guard, |e| {
+                    errors.error(ErrorSource::Sink, &e)
+                });
 
                 #[cfg(feature = "tracing")]
-                crate::logger::sinks::tracing_logger::do_log(log)?;
+                errors.check(
+                    ErrorSource::Tracing,
+                    crate::logger::sinks::tracing_logger::do_log(log),
+                );
             }
+
+            #[cfg(feature = "stdout")]
+            errors.check(ErrorSource::Stdout, std::io::Write::flush(&mut stdout));
+
+            #[cfg(feature = "sinks")]
+            drop(sinks_guard);
+
+            chunks_buf = recycle_vec(logs_vec);
 
             // if no more logs in the pipeline, flush it
             // or flush every 100 lines to avoid missing flushes
             if self.log_receiver.is_empty() || logged >= 100 {
-                self.flush()
-                    .map_err(|e| LoggerError::FlushError(Box::new(e)))?;
+                errors.check(ErrorSource::Flush, self.flush());
                 logged = 0;
             }
+
+            errors.end_batch();
         }
 
-        Ok(())
+        // Channel disconnected: make sure nothing is left in the buffers.
+        errors.check(ErrorSource::Flush, self.flush());
     }
 
     /// Flushes all log files.
@@ -359,10 +411,24 @@ impl LoggerThread {
     }
 }
 
-/// Logs a single, unchunked log entry to all enabled backends. Used for
-/// internal logger errors (panic hook, logging-thread failure) rather than
-/// the hot path, which chunks messages via `LogDataChunk` instead.
+/// How long the synchronous [`do_log`] path waits for a lock before giving
+/// up. `do_log` runs from the panic hook, which can fire on the logging
+/// thread itself while it already holds `file_loggers` (non-reentrant) or a
+/// read guard on `sinks` (a second read would queue behind a waiting
+/// writer). Blocking there would deadlock, so it times out instead.
+#[cfg(any(feature = "file", feature = "sinks"))]
+const SYNC_LOG_LOCK_TIMEOUT: Duration = Duration::from_millis(100);
+
+/// Logs a single, unchunked log entry to all enabled backends, synchronously.
+/// Used for internal logger errors (panic hook) rather than the hot path,
+/// which chunks messages via `LogDataChunk` instead.
+///
+/// The file output is flushed immediately, since a panic may be followed by
+/// an abort. If a lock can't be taken within [`SYNC_LOG_LOCK_TIMEOUT`], that
+/// backend is skipped and the line goes to stderr (and logcat) instead.
+#[allow(unused_variables)] // with no backends enabled
 pub fn do_log(log: &LogData, logger: &Logger) -> Result<()> {
+    #[allow(unused_imports)]
     use crate::logger::sinks::*;
 
     // Every backend below takes a `LogDataChunk`; build one borrowing the
@@ -377,13 +443,31 @@ pub fn do_log(log: &LogData, logger: &Logger) -> Result<()> {
     logcat_logger::do_log(chunk)?;
 
     #[cfg(feature = "file")]
-    file_logger::do_log(log, &mut logger.shared.file_loggers.lock())?;
+    match logger
+        .shared
+        .file_loggers
+        .try_lock_for(SYNC_LOG_LOCK_TIMEOUT)
+    {
+        Some(mut files) => {
+            file_logger::do_log(log, &mut files)?;
+            files.flush()?;
+        }
+        None => report_internal(format_args!("{chunk}")),
+    }
 
     #[cfg(feature = "stdout")]
-    stdout_logger::do_log(chunk);
+    stdout_logger::do_log(chunk, &mut std::io::stdout().lock())?;
 
     #[cfg(feature = "sinks")]
-    sink_logger::do_log(chunk, &logger.shared.sinks.read())?;
+    if let Some(sinks) = logger.shared.sinks.try_read_for(SYNC_LOG_LOCK_TIMEOUT) {
+        let mut first_error = None;
+        sink_logger::do_log(chunk, &sinks, |e| {
+            first_error.get_or_insert(e);
+        });
+        if let Some(e) = first_error {
+            return Err(e);
+        }
+    }
 
     #[cfg(feature = "tracing")]
     tracing_logger::do_log(chunk)?;
@@ -437,4 +521,25 @@ pub fn panic_hook(
             );
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recycled_vec_keeps_capacity() {
+        let log = LogData::default();
+        let mut v: Vec<LogDataChunk<'_>> = Vec::with_capacity(64);
+        v.push(LogDataChunk {
+            original: &log,
+            message: log.message.as_bstr(),
+        });
+        let ptr = v.as_ptr() as usize;
+
+        let recycled: Vec<LogDataChunk<'static>> = recycle_vec(v);
+        assert!(recycled.is_empty());
+        assert!(recycled.capacity() >= 64);
+        assert_eq!(recycled.as_ptr() as usize, ptr);
+    }
 }

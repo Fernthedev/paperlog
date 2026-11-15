@@ -21,7 +21,9 @@ impl SemaphoreLite {
         }
     }
 
-    /// Signals one waiting thread.
+    /// Sets the signal and wakes every waiting thread. The signal is a
+    /// single auto-resetting flag: the first waiter to observe it clears
+    /// it, and the other woken waiters go back to waiting.
     pub fn signal(&self) {
         let mut guard = self.mutex.lock();
         *guard = true;

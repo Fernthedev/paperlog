@@ -29,6 +29,10 @@ typedef enum paper2_LogLevel {
 typedef struct paper2_LoggerConfigFfi {
   unsigned long long max_string_len;
   unsigned long long log_max_buffer_count;
+  /**
+   * Deprecated and ignored: log files always use the platform's native
+   * line ending. Kept so the struct layout (C ABI) doesn't change.
+   */
   unsigned char line_end;
   const char *context_log_path;
 } paper2_LoggerConfigFfi;
@@ -60,8 +64,10 @@ typedef struct paper2_LogDataC {
 
 /**
  * Extern "C" compatible log callback type.
- * The callback receives a pointer to LogData and a user-provided context pointer.
- * Returns 0 for success, nonzero for error.
+ * The callback receives a pointer to the log chunk and the `user_data`
+ * pointer given to [`paper2_add_log_sink`]. It returns nothing; the
+ * `LogDataC` (and the strings it points to) are only valid for the
+ * duration of the call.
  */
 typedef void (*paper2_LogCallbackC)(const struct paper2_LogDataC *log_data, void *user_data);
 
@@ -195,15 +201,24 @@ bool paper2_get_inited(void);
 bool paper2_wait_flush_timeout(unsigned int timeout_ms);
 
 /**
- * Shuts down the logger, flushing all logs.
+ * Registers a C callback that receives every log chunk the logging thread
+ * writes. Returns `false` if the logger isn't initialized.
+ *
  * # Safety
- * - Safe to call if logger is initialized.
+ * - `callback` must be safe to call from the logging thread, for the rest
+ *   of the process's lifetime (sinks can't be removed).
+ * - `user_data` is passed back to `callback` unchanged; whatever it points
+ *   to must stay valid, and be safe to use from the logging thread, for
+ *   that same lifetime.
  */
 bool paper2_add_log_sink(paper2_LogCallbackC callback, void *user_data);
 
 /**
  * Frees a C string allocated by `paper2_get_log_directory`.
+ *
  * # Safety
+ * - `s` must be null or a pointer returned by `paper2_get_log_directory`
+ *   that hasn't been freed yet.
  */
 void paper2_free_c_string(char *s);
 

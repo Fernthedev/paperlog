@@ -1,9 +1,10 @@
+use std::time::SystemTime;
+
 use bstr::ByteSlice;
-use chrono::{DateTime, Local};
 
 use crate::{
     types::log_level::LogLevel,
-    types::{logger_chunk::LogDataChunk, PaperStr, PaperString},
+    types::{logger_chunk::LogDataChunk, PaperStr, PaperString, PaperTag},
 };
 
 pub const DEFAULT_TAG: &str = "GLOBAL";
@@ -11,9 +12,12 @@ pub const DEFAULT_TAG: &str = "GLOBAL";
 #[derive(Debug, Clone)]
 pub struct LogData {
     pub level: LogLevel,
-    pub tag: Option<PaperString>,
+    pub tag: Option<PaperTag>,
     pub message: PaperString,
-    pub timestamp: DateTime<Local>,
+    /// When the log was created. Kept as a raw `SystemTime` so creating a
+    /// log is a cheap clock read; conversion to local time happens on the
+    /// logging thread, when the line is formatted.
+    pub timestamp: SystemTime,
 
     pub file: &'static PaperStr,
     pub line: u32,
@@ -24,7 +28,7 @@ pub struct LogData {
 impl LogData {
     pub fn new(
         level: LogLevel,
-        tag: Option<PaperString>,
+        tag: Option<PaperTag>,
         message: PaperString,
         file: &'static PaperStr,
         line: u32,
@@ -35,7 +39,7 @@ impl LogData {
             level,
             tag,
             message,
-            timestamp: Local::now(),
+            timestamp: SystemTime::now(),
             file,
             line,
             column,
@@ -44,13 +48,10 @@ impl LogData {
     }
 
     /// Borrows the tag as bytes, falling back to [`DEFAULT_TAG`] without allocating.
-    ///
-    /// `PaperString` (`BString`) derefs to `Vec<u8>`, not `PaperStr`, so this
-    /// goes through `as_bstr()` rather than `as_deref()`.
     pub(crate) fn tag_or_default(&self) -> &PaperStr {
         self.tag
-            .as_ref()
-            .map_or_else(|| PaperStr::new(DEFAULT_TAG), |t| t.as_bstr())
+            .as_deref()
+            .unwrap_or_else(|| PaperStr::new(DEFAULT_TAG))
     }
 
     pub(crate) fn function_name_or_default(&self) -> &PaperStr {
@@ -87,7 +88,7 @@ impl Default for LogData {
             level: LogLevel::Info,
             tag: None,
             message: PaperString::default(),
-            timestamp: Local::now(),
+            timestamp: SystemTime::now(),
             file: PaperStr::new(&[]),
             line: 0,
             column: 0,

@@ -13,6 +13,10 @@ use paper2_ffi::{
 use std::os::raw::c_int;
 use std::ptr;
 
+mod string_helper;
+
+use string_helper::with_message;
+
 /// The paper2 logger that implements the `log::Log` trait.
 #[derive(Default)]
 pub struct Paper2Logger {
@@ -61,12 +65,12 @@ impl Log for Paper2Logger {
         // building a `CString` from it (as this used to) could silently drop
         // the record or panic. Passing explicit lengths also skips a
         // `strlen` scan on the receiving side for every field.
-        unsafe {
-            if !paper2_get_inited() {
-                return;
-            }
+        if !unsafe { paper2_get_inited() } {
+            return;
+        }
+
+        with_message(record.args(), |message| unsafe {
             let level = map_level(record.level());
-            let message = record.args().to_string();
             let file = record.file().unwrap_or("");
             let function_name = record.module_path().unwrap_or("");
             let line = record.line().unwrap_or(0) as c_int;
@@ -90,7 +94,7 @@ impl Log for Paper2Logger {
                 function_name.as_ptr(),
                 function_name.len(),
             );
-        }
+        });
     }
 
     fn flush(&self) {

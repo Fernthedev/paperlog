@@ -11,9 +11,9 @@ fn test_config(name: &str) -> LoggerConfig {
     LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     }
 }
 

@@ -1,11 +1,8 @@
-#![feature(error_generic_member_access)]
-#![feature(trait_alias)]
-
-use std::{backtrace, path::PathBuf, sync::OnceLock};
+use std::{path::PathBuf, sync::OnceLock};
 
 pub mod logger;
+mod string_helper;
 pub mod types;
-pub mod vec_pool;
 
 mod semaphore_lite;
 
@@ -26,30 +23,16 @@ pub type Result<T> = std::result::Result<T, LoggerError>;
 #[derive(Error, Debug)]
 pub enum LoggerError {
     #[error("Unknown Error occurred in logging thread: {0}")]
-    LogError(String, backtrace::Backtrace),
+    LogError(String),
 
     #[error("Error occurred during flush in logging thread: {0}")]
-    FlushError(
-        #[backtrace]
-        #[source]
-        Box<dyn std::error::Error + Sync + Send>,
-    ),
+    FlushError(#[source] Box<dyn std::error::Error + Sync + Send>),
 
     #[error("IO Error occurred in logging thread: {0}")]
-    IoError(
-        #[from]
-        #[backtrace]
-        std::io::Error,
-    ),
+    IoError(#[from] std::io::Error),
 
     #[error("IO Error at {2} occurred in logging thread: Context {1:?} {0}")]
-    IoSpecificError(
-        #[backtrace]
-        #[source]
-        std::io::Error,
-        Option<String>,
-        PathBuf,
-    ),
+    IoSpecificError(#[source] std::io::Error, Option<String>, PathBuf),
 
     #[error("Logger already initialized")]
     AlreadyInitialized,
@@ -67,6 +50,13 @@ pub fn get_logger() -> Option<&'static ThreadSafeLoggerThread> {
     LOGGER.get()
 }
 
+/// Initializes the process-global logger.
+///
+/// # Errors
+/// - [`LoggerError::AlreadyInitialized`] if a global logger already exists.
+///   The existing logger is left untouched and `config`/`path` are ignored;
+///   use [`get_logger`] to reach it.
+/// - Any IO error from creating the log files.
 pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLoggerThread> {
     #[cfg(feature = "file")]
     let config = LoggerConfig {
@@ -76,9 +66,16 @@ pub fn init_logger(config: LoggerConfig, path: PathBuf) -> Result<ThreadSafeLogg
     #[cfg(not(feature = "file"))]
     let _ = path;
 
-    let res = LOGGER
-        .get_or_init(|| config.init(false).expect("Unable to init logger"))
-        .clone();
+    if LOGGER.get().is_some() {
+        return Err(LoggerError::AlreadyInitialized);
+    }
 
-    Ok(res)
+    let logger = config.init(false)?;
+    // If another thread won a concurrent init, ours is dropped here: that
+    // drops its last `Sender`, so its logging thread sees the channel
+    // disconnect and exits on its own.
+    LOGGER
+        .set(logger.clone())
+        .map_err(|_| LoggerError::AlreadyInitialized)?;
+    Ok(logger)
 }

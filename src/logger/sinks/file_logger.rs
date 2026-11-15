@@ -1,21 +1,31 @@
-use bstr::ByteSlice;
-
 use crate::{
     logger::logger_chunk::LogDataChunk,
-    types::{file_logger_map::FileLoggers, LogData},
+    types::{
+        file_logger_map::{FileLoggers, Writers},
+        LogData,
+    },
 };
 
-pub(crate) fn do_log(log: &LogData, file_loggers: &mut FileLoggers) -> std::io::Result<()> {
-    let (global_file, context_file) =
-        file_loggers.writers_for(log.tag.as_ref().map(|tag| tag.as_bstr()));
+fn write_chunk(chunk: LogDataChunk<'_>, file_loggers: &mut FileLoggers) -> std::io::Result<()> {
+    let Writers { global, context } = file_loggers.writers_for(chunk.original.tag.as_deref());
 
-    log.write_to_io(global_file)?;
+    chunk.write_to_io(global)?;
 
-    if let Some(context_file) = context_file {
-        log.write_compact_to_io(context_file)?;
+    if let Some(context) = context {
+        chunk.write_compact_to_io(context)?;
     }
 
     Ok(())
+}
+
+pub(crate) fn do_log(log: &LogData, file_loggers: &mut FileLoggers) -> std::io::Result<()> {
+    write_chunk(
+        LogDataChunk {
+            original: log,
+            message: log.message.as_ref(),
+        },
+        file_loggers,
+    )
 }
 
 /// Write a batch of logs to the file-backed outputs. The caller holds the
@@ -24,15 +34,8 @@ pub(crate) fn do_log_batch(
     logs: &[LogDataChunk<'_>],
     file_loggers: &mut FileLoggers,
 ) -> std::io::Result<()> {
-    for log in logs {
-        let (global_file, context_file) =
-            file_loggers.writers_for(log.original.tag.as_ref().map(|tag| tag.as_bstr()));
-
-        log.write_to_io(global_file)?;
-
-        if let Some(context_file) = context_file {
-            log.write_compact_to_io(context_file)?;
-        }
+    for &log in logs {
+        write_chunk(log, file_loggers)?;
     }
 
     Ok(())

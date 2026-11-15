@@ -54,12 +54,11 @@ impl FileLoggers {
 
     /// Returns the global writer and, if `context` is registered, its
     /// context writer. Both are borrowed mutably at once (disjoint fields).
-    pub fn writers_for(
-        &mut self,
-        context: Option<&PaperStr>,
-    ) -> (&mut BufWriter<File>, Option<&mut BufWriter<File>>) {
-        let context_file = context.and_then(|tag| self.map.get_mut(tag));
-        (&mut self.global_file, context_file)
+    pub fn writers_for(&mut self, context: Option<&PaperStr>) -> Writers<'_> {
+        Writers {
+            global: &mut self.global_file,
+            context: context.and_then(|tag| self.map.get_mut(tag)),
+        }
     }
 
     /// Flushes the global file and every context file.
@@ -67,4 +66,10 @@ impl FileLoggers {
         self.global_file.flush()?;
         self.map.values_mut().try_for_each(|file| file.flush())
     }
+}
+
+/// The writers a single log line goes to. See [`FileLoggers::writers_for`].
+pub struct Writers<'a> {
+    pub global: &'a mut BufWriter<File>,
+    pub context: Option<&'a mut BufWriter<File>>,
 }

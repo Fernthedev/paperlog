@@ -5,6 +5,9 @@ use std::path::PathBuf;
 pub struct LoggerConfig {
     pub max_string_len: usize,
     pub log_max_buffer_count: usize,
+    /// Ignored: log files always use the platform's native line ending
+    /// ([`LINE_END`](crate::types::logger_chunk::LINE_END)).
+    #[deprecated(note = "ignored; log files always use the platform's native line ending")]
     pub line_end: char,
 
     #[cfg(feature = "file")]
@@ -14,6 +17,8 @@ pub struct LoggerConfig {
     pub context_log_path: PathBuf,
 }
 
+// The deprecated `line_end` field still has to be initialized.
+#[allow(deprecated)]
 impl Default for LoggerConfig {
     fn default() -> Self {
         LoggerConfig {

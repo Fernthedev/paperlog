@@ -9,9 +9,9 @@ fn test_logger_initialization() {
     let config = LoggerConfig {
         max_string_len: 1024,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path: log_path.clone(),
+        ..Default::default()
     };
 
     let _thread = config.init(false).unwrap();
@@ -31,14 +31,13 @@ fn test_logger_config() {
     let config = LoggerConfig {
         max_string_len: 2048,
         log_max_buffer_count: 100,
-        line_end: '\r',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     assert_eq!(config.max_string_len, 2048);
     assert_eq!(config.log_max_buffer_count, 100);
-    assert_eq!(config.line_end, '\r');
 }
 
 #[test]
@@ -48,9 +47,9 @@ fn test_logger_thread_safe() {
     let config = LoggerConfig {
         max_string_len: 1024,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path: log_path.clone(),
+        ..Default::default()
     };
 
     let logger = config.init(false);

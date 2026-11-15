@@ -9,6 +9,7 @@ use crate::types::logger_chunk::LogDataChunk;
 use crate::types::LogData;
 use crate::types::PaperStr;
 use crate::types::PaperString;
+use crate::types::PaperTag;
 use crate::Result;
 use std::ffi::c_uint;
 use std::ffi::{c_uchar, c_ulonglong, CStr};
@@ -21,8 +22,10 @@ use std::sync::Arc;
 mod c_str_helper;
 
 /// Extern "C" compatible log callback type.
-/// The callback receives a pointer to LogData and a user-provided context pointer.
-/// Returns 0 for success, nonzero for error.
+/// The callback receives a pointer to the log chunk and the `user_data`
+/// pointer given to [`paper2_add_log_sink`]. It returns nothing; the
+/// `LogDataC` (and the strings it points to) are only valid for the
+/// duration of the call.
 pub type LogCallbackC =
     unsafe extern "C" fn(log_data: *const LogDataC, user_data: *mut std::ffi::c_void);
 
@@ -49,6 +52,8 @@ pub struct LogDataC<'a> {
 pub struct LoggerConfigFfi {
     pub max_string_len: c_ulonglong,
     pub log_max_buffer_count: c_ulonglong,
+    /// Deprecated and ignored: log files always use the platform's native
+    /// line ending. Kept so the struct layout (C ABI) doesn't change.
     pub line_end: c_uchar,
     pub context_log_path: *const c_char,
 }
@@ -80,7 +85,12 @@ pub unsafe extern "C" fn paper2_init_logger_ffi(
             .unwrap_or_default()
     };
 
-    init_logger(converted_config, path_buf).is_ok()
+    // A repeat init is a documented no-op for C callers: the first logger
+    // stays in place and this still reports success.
+    matches!(
+        init_logger(converted_config, path_buf),
+        Ok(_) | Err(crate::LoggerError::AlreadyInitialized)
+    )
 }
 
 #[no_mangle]
@@ -173,10 +183,12 @@ pub unsafe extern "C" fn paper2_queue_log_ffi(
     let tag = unsafe {
         tag.as_ref()
             .map(|c_str| CStr::from_ptr(c_str))
-            .map(|c| PaperString::from(c.to_bytes()))
+            .map(|c| PaperTag::new(c.to_bytes()))
     };
 
-    let message: &'static CStr = unsafe { CStr::from_ptr(message) };
+    // `message` is copied below, so it only needs to live for this call;
+    // `file` is stored as-is and so must be `'static` (see Safety above).
+    let message: &CStr = unsafe { CStr::from_ptr(message) };
     let file: &'static CStr = unsafe { CStr::from_ptr(file) };
 
     let log_data = LogData {
@@ -250,9 +262,10 @@ pub unsafe extern "C" fn paper2_queue_log_bytes_ffi(
 
     let tag = (!tag_ptr.is_null())
         .then(|| unsafe { std::slice::from_raw_parts(tag_ptr, tag_len) })
-        .map(PaperString::from);
+        .map(PaperTag::new);
 
-    let message: &'static [u8] = unsafe { std::slice::from_raw_parts(message_ptr, message_len) };
+    // Copied below, so only needs to live for this call (unlike `file`).
+    let message: &[u8] = unsafe { std::slice::from_raw_parts(message_ptr, message_len) };
     let file: &'static [u8] = unsafe { std::slice::from_raw_parts(file_ptr, file_len) };
 
     let function_name = (!function_name_ptr.is_null())
@@ -314,8 +327,13 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
         // require the configured path to be valid UTF-8.
         let log_directory = Vec::from_path_lossy(&logger.config().context_log_path).into_owned();
 
-        let c_str = std::ffi::CString::new(log_directory).unwrap();
-        c_str.into_raw()
+        // A path containing a NUL byte can't be represented as a C string;
+        // report "unavailable" rather than panicking across the FFI
+        // boundary (which aborts the process).
+        match std::ffi::CString::new(log_directory) {
+            Ok(c_str) => c_str.into_raw(),
+            Err(_) => std::ptr::null(),
+        }
     }
 }
 
@@ -327,10 +345,9 @@ pub unsafe extern "C" fn paper2_get_log_directory() -> *const c_char {
 pub unsafe extern "C" fn paper2_get_inited() -> bool {
     // `LOGGER` is only ever populated (via `init_logger`) with an instance
     // that has already gone through `LoggerConfig::init()`, so its
-    // presence alone tells us the logger is initialized without needing to
-    // take the `RwLock` and load the atomic flag too. This is called on
-    // every log line from the `log`-crate facade, so keeping it to a single
-    // `OnceLock` load (no lock, no second atomic) is worth it.
+    // presence alone tells us the logger is initialized. This is called on
+    // every log line from the `log`-crate facade, so it's kept to a single
+    // lock-free `OnceLock` load.
     get_logger().is_some()
 }
 
@@ -349,9 +366,15 @@ pub unsafe extern "C" fn paper2_wait_flush_timeout(timeout_ms: c_uint) -> bool {
     true
 }
 
-/// Shuts down the logger, flushing all logs.
+/// Registers a C callback that receives every log chunk the logging thread
+/// writes. Returns `false` if the logger isn't initialized.
+///
 /// # Safety
-/// - Safe to call if logger is initialized.
+/// - `callback` must be safe to call from the logging thread, for the rest
+///   of the process's lifetime (sinks can't be removed).
+/// - `user_data` is passed back to `callback` unchanged; whatever it points
+///   to must stay valid, and be safe to use from the logging thread, for
+///   that same lifetime.
 #[no_mangle]
 pub unsafe extern "C" fn paper2_add_log_sink(
     callback: LogCallbackC,
@@ -375,7 +398,10 @@ pub unsafe extern "C" fn paper2_add_log_sink(
 }
 
 /// Frees a C string allocated by `paper2_get_log_directory`.
+///
 /// # Safety
+/// - `s` must be null or a pointer returned by `paper2_get_log_directory`
+///   that hasn't been freed yet.
 #[no_mangle]
 pub unsafe extern "C" fn paper2_free_c_string(s: *mut c_char) {
     if s.is_null() {
@@ -390,6 +416,8 @@ pub unsafe extern "C" fn paper2_free_c_string(s: *mut c_char) {
 ///
 /// # Safety
 /// - `context_log_path` must be a valid, null-terminated C string.
+// The deprecated `line_end` field is still carried over for completeness.
+#[allow(deprecated)]
 impl From<LoggerConfigFfi> for LoggerConfig {
     fn from(ffi: LoggerConfigFfi) -> Self {
         #[cfg(feature = "file")]
@@ -437,7 +465,11 @@ impl<'a> From<LogDataChunk<'a>> for LogDataC<'a> {
             level: data.level,
             tag: data.tag.as_ref().map(|s| s.as_bstr()).into(),
             message: chunk.message.into(),
-            timestamp: data.timestamp.timestamp(),
+            // Seconds since the Unix epoch, negative for pre-1970 times.
+            timestamp: match data.timestamp.duration_since(std::time::UNIX_EPOCH) {
+                Ok(after) => after.as_secs() as i64,
+                Err(before) => -(before.duration().as_secs() as i64),
+            },
 
             file: data.file.into(),
             line: data.line,

@@ -18,21 +18,29 @@ fn wait_for_complete_flush(logger: &Logger) {
     logger.wait_for_flush_timeout(Duration::from_millis(500));
 }
 
-fn find_log(log_str: impl Into<String>) -> impl Fn(&[&str]) -> Result<(), String> {
-    let log = log_str.into();
+/// Panics unless some captured `tracing` line contains every fragment in
+/// `parts`. The line format is `LEVEL <time> [TAG] [file:line:col @ fn]
+/// message`, so tests match the stable pieces rather than the whole line
+/// (the time varies).
+///
+/// Reads `tracing-test`'s whole capture buffer instead of using the
+/// injected `logs_assert`: that only sees lines recorded inside the test's
+/// own span, and these events are emitted from paper2's logging thread,
+/// which isn't in it. The messages checked are unique per test, so sharing
+/// the buffer between tests is fine.
+#[cfg(feature = "tracing")]
+fn assert_logged(parts: &[&str]) {
+    let buf = tracing_test::internal::global_buf().lock().unwrap();
+    let logs = String::from_utf8_lossy(&buf);
 
-    // Ensure that the string `logged` is logged exactly twice
-    move |lines: &[&str]| {
-        let found = lines.iter().any(|line| line.contains(&log));
+    let found = logs
+        .lines()
+        .any(|line| parts.iter().all(|part| line.contains(part)));
 
-        match found {
-            true => Ok(()),
-            false => Err(format!(
-                "Unable to find string {log} in logs. Logs: \n{}",
-                lines.join("\n")
-            )),
-        }
-    }
+    assert!(
+        found,
+        "Unable to find a line containing all of {parts:?} in logs. Logs:\n{logs}"
+    );
 }
 
 #[test]
@@ -42,9 +50,9 @@ fn test_log_init() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let _logger = config.init(false)?;
@@ -62,9 +70,9 @@ fn test_log_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -84,7 +92,7 @@ fn test_log_output() -> Result<()> {
         wait_for_complete_flush(&logger);
     };
 
-    logs_assert(find_log("INFO [GLOBAL] hi! 5"));
+    assert_logged(&["INFO ", "[GLOBAL]", "] hi! 5"]);
 
     Ok(())
 }
@@ -96,9 +104,9 @@ fn test_single_thread_log_spam() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -146,9 +154,9 @@ fn test_multithread_log_spam() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -206,9 +214,9 @@ fn test_log_context_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -228,7 +236,7 @@ fn test_log_context_output() -> Result<()> {
         wait_for_complete_flush(&logger);
     };
 
-    logs_assert(find_log("INFO [Context] context hi! 6"));
+    assert_logged(&["INFO ", "[Context]", "] context hi! 6"]);
     Ok(())
 }
 
@@ -241,9 +249,9 @@ fn test_log_context_tag_output() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -265,7 +273,7 @@ fn test_log_context_tag_output() -> Result<()> {
         thread::sleep(Duration::from_millis(2));
     };
 
-    logs_assert(find_log("INFO [Context] hi this is a context log! 5"));
+    assert_logged(&["INFO ", "[Context]", "] hi this is a context log! 5"]);
     Ok(())
 }
 
@@ -278,9 +286,9 @@ fn test_utf8() -> Result<()> {
     let config = LoggerConfig {
         max_string_len: 100,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path,
         log_path,
+        ..Default::default()
     };
 
     let logger = config.init(false)?;
@@ -300,6 +308,6 @@ fn test_utf8() -> Result<()> {
         wait_for_complete_flush(&logger);
     };
 
-    logs_assert(find_log("INFO [GLOBAL] £ ह € 한\n"));
+    assert_logged(&["INFO ", "[GLOBAL]", "] £ ह € 한"]);
     Ok(())
 }

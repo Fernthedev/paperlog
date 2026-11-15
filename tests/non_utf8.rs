@@ -23,9 +23,9 @@ fn non_utf8_tag_routes_to_a_lossily_named_context_file() {
     let config = LoggerConfig {
         max_string_len: 1024,
         log_max_buffer_count: 50,
-        line_end: '\n',
         context_log_path: context_log_path.clone(),
         log_path: log_path.clone(),
+        ..Default::default()
     };
 
     let logger = config.init(false).unwrap();
@@ -44,7 +44,7 @@ fn non_utf8_tag_routes_to_a_lossily_named_context_file() {
 
     logger.queue_log(LogData {
         level: LogLevel::Info,
-        tag: Some(tag.to_owned()),
+        tag: Some(tag.into()),
         message: "hello from a byte-tagged context".into(),
         file: file!().into(),
         line: line!(),
