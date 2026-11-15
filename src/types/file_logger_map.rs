@@ -1,26 +1,24 @@
 use std::{
     fs::{self, File},
-    io::{self, BufWriter},
+    io::{self, BufWriter, Write},
 };
 
-use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
 use crate::types::{PaperStr, PaperString};
 
 /// Holds the global log file plus one file per registered context.
 ///
-/// Each file is behind its own [`Mutex`] rather than a single lock over the
-/// whole map, so writing to the global file and writing to a context file
-/// never contend with each other. The outer container (`RwLock<FileLoggers>`
-/// in [`crate::logger::SharedLoggerState`]) only needs a *read* lock for the
-/// hot logging path — a *write* lock is only required when the context map
-/// itself is structurally changed (`add_context`/`remove_context`).
+/// This type does no locking itself; it is guarded by a single
+/// `Mutex<FileLoggers>` in [`crate::logger::SharedLoggerState`]. Only the
+/// logging thread writes on the hot path (once per batch), so one lock is
+/// enough — `add_context`/`remove_context` and the panic-hook fallback are
+/// rare enough that per-file locking would buy nothing.
 pub struct FileLoggers {
     base_path: std::path::PathBuf,
 
-    global_file: Mutex<BufWriter<File>>,
-    map: FxHashMap<PaperString, Mutex<BufWriter<File>>>,
+    global_file: BufWriter<File>,
+    map: FxHashMap<PaperString, BufWriter<File>>,
 }
 
 impl FileLoggers {
@@ -34,39 +32,39 @@ impl FileLoggers {
             fs::create_dir_all(parent)?;
         }
 
-        let global_file = {
-            let inner = File::create(&log_file)?;
-            BufWriter::new(inner)
-        };
+        let global_file = BufWriter::new(File::create(&log_file)?);
 
         Ok(Self {
             base_path: context_log_path,
-            global_file: Mutex::new(global_file),
+            global_file,
             map: FxHashMap::default(),
         })
     }
 
-    pub fn add_context(&mut self, context: &PaperStr) -> std::io::Result<()> {
+    pub fn add_context(&mut self, context: &PaperStr) -> io::Result<()> {
         let file_path = self.base_path.join(format!("{}.log", context));
-        let file = File::create(file_path)?;
-        let writer = BufWriter::new(file);
-        self.map.insert(context.into(), Mutex::new(writer));
+        let writer = BufWriter::new(File::create(file_path)?);
+        self.map.insert(context.into(), writer);
         Ok(())
-    }
-
-    pub fn get_writer(&self, context: &PaperStr) -> Option<&Mutex<BufWriter<File>>> {
-        self.map.get(context)
     }
 
     pub fn remove_context(&mut self, context: &PaperStr) {
         self.map.remove(context);
     }
 
-    pub fn get_global_file(&self) -> &Mutex<BufWriter<File>> {
-        &self.global_file
+    /// Returns the global writer and, if `context` is registered, its
+    /// context writer. Both are borrowed mutably at once (disjoint fields).
+    pub fn writers_for(
+        &mut self,
+        context: Option<&PaperStr>,
+    ) -> (&mut BufWriter<File>, Option<&mut BufWriter<File>>) {
+        let context_file = context.and_then(|tag| self.map.get_mut(tag));
+        (&mut self.global_file, context_file)
     }
 
-    pub fn get_context_map(&self) -> &FxHashMap<PaperString, Mutex<BufWriter<File>>> {
-        &self.map
+    /// Flushes the global file and every context file.
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.global_file.flush()?;
+        self.map.values_mut().try_for_each(|file| file.flush())
     }
 }

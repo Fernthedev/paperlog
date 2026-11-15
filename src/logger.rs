@@ -1,6 +1,4 @@
-use std::{
-    backtrace::Backtrace, io::Write, panic::PanicHookInfo, sync::Arc, thread, time::Duration,
-};
+use std::{backtrace::Backtrace, panic::PanicHookInfo, sync::Arc, thread, time::Duration};
 
 #[cfg(feature = "file")]
 use crate::types::file_logger_map::FileLoggers;
@@ -17,6 +15,8 @@ use crate::{
 use bstr::ByteSlice;
 use chrono::Local;
 use crossbeam::channel::{self, Receiver, Sender};
+#[cfg(feature = "file")]
+use parking_lot::Mutex;
 use parking_lot::RwLock;
 
 pub mod sinks;
@@ -60,11 +60,12 @@ pub type ThreadSafeLoggerThread = Logger;
 /// - `config` is immutable after construction, so it needs no lock at all.
 /// - `flush_semaphore` has its own internal `Mutex`/`Condvar` and is never
 ///   wrapped in an outer lock.
-/// - `file_loggers` and `sinks` are only mutated by rare, non-hot-path calls
-///   (`add_context`/`remove_context`/`add_sink`); the logging thread only
-///   ever takes a *read* lock on them (each individual file inside
-///   `FileLoggers` has its own `Mutex`, so a shared read lock is enough to
-///   write to it).
+/// - `file_loggers` is a single `Mutex`: the logging thread is its only
+///   regular user (locked once per batch and once per flush), so finer
+///   locking would buy nothing. `add_context`/`remove_context` and the
+///   panic-hook fallback lock it briefly and rarely.
+/// - `sinks` is only mutated by rare, non-hot-path calls (`add_sink`); the
+///   logging thread only ever takes a *read* lock on it.
 struct SharedLoggerState {
     /// Signaled once a flush completes, so callers of `wait_for_flush` /
     /// `wait_for_flush_timeout` can block until logs are durably written.
@@ -74,7 +75,7 @@ struct SharedLoggerState {
 
     /// Map of context log files. ID -> Log file
     #[cfg(feature = "file")]
-    file_loggers: RwLock<FileLoggers>,
+    file_loggers: Mutex<FileLoggers>,
 
     /// Additional log sinks
     sinks: RwLock<Vec<Box<dyn LogCallback>>>,
@@ -117,7 +118,7 @@ impl LoggerConfig {
         let shared = Arc::new(SharedLoggerState {
             flush_semaphore: SemaphoreLite::new(),
             #[cfg(feature = "file")]
-            file_loggers: RwLock::new(file_loggers),
+            file_loggers: Mutex::new(file_loggers),
             sinks: RwLock::new(Vec::new()),
             config: self,
         });
@@ -193,12 +194,11 @@ impl Logger {
 
     /// Registers a new logging context. This is not on the hot path (called
     /// rarely, e.g. once per mod/module at startup), so blocking on the
-    /// `file_loggers` write lock is fine.
+    /// `file_loggers` lock is fine.
     pub fn add_context(&self, tag: &PaperStr) -> Result<()> {
         #[cfg(feature = "file")]
         {
-            let mut file_loggers = self.shared.file_loggers.write();
-            file_loggers.add_context(tag)?;
+            self.shared.file_loggers.lock().add_context(tag)?;
         }
 
         Ok(())
@@ -206,8 +206,7 @@ impl Logger {
     pub fn remove_context(&self, tag: &PaperStr) {
         #[cfg(feature = "file")]
         {
-            let mut file_loggers = self.shared.file_loggers.write();
-            file_loggers.remove_context(tag);
+            self.shared.file_loggers.lock().remove_context(tag);
         }
     }
 
@@ -302,13 +301,12 @@ impl LoggerThread {
             let logs_vec: Vec<_> =
                 logger_chunk::split_str_into_chunks(&queue, max_str_len).collect();
 
-            // Batch file writes under a single read lock (each file has its
-            // own internal `Mutex`) to reduce lock-acquisition overhead.
+            // Batch file writes under a single lock acquisition.
             #[cfg(feature = "file")]
             {
                 crate::logger::sinks::file_logger::do_log_batch(
                     &logs_vec,
-                    &self.shared.file_loggers.read(),
+                    &mut self.shared.file_loggers.lock(),
                 )?;
             }
 
@@ -352,14 +350,7 @@ impl LoggerThread {
         // flush file
         #[cfg(feature = "file")]
         {
-            // Only a read lock is needed: each file is independently
-            // synchronized via its own `Mutex`.
-            let file_loggers = self.shared.file_loggers.read();
-            file_loggers.get_global_file().lock().flush()?;
-            file_loggers
-                .get_context_map()
-                .values()
-                .try_for_each(|file| file.lock().flush())?;
+            self.shared.file_loggers.lock().flush()?;
         }
 
         // signal flush complete
@@ -386,7 +377,7 @@ pub fn do_log(log: &LogData, logger: &Logger) -> Result<()> {
     logcat_logger::do_log(chunk)?;
 
     #[cfg(feature = "file")]
-    file_logger::do_log(log, &logger.shared.file_loggers.read())?;
+    file_logger::do_log(log, &mut logger.shared.file_loggers.lock())?;
 
     #[cfg(feature = "stdout")]
     stdout_logger::do_log(chunk);
