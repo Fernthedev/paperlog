@@ -63,14 +63,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libclang-dev
           rustup target add aarch64-linux-android
-          cargo +stable install cargo-ndk --version 3.5.4 --locked
+          cargo +stable install cargo-ndk --locked
           echo "ANDROID_NDK_HOME=$(<ndkpath.txt)" >> "$GITHUB_ENV"
 
       - name: Build and package
-        run: |
-          qpm2 qpkg --qmod
-          unzip -tq paper2_scotland2.qpkg
-          unzip -tq paper2_scotland2.qmod
+        run: qpm2 qpkg --qmod
 
       - uses: actions/upload-artifact@v4
         with:

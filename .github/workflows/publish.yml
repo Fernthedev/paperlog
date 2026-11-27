@@ -55,5 +55,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libclang-dev
           rustup target add aarch64-linux-android
-          cargo +stable install cargo-ndk --version 3.5.4 --locked
+          cargo +stable install cargo-ndk --locked
           echo "ANDROID_NDK_HOME=$(<ndkpath.txt)" >> "$GITHUB_ENV"
