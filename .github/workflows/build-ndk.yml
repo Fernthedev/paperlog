@@ -21,8 +21,6 @@ jobs:
         run: cargo test --locked
 
       - uses: Fernthedev/qpm-action@v2
-        with:
-          resolve_ndk: false
 
       - name: Run C++ test
         working-directory: cpp
