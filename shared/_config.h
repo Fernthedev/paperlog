@@ -3,7 +3,7 @@
 #if __has_include("modloader/shared/modloader.hpp") && defined(ANDROID)
 #define PAPER_QUEST_MODLOADER
 #endif
-#if __has_include("scotland2/shared/modloader.h") && defined(ANDROID)
+#if __has_include("scotland2/modloader.h") && defined(ANDROID)
 #define PAPER_QUEST_SCOTLAND2
 #endif
 

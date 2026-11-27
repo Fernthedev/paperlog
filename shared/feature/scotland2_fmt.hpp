@@ -3,19 +3,21 @@
 
 #include <variant>
 #include <fmt/format.h>
+#include <fmt/std.h>
 
-#include "scotland2/shared/modloader.h"
-#include "scotland2/shared/loader.hpp"
+#include "scotland2/modloader.h"
+#include "scotland2/loader.hpp"
 
 template <> struct fmt::formatter<modloader::LoadedMod> : formatter<string_view> {
 
   // Formats the point p using the parsed format specification (presentation)
   // stored in this formatter.
   template <typename FormatContext>
-  auto format(modloader::LoadedMod const& p, FormatContext& ctx) -> decltype(ctx.out()) {
+  auto format(modloader::LoadedMod const& p, FormatContext& ctx) const -> decltype(ctx.out()) {
     // ctx.out() is an output iterator to write to.
 
-    return format_to(ctx.out(), "{}, {} handle {}", p.modInfo, p.phase, p.handle);
+    auto out = fmt::formatter<modloader::ModInfo>{}.format(p.modInfo, ctx);
+    return fmt::format_to(out, ", {} handle {}", p.phase, p.handle);
   }
 };
 template <> struct fmt::formatter<modloader::FailedMod> : formatter<string_view> {
@@ -23,10 +25,10 @@ template <> struct fmt::formatter<modloader::FailedMod> : formatter<string_view>
   // Formats the point p using the parsed format specification (presentation)
   // stored in this formatter.
   template <typename FormatContext>
-  auto format(modloader::FailedMod const& p, FormatContext& ctx) -> decltype(ctx.out()) {
+  auto format(modloader::FailedMod const& p, FormatContext& ctx) const -> decltype(ctx.out()) {
     // ctx.out() is an output iterator to write to.
 
-    return format_to(ctx.out(), "{} error {}", p.object.path.filename(), p.failure);
+    return fmt::format_to(ctx.out(), "{} error {}", p.object.path.filename(), p.failure);
   }
 };
 // template <> struct fmt::formatter<modloader::DependencyResult> : formatter<string_view> {

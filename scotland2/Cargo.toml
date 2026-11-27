@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 description = "Paper2 configured for Scotland2, a mod loader for Quest2. This vendors and configures paper2 for use in Scotland2."
 
-[dependencies]
+[target.'cfg(target_os = "android")'.dependencies]
 ctor = "0.5"
 mimalloc = "0.1"
 
-# statically embed paper2 and scotland2_rs, so that we vendor it
+# Statically embed Paper2 in the Scotland2 library.
 paper2 = { path = "../", features = ["logcat", "ffi"] }
-scotland2_rs = { git = "https://github.com/QuestPackageManager/scotland2_rs.git", tag = "v0.2.6" }
 
 [lib]
 crate-type = ["cdylib"]
 
 [build-dependencies]
+bindgen = { version = "0.71", default-features = false, features = ["runtime"] }
 cdylib-link-lines = "0.1"

@@ -70,11 +70,11 @@ template <typename Char, typename... TArgs> struct BasicFmtStrSrcLoc {
   }
 
   explicit(false) inline operator fmt::string_view() {
-    return parentType;
+    return parentType.get();
   }
 
   explicit(false) inline operator fmt::string_view const() const {
-    return parentType;
+    return parentType.get();
   }
 
   sl sourceLocation;

@@ -1,46 +1,25 @@
 name: Publish QPM Package
 
-permissions: write-all
-
-env:
-  qmodName: paper2_scotland2
-  CARGO_TERM_COLOR: always
-
 on:
-  # workflow_run:
-  #   workflows: ["build-ndk"]
-  #   types: [completed]
   push:
-    tags:
-      - "v*"
-
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (e.g. v1.2.3)"
+        description: Tag to publish (e.g. v1.2.3)
         required: true
         type: string
+
+permissions:
+  contents: write
 
 jobs:
   publish_qpm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        name: Checkout
         with:
           submodules: true
-          lfs: true
-
-      - uses: seanmiddleditch/gha-setup-ninja@v3
-
-      # - name: Create ndkpath.txt
-      #   run: |
-      #     echo "$ANDROID_NDK_LATEST_HOME" > ${GITHUB_WORKSPACE}/ndkpath.txt
-      #     cat ${GITHUB_WORKSPACE}/ndkpath.txt
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
 
       - uses: actions/cache@v6
         with:
@@ -52,71 +31,29 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-      - name: Install cargo ndk
-        continue-on-error: true
+      - name: Read manually selected version
+        if: github.event_name == 'workflow_dispatch'
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          cargo install cargo-ndk
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.+-]+)?$ ]]; then
+            echo "::error::Expected a version tag such as v4.8.0"
+            exit 1
+          fi
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Install Android toolchain
-        continue-on-error: true
-        run: |
-          rustup target add aarch64-linux-android
+      - uses: Fernthedev/qpm-action@v2
+        with:
+          publish: late
+          publish_token: ${{ secrets.QPM_TOKEN }}
+          tag: ${{ inputs.tag }}
+          version: ${{ steps.release.outputs.version }}
 
-      - name: Install LLVM and Clang
+      - name: Set up Rust for Android
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm llvm-dev libclang-dev clang
-          echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
-          echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
-
-      # - name: Run tests
-      #   run: cargo test --verbose
-
-      - name: Get Tag Version
-        id: get_tag_version
-        run: |
-          echo ${GITHUB_REF#refs/tags/}
-          echo ::set-output name=TAG::${GITHUB_REF#refs/tags/}
-          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-
-      - name: QPM Rust Action
-        uses: Fernthedev/qpm-action@v1
-        with:
-          #required
-          # package_path: './scotland2'
-          workflow_token: ${{secrets.GITHUB_TOKEN}}
-
-          restore: true # will run restore on download
-          cache: true #will cache dependencies
-
-          resolve_ndk: true
-
-          publish: "late"
-          publish_token: ${{secrets.QPM_TOKEN}}
-
-          version: ${{ steps.get_tag_version.outputs.VERSION }}
-          tag: ${{ steps.get_tag_version.outputs.TAG }}
-
-          # set to true if applicable, ASSUMES the file is already a release asset
-          qpm_release_bin: true
-          qpm_debug_bin: false
-
-          # Name of qmod in release asset. Assumes exists, same as prior
-          qpm_qmod: ${{env.qmodName}}.qmod
-
-      - name: Build
-        run: qpm s build -- --verbose
-
-      - name: Make qmod paperlog
-        run: |
-          qpm qmod zip
-
-      - name: Upload to Release
-        id: upload_file_release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./${{env.qmodName}}.qmod
-            ./build/arm64-v8a/libpaper2_scotland2.so
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          sudo apt-get install -y libclang-dev
+          rustup target add aarch64-linux-android
+          cargo +stable install cargo-ndk --locked
+          echo "ANDROID_NDK_HOME=$(<ndkpath.txt)" >> "$GITHUB_ENV"
