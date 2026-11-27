@@ -1,3 +1,5 @@
+#![cfg(target_os = "android")]
+
 use ctor::ctor;
 use paper2::types::config::LoggerConfig;
 use std::backtrace::Backtrace;
@@ -5,6 +7,10 @@ use std::panic::PanicHookInfo;
 use std::{ffi::CStr, path::PathBuf};
 
 use mimalloc::MiMalloc;
+
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/scotland2.rs"));
+}
 
 // using mimalloc for android
 #[global_allocator]
@@ -24,8 +30,7 @@ fn dlopen_initialize() {
     log_info(String::from("DLOpen initializing"));
     std::panic::set_hook(panic_hook(true));
 
-    let id = unsafe { CStr::from_ptr(scotland2_rs::scotland2_raw::modloader_get_application_id()) }
-        .to_string_lossy();
+    let id = unsafe { CStr::from_ptr(bindings::modloader_get_application_id()) }.to_string_lossy();
     let path = PathBuf::from(format!("/sdcard/ModData/{id}/logs2",));
     let config = LoggerConfig {
         context_log_path: path.clone(),

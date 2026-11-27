@@ -1,40 +1,90 @@
 {
   "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.shared.schema.json",
   "config": {
-    "id": "paper",
-    "version": "2.0.0",
-    "dependenciesDirectory": "extern",
-    "sharedDirectory": "shared",
-    "workspace": {
-      "scripts": {},
-      "qmodIncludeDirs": [],
-      "qmodIncludeFiles": []
-    },
+    "configVersion": "2.0.0",
+    "id": "paper2_scotland2",
+    "version": "4.8.0",
     "additionalData": {
-      "description": "",
-      "author": "",
-      "license": ""
+      "description": "Paperlog bootstrapper for the Scotland2 modloader",
+      "author": "Fernthedev",
+      "license": "MIT",
+      "url": "https://github.com/Fernthedev/paperlog"
     },
-    "triplets": {
-      "default": {
-        "dependencies": {
-          "paper": {
-            "versionRange": "^2.0.0",
-            "qmodExport": false
-          }
-        },
-        "devDependencies": {},
-        "env": {}
+    "workspace": {
+      "scripts": {
+        "build": [
+          "cargo ndk --manifest-path ./scotland2/Cargo.toml -t arm64-v8a -o build build --release --locked --config ./scotland2/.cargo/config.toml $0?",
+          "pwsh -NoProfile -File ./scripts/stage-package.ps1"
+        ],
+        "copy": [
+          "qpm2 s debug",
+          "adb push ./build/arm64-v8a/libpaper2_scotland2.so /sdcard/ModData/com.beatgames.beatsaber/Modloader/libs/libpaper2_scotland2.so",
+          "adb shell am force-stop com.beatgames.beatsaber",
+          "adb shell am start com.beatgames.beatsaber/com.unity3d.player.UnityPlayerActivity",
+          "adb logcat -c",
+          "adb logcat"
+        ],
+        "debug": [
+          "cargo ndk --manifest-path ./scotland2/Cargo.toml -t arm64-v8a -o build build --locked --config ./scotland2/.cargo/config.toml $0?"
+        ],
+        "format": [
+          "pwsh ./scripts/format.ps1"
+        ],
+        "qmod": [
+          "qpm2 qmod zip $0?"
+        ]
+      },
+      "ndk": "^29.0.14206865",
+      "outBinaries": [
+        "build/arm64-v8a/libpaper2_scotland2.so"
+      ],
+      "toolchainOut": "toolchain.json",
+      "cmake": false
+    },
+    "qmod": {
+      "output": "paper2_scotland2.qmod",
+      "template": "mod.template.json",
+      "searchDirs": [
+        "./build/arm64-v8a"
+      ],
+      "includeFiles": [],
+      "id": "paper2_scotland2"
+    },
+    "dependencies": {
+      "fmt": {
+        "versionRange": "^12.2.1",
+        "qmod": "none"
       }
     },
-    "configVersion": "2.0.0",
-    "toolchainOut": "toolchain.json"
-  },
-  "restoredTriplet": "default",
-  "lockedTriplet": {
-    "default": {
-      "restoredDependencies": {},
-      "env": {}
+    "devDependencies": {
+      "scotland2": {
+        "versionRange": "^0.1.8",
+        "qmod": "none"
+      }
+    },
+    "dependenciesDirectory": "extern",
+    "sharedDirectory": "build/qpm2-export",
+    "compileOptions": {
+      "systemIncludes": [
+        "shared/utfcpp/source"
+      ]
     }
-  }
+  },
+  "restoredDependencies": {
+    "scotland2": {
+      "restoredVersion": "0.1.8",
+      "qpkgChecksum": "2a766c43fe8f0210a76a50f49f3214ec5f248fa71f111a1a509e1f6024b99331",
+      "restoredBinaries": [
+        "libsl2.so"
+      ],
+      "restoredEnv": {}
+    },
+    "fmt": {
+      "restoredVersion": "12.2.1",
+      "qpkgChecksum": "918012cba1ed2c388ffab91a7bf66e101d0afea8581f0aad9d971097f4217e7d",
+      "restoredBinaries": [],
+      "restoredEnv": {}
+    }
+  },
+  "env": {}
 }

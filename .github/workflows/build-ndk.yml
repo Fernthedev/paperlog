@@ -1,137 +1,63 @@
 name: NDK build
 
-env:
-  qmodName: paper2_scotland2
-  CARGO_TERM_COLOR: always
-
 on:
   push:
   pull_request:
     branches: [master]
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-        name: Checkout
         with:
           submodules: true
-          lfs: true
 
-      - uses: actions-rs/toolchain@v1
+      - name: Run Rust tests
+        run: cargo test --locked
+
+      - uses: Fernthedev/qpm-action@v2
         with:
-          toolchain: stable
+          resolve_ndk: false
 
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-
-      - name: Build
-        run: cargo build --verbose
-
-      - name: Run tests
-        run: cargo test --verbose
-
-      - name: QPM Action
-        uses: Fernthedev/qpm-action@v1
-        with:
-          #required
-          workflow_token: ${{secrets.GITHUB_TOKEN}}
-
-          restore: true # will run restore on download
-          cache: true #will cache dependencies
-
-      - name: Run C++ Test
+      - name: Run C++ test
+        working-directory: cpp
         run: |
-          cd cpp
           ./test.sh
-          export LD_LIBRARY_PATH="../target/debug:$LD_LIBRARY_PATH"
-          timeout 300 ./test
+          LD_LIBRARY_PATH="../target/debug:${LD_LIBRARY_PATH:-}" timeout 300 ./test
 
   build_android:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v7
-        name: Checkout
         with:
           submodules: true
-          lfs: true
 
-      - uses: seanmiddleditch/gha-setup-ninja@v3
+      - uses: Fernthedev/qpm-action@v2
 
-      # - name: Create ndkpath.txt
-      #   run: |
-      #     echo "$ANDROID_NDK_LATEST_HOME" > ${GITHUB_WORKSPACE}/ndkpath.txt
-      #     cat ${GITHUB_WORKSPACE}/ndkpath.txt
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-
-      - name: Install cargo ndk
-        continue-on-error: true
-        run: |
-          cargo install cargo-ndk
-
-      - name: Install Android toolchain
-        continue-on-error: true
-        run: |
-          rustup target add aarch64-linux-android
-
-      - name: Install LLVM and Clang
+      - name: Set up Rust for Android
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm llvm-dev libclang-dev clang
-          echo "LLVM_SYS_PREFIX=/usr/lib/llvm" >> $GITHUB_ENV
-          echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
+          sudo apt-get install -y libclang-dev
+          rustup target add aarch64-linux-android
+          cargo +stable install cargo-ndk --version 3.5.4 --locked
+          echo "ANDROID_NDK_HOME=$(<ndkpath.txt)" >> "$GITHUB_ENV"
 
-      # - name: Run tests
-      #   run: cargo test --verbose
-
-      - name: QPM Action
-        uses: Fernthedev/qpm-action@v1
-        with:
-          # package_path: './scotland2'
-          #required
-          workflow_token: ${{secrets.GITHUB_TOKEN}}
-
-          restore: true # will run restore on download
-          cache: true #will cache dependencies
-          resolve_ndk: true
-
-          # Name of qmod in release asset. Assumes exists, same as prior
-          qpm_qmod: ${{env.qmodName}}.qmod
-
-      - name: Build
-        run: qpm s build -- --verbose
-
-      - name: Make qmod paperlog
+      - name: Build and package
         run: |
-          qpm qmod zip
+          qpm2 qpkg --qmod
+          unzip -tq paper2_scotland2.qpkg
+          unzip -tq paper2_scotland2.qmod
 
-      - name: Upload Scotland2 artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{env.qmodName}}.qmod
-          path: ${{env.qmodName}}.qmod
+          name: paper2-scotland2-packages
+          path: |
+            paper2_scotland2.qpkg
+            paper2_scotland2.qmod
           if-no-files-found: error
