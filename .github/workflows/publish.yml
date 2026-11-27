@@ -21,6 +21,16 @@ jobs:
         with:
           submodules: true
 
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
       - name: Read manually selected version
         if: github.event_name == 'workflow_dispatch'
         id: release
